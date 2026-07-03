@@ -1,0 +1,1 @@
+-- StudyFlow database schema will be added in the database task.
