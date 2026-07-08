@@ -109,6 +109,12 @@ function ProjectDetailPage() {
               render: (deadline) => deadline || '未设置',
             },
             {
+              title: '预计时长',
+              dataIndex: 'estimatedMinutes',
+              render: (estimatedMinutes) =>
+                estimatedMinutes == null ? '未设置' : `${estimatedMinutes} 分钟`,
+            },
+            {
               title: '操作',
               render: () => (
                 <Space>

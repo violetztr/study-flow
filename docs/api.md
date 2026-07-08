@@ -178,9 +178,14 @@ POST /api/tasks
   "status": "IN_PROGRESS",
   "priority": "HIGH",
   "deadline": "2027-01-01T00:00:00",
+  "estimatedMinutes": 90,
   "tagIds": [1, 2]
 }
 ```
+
+说明：
+
+- `estimatedMinutes`：预计学习时长，单位分钟，可以为空；填写时必须是大于等于 0 的整数。
 
 ### 修改任务
 

@@ -2,6 +2,7 @@ package com.studyflow.task.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,8 @@ public record TaskRequest(
         String status,
         String priority,
         LocalDateTime deadline,
+        @PositiveOrZero(message = "预计学习时长不能小于 0")
+        Integer estimatedMinutes,
         List<Long> tagIds
 ) {
 }

@@ -17,6 +17,7 @@ public class Task {
     private String status;
     private String priority;
     private LocalDateTime deadline;
+    private Integer estimatedMinutes;
     private LocalDateTime completedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -83,6 +84,14 @@ public class Task {
 
     public void setDeadline(LocalDateTime deadline) {
         this.deadline = deadline;
+    }
+
+    public Integer getEstimatedMinutes() {
+        return estimatedMinutes;
+    }
+
+    public void setEstimatedMinutes(Integer estimatedMinutes) {
+        this.estimatedMinutes = estimatedMinutes;
     }
 
     public LocalDateTime getCompletedAt() {

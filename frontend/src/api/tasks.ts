@@ -10,6 +10,7 @@ export type TaskRequest = {
   status?: TaskStatus
   priority?: TaskPriority
   deadline?: string | null
+  estimatedMinutes?: number | null
   tagIds?: number[]
 }
 
@@ -21,6 +22,7 @@ export type TaskResponse = {
   status: TaskStatus
   priority: TaskPriority
   deadline?: string | null
+  estimatedMinutes?: number | null
   completedAt?: string | null
   tagIds: number[]
 }

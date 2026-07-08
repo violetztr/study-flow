@@ -62,6 +62,7 @@ StudyFlow 第一版使用 5 张核心表：
 | status | VARCHAR(30) | 任务状态，默认 `PENDING` |
 | priority | VARCHAR(30) | 任务优先级，默认 `MEDIUM` |
 | deadline | DATETIME | 截止时间 |
+| estimated_minutes | INT | 预计学习时长，单位分钟，可为空 |
 | completed_at | DATETIME | 完成时间 |
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |

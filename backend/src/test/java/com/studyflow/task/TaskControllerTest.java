@@ -41,6 +41,7 @@ class TaskControllerTest {
                                   "description": "完成任务新增接口",
                                   "status": "IN_PROGRESS",
                                   "priority": "HIGH",
+                                  "estimatedMinutes": 90,
                                   "tagIds": [%d]
                                 }
                                 """.formatted(projectId, tagId)))
@@ -50,7 +51,32 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.data.title").value("实现任务接口"))
                 .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
                 .andExpect(jsonPath("$.data.priority").value("HIGH"))
+                .andExpect(jsonPath("$.data.estimatedMinutes").value(90))
                 .andExpect(jsonPath("$.data.tagIds[0]").value(tagId));
+    }
+
+    @Test
+    void createTaskRejectsNegativeEstimatedMinutes() throws Exception {
+        String token = registerAndLogin("task_user_duration", "task_user_duration@example.com");
+        Long projectId = createProject(token, "时长校验项目");
+
+        mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "projectId": %d,
+                                  "title": "错误时长任务",
+                                  "description": "预计学习时长不能为负数",
+                                  "status": "PENDING",
+                                  "priority": "MEDIUM",
+                                  "estimatedMinutes": -1,
+                                  "tagIds": []
+                                }
+                                """.formatted(projectId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("estimatedMinutes: 预计学习时长不能小于 0"));
     }
 
     @Test

@@ -47,6 +47,7 @@ public class TaskService {
         task.setStatus(normalizeStatus(request.status()));
         task.setPriority(normalizePriority(request.priority()));
         task.setDeadline(request.deadline());
+        task.setEstimatedMinutes(request.estimatedMinutes());
         task.setCompletedAt(completedAtForStatus(task.getStatus()));
         taskMapper.insert(task);
         replaceTaskTags(task.getId(), tagIds);
@@ -82,6 +83,7 @@ public class TaskService {
         task.setStatus(normalizeStatus(request.status()));
         task.setPriority(normalizePriority(request.priority()));
         task.setDeadline(request.deadline());
+        task.setEstimatedMinutes(request.estimatedMinutes());
         task.setCompletedAt(completedAtForStatus(task.getStatus()));
         taskMapper.updateById(task);
         replaceTaskTags(task.getId(), tagIds);

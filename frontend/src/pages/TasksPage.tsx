@@ -9,6 +9,7 @@ import {
   DatePicker,
   Form,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Select,
@@ -67,6 +68,7 @@ function normalizeTaskRequest(values: TaskFormValues): TaskRequest {
     status: values.status ?? 'PENDING',
     priority: values.priority ?? 'MEDIUM',
     deadline: values.deadline ? values.deadline.format('YYYY-MM-DDTHH:mm:ss') : null,
+    estimatedMinutes: values.estimatedMinutes ?? null,
     tagIds: values.tagIds ?? [],
   }
 }
@@ -138,6 +140,7 @@ function TasksPage() {
       status: 'PENDING',
       priority: 'MEDIUM',
       deadline: null,
+      estimatedMinutes: null,
       tagIds: [],
     })
     setTaskModalOpen(true)
@@ -283,6 +286,12 @@ function TasksPage() {
               render: (deadline) => deadline || '未设置',
             },
             {
+              title: '预计时长',
+              dataIndex: 'estimatedMinutes',
+              render: (estimatedMinutes) =>
+                estimatedMinutes == null ? '未设置' : `${estimatedMinutes} 分钟`,
+            },
+            {
               title: '标签',
               dataIndex: 'tagIds',
               render: renderTags,
@@ -368,6 +377,15 @@ function TasksPage() {
               <DatePicker showTime style={{ width: '100%' }} />
             </Form.Item>
           </div>
+
+          <Form.Item label="预计学习时长（分钟）" name="estimatedMinutes">
+            <InputNumber
+              min={0}
+              precision={0}
+              placeholder="例如 90"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
 
           <Form.Item label="标签" name="tagIds">
             <Select

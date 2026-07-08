@@ -13,6 +13,7 @@ public record TaskResponse(
         String status,
         String priority,
         LocalDateTime deadline,
+        Integer estimatedMinutes,
         LocalDateTime completedAt,
         List<Long> tagIds
 ) {
@@ -25,6 +26,7 @@ public record TaskResponse(
                 task.getStatus(),
                 task.getPriority(),
                 task.getDeadline(),
+                task.getEstimatedMinutes(),
                 task.getCompletedAt(),
                 tagIds
         );
