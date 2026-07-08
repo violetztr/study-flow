@@ -31,11 +31,11 @@ class StatisticsControllerTest {
         Long projectId = createProject(token, "统计项目");
         Long otherProjectId = createProject(otherToken, "其他用户项目");
 
-        createTask(token, projectId, "待开始任务", "PENDING", "2027-01-01T00:00:00");
-        createTask(token, projectId, "进行中任务", "IN_PROGRESS", "2027-01-01T00:00:00");
-        createTask(token, projectId, "已完成任务", "DONE", "2020-01-01T00:00:00");
-        createTask(token, projectId, "逾期任务", "PENDING", "2020-01-01T00:00:00");
-        createTask(otherToken, otherProjectId, "其他用户任务", "DONE", "2020-01-01T00:00:00");
+        createTask(token, projectId, "待开始任务", "PENDING", "2027-01-01T00:00:00", 30);
+        createTask(token, projectId, "进行中任务", "IN_PROGRESS", "2027-01-01T00:00:00", 60);
+        createTask(token, projectId, "已完成任务", "DONE", "2020-01-01T00:00:00", 120);
+        createTask(token, projectId, "逾期任务", "PENDING", "2020-01-01T00:00:00", null);
+        createTask(otherToken, otherProjectId, "其他用户任务", "DONE", "2020-01-01T00:00:00", 999);
 
         mockMvc.perform(get("/api/statistics/overview")
                         .header("Authorization", "Bearer " + token))
@@ -44,7 +44,9 @@ class StatisticsControllerTest {
                 .andExpect(jsonPath("$.data.totalTasks").value(4))
                 .andExpect(jsonPath("$.data.completedTasks").value(1))
                 .andExpect(jsonPath("$.data.inProgressTasks").value(1))
-                .andExpect(jsonPath("$.data.overdueTasks").value(1));
+                .andExpect(jsonPath("$.data.overdueTasks").value(1))
+                .andExpect(jsonPath("$.data.totalEstimatedMinutes").value(210))
+                .andExpect(jsonPath("$.data.completedEstimatedMinutes").value(120));
     }
 
     private String registerAndLogin(String username, String email) throws Exception {
@@ -93,7 +95,7 @@ class StatisticsControllerTest {
         return extractId(result);
     }
 
-    private void createTask(String token, Long projectId, String title, String status, String deadline) throws Exception {
+    private void createTask(String token, Long projectId, String title, String status, String deadline, Integer estimatedMinutes) throws Exception {
         mockMvc.perform(post("/api/tasks")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,9 +107,10 @@ class StatisticsControllerTest {
                                   "status": "%s",
                                   "priority": "MEDIUM",
                                   "deadline": "%s",
+                                  "estimatedMinutes": %s,
                                   "tagIds": []
                                 }
-                                """.formatted(projectId, title, status, deadline)))
+                                """.formatted(projectId, title, status, deadline, estimatedMinutes)))
                 .andExpect(status().isOk());
     }
 

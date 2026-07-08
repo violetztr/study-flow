@@ -5,6 +5,8 @@ export type StatisticsOverview = {
   completedTasks: number
   inProgressTasks: number
   overdueTasks: number
+  totalEstimatedMinutes: number
+  completedEstimatedMinutes: number
 }
 
 export function getStatisticsOverview() {

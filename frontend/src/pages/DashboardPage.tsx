@@ -100,6 +100,30 @@ function DashboardPage() {
               />
             )}
           </Card>
+          <Card className="stat-card">
+            {statisticsQuery.isLoading ? (
+              <Skeleton active paragraph={false} />
+            ) : (
+              <Statistic
+                title="预计总时长"
+                value={overview?.totalEstimatedMinutes ?? 0}
+                suffix="分钟"
+                prefix={<ClockCircleOutlined />}
+              />
+            )}
+          </Card>
+          <Card className="stat-card">
+            {statisticsQuery.isLoading ? (
+              <Skeleton active paragraph={false} />
+            ) : (
+              <Statistic
+                title="已完成时长"
+                value={overview?.completedEstimatedMinutes ?? 0}
+                suffix="分钟"
+                prefix={<CheckCircleOutlined />}
+              />
+            )}
+          </Card>
         </div>
 
         <div className="quick-grid">

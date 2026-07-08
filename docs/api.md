@@ -249,9 +249,16 @@ GET /api/statistics/overview
   "totalTasks": 4,
   "completedTasks": 1,
   "inProgressTasks": 1,
-  "overdueTasks": 1
+  "overdueTasks": 1,
+  "totalEstimatedMinutes": 210,
+  "completedEstimatedMinutes": 120
 }
 ```
+
+字段说明：
+
+- `totalEstimatedMinutes`：当前用户所有任务的预计学习总时长，单位分钟；未设置预计时长的任务按 0 计算。
+- `completedEstimatedMinutes`：当前用户已完成任务的预计学习时长合计，单位分钟。
 
 ## 常见错误
 
