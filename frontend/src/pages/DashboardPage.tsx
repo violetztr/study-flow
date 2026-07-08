@@ -3,28 +3,15 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   FolderOpenOutlined,
-  LogoutOutlined,
   ProjectOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, Card, Skeleton, Space, Statistic, Tag } from 'antd'
+import { Alert, Card, Skeleton, Space, Statistic, Tag } from 'antd'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
-import { clearSession, getCurrentUser, getStoredUser } from '../api/auth'
-import { http } from '../api/http'
-
-type StatisticsOverview = {
-  totalTasks: number
-  completedTasks: number
-  inProgressTasks: number
-  overdueTasks: number
-}
-
-function getStatisticsOverview() {
-  return http.get<unknown, StatisticsOverview>('/statistics/overview')
-}
+import { Link } from 'react-router-dom'
+import { getCurrentUser, getStoredUser } from '../api/auth'
+import { getStatisticsOverview } from '../api/statistics'
 
 function DashboardPage() {
-  const navigate = useNavigate()
   const storedUser = getStoredUser()
 
   const userQuery = useQuery({
@@ -40,13 +27,8 @@ function DashboardPage() {
   const user = userQuery.data ?? storedUser
   const overview = statisticsQuery.data
 
-  function handleLogout() {
-    clearSession()
-    navigate('/login', { replace: true })
-  }
-
   return (
-    <main className="dashboard-shell">
+    <section className="page-section">
       <section className="dashboard-header">
         <div>
           <p className="dashboard-kicker">StudyFlow cockpit</p>
@@ -60,9 +42,6 @@ function DashboardPage() {
         </div>
         <div className="dashboard-actions">
           {user?.email ? <Tag color="green">{user.email}</Tag> : null}
-          <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-            退出登录
-          </Button>
         </div>
       </section>
 
@@ -147,7 +126,7 @@ function DashboardPage() {
           </Card>
         </div>
       </section>
-    </main>
+    </section>
   )
 }
 
