@@ -4,6 +4,12 @@ StudyFlow 后端使用 Knife4j / Swagger 自动生成接口文档。
 
 ## 文档访问地址
 
+线上部署后，浏览器访问：
+
+```text
+https://www.violet-surf.com/doc.html
+```
+
 后端本地启动后，浏览器访问：
 
 ```text
