@@ -4,7 +4,9 @@ import {
   CheckSquareOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
+  GlobalOutlined,
   LogoutOutlined,
+  RocketOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import { Button, Layout, Menu, Space, Typography } from 'antd'
@@ -14,6 +16,7 @@ import { clearSession, getStoredUser } from '../api/auth'
 
 const selectableMenuKeys = [
   '/dashboard',
+  '/project-hub',
   '/projects',
   '/tasks',
   '/notes',
@@ -23,6 +26,15 @@ const selectableMenuKeys = [
 
 const menuItems: MenuProps['items'] = [
   { key: '/dashboard', icon: <BarChartOutlined />, label: <Link to="/dashboard">驾驶舱</Link> },
+  {
+    key: 'devflow',
+    type: 'group',
+    label: '研发中台',
+    children: [
+      { key: '/project-hub', icon: <RocketOutlined />, label: <Link to="/project-hub">项目中台</Link> },
+      { key: '/portfolio-public', icon: <GlobalOutlined />, label: <Link to="/portfolio">公开作品集</Link> },
+    ],
+  },
   {
     key: 'study',
     type: 'group',
@@ -79,10 +91,10 @@ function AppLayout() {
     <Layout className="app-layout">
       <Layout.Sider className="app-sider" width={248} breakpoint="lg" collapsedWidth={0}>
         <Link className="app-logo" to="/dashboard">
-          <span className="brand-mark">S</span>
+          <span className="brand-mark">D</span>
           <span>
-            <strong>StudyFlow</strong>
-            <small>全栈学习驾驶舱</small>
+            <strong>DevFlow Studio</strong>
+            <small>个人全栈研发中台</small>
           </span>
         </Link>
         <Menu

@@ -511,6 +511,153 @@ textarea {
   margin-top: 18px;
 }
 
+.project-hub-hero {
+  align-items: center;
+}
+
+.project-hub-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.project-selector-card {
+  position: sticky;
+  top: 98px;
+  align-self: start;
+}
+
+.project-selector-title {
+  margin: 6px 0 6px;
+  color: var(--sf-primary-dark);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.project-hub-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.stack-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.stack-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 160px 96px auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid rgba(38, 53, 47, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 252, 246, 0.72);
+}
+
+.github-summary {
+  margin-top: 18px;
+}
+
+.public-page {
+  min-height: 100vh;
+  padding: 36px;
+  background:
+    radial-gradient(circle at 12% 16%, rgba(214, 154, 45, 0.22), transparent 28%),
+    radial-gradient(circle at 84% 18%, rgba(37, 111, 98, 0.16), transparent 30%),
+    linear-gradient(135deg, #fbf4e8 0%, #e8ddcb 46%, #dfe8df 100%);
+}
+
+.public-hero,
+.public-detail-hero {
+  max-width: 1180px;
+  margin: 0 auto 24px;
+  padding: 34px;
+  border: 1px solid var(--sf-border);
+  border-radius: 34px;
+  background: rgba(255, 252, 246, 0.7);
+  box-shadow: var(--sf-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.public-hero h1,
+.public-detail-hero h1 {
+  max-width: 900px;
+  margin: 0;
+  color: var(--sf-primary-dark);
+  font-size: clamp(42px, 8vw, 82px);
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: -0.07em;
+}
+
+.public-hero p:last-child,
+.public-detail-hero p {
+  max-width: 760px;
+  color: var(--sf-muted);
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.public-grid,
+.public-detail-grid {
+  display: grid;
+  max-width: 1180px;
+  gap: 18px;
+  margin: 0 auto;
+}
+
+.public-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.public-detail-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+}
+
+.public-detail-grid .workspace-card:first-child {
+  grid-row: span 2;
+}
+
+.public-project-card {
+  border: 1px solid var(--sf-border);
+  border-radius: 28px;
+  background: rgba(255, 252, 246, 0.82);
+  box-shadow: 0 18px 60px rgba(42, 48, 38, 0.12);
+}
+
+.public-card-top {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.public-project-card h2 {
+  margin: 18px 0 10px;
+  color: var(--sf-primary-dark);
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.public-project-card p,
+.public-copy {
+  color: var(--sf-muted);
+  line-height: 1.8;
+}
+
+.tech-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.tech-badges.large {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .auth-page {
     grid-template-columns: 1fr;
@@ -570,9 +717,18 @@ textarea {
   .quick-grid,
   .form-grid,
   .workspace-grid,
+  .project-hub-shell,
+  .project-hub-grid,
+  .public-grid,
+  .public-detail-grid,
   .daily-grid,
-  .note-block-row {
+  .note-block-row,
+  .stack-row {
     grid-template-columns: 1fr;
+  }
+
+  .project-selector-card {
+    position: static;
   }
 
   .block-type-select {

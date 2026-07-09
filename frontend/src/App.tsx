@@ -5,6 +5,9 @@ import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
+import ProjectHubPage from './pages/ProjectHubPage'
+import PublicPortfolioPage from './pages/PublicPortfolioPage'
+import PublicProjectDetailPage from './pages/PublicProjectDetailPage'
 import TasksPage from './pages/TasksPage'
 import NotesPage from './pages/NotesPage'
 import DailyPage from './pages/DailyPage'
@@ -17,9 +20,12 @@ function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/portfolio" element={<PublicPortfolioPage />} />
+      <Route path="/portfolio/:slug" element={<PublicProjectDetailPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/project-hub" element={<ProjectHubPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/tasks" element={<TasksPage />} />

@@ -601,7 +601,7 @@ Expected: PASS.
 - Modify: `frontend/src/layouts/AppLayout.tsx`
 - Modify: `frontend/src/App.tsx`
 
-- [ ] **Step 1: Add frontend API types**
+- [x] **Step 1: Add frontend API types**
 
 Create functions:
 
@@ -616,7 +616,7 @@ export function listPublicPortfolioProjects()
 export function getPublicPortfolioProject(slug: string)
 ```
 
-- [ ] **Step 2: Add routes**
+- [x] **Step 2: Add routes**
 
 Modify `App.tsx`:
 
@@ -628,7 +628,7 @@ Modify `App.tsx`:
 
 Keep existing `/projects`, `/notes`, `/daily`, `/tasks`.
 
-- [ ] **Step 3: Rebrand app shell**
+- [x] **Step 3: Rebrand app shell**
 
 Modify `AppLayout.tsx` brand:
 
@@ -645,7 +645,7 @@ Add menu group:
   公开作品集
 ```
 
-- [ ] **Step 4: Build frontend**
+- [x] **Step 4: Build frontend**
 
 Run:
 
@@ -667,7 +667,7 @@ Expected: build succeeds.
 - Create: `frontend/src/components/project-hub/PortfolioSettingsCard.tsx`
 - Modify: `frontend/src/index.css`
 
-- [ ] **Step 1: Build Project Hub layout**
+- [x] **Step 1: Build Project Hub layout**
 
 Layout:
 
@@ -679,7 +679,7 @@ Right middle: tech stack editor + GitHub panel
 Right bottom: portfolio settings
 ```
 
-- [ ] **Step 2: Profile form fields**
+- [x] **Step 2: Profile form fields**
 
 Fields:
 
@@ -693,7 +693,7 @@ interviewHighlights
 coverImageUrl
 ```
 
-- [ ] **Step 3: Tech stack editor**
+- [x] **Step 3: Tech stack editor**
 
 Support adding/removing stack rows:
 
@@ -703,7 +703,7 @@ category: FRONTEND / BACKEND / DATABASE / DEPLOYMENT / TOOLING / OTHER
 sortOrder
 ```
 
-- [ ] **Step 4: GitHub panel**
+- [x] **Step 4: GitHub panel**
 
 Fields:
 
@@ -730,7 +730,7 @@ readmePresent
 lastSyncedAt
 ```
 
-- [ ] **Step 5: Portfolio settings**
+- [x] **Step 5: Portfolio settings**
 
 Fields:
 
@@ -742,7 +742,7 @@ displayOrder
 publicSummary
 ```
 
-- [ ] **Step 6: Build frontend**
+- [x] **Step 6: Build frontend**
 
 Run:
 
@@ -761,7 +761,7 @@ Expected: build succeeds.
 - Create: `frontend/src/pages/PublicProjectDetailPage.tsx`
 - Modify: `frontend/src/index.css`
 
-- [ ] **Step 1: Build public portfolio list page**
+- [x] **Step 1: Build public portfolio list page**
 
 Route:
 
@@ -780,7 +780,7 @@ Production URL
 Featured marker
 ```
 
-- [ ] **Step 2: Build public project detail page**
+- [x] **Step 2: Build public project detail page**
 
 Route:
 
@@ -803,7 +803,7 @@ API docs URL
 database docs URL
 ```
 
-- [ ] **Step 3: Build frontend**
+- [x] **Step 3: Build frontend**
 
 Run:
 
