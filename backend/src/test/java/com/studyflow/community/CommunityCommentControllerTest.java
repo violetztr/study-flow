@@ -2,7 +2,9 @@ package com.studyflow.community;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyflow.common.BusinessException;
 import com.studyflow.community.post.CommunityPostMapper;
+import com.studyflow.community.post.CommunityPostService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -12,6 +14,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.LocalDateTime;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -32,6 +38,9 @@ class CommunityCommentControllerTest {
 
     @Autowired
     private CommunityPostMapper communityPostMapper;
+
+    @Autowired
+    private CommunityPostService communityPostService;
 
     @Test
     void addCommentIncrementsPostCommentCount() throws Exception {
@@ -174,6 +183,23 @@ class CommunityCommentControllerTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.commentCount").value(0));
+
+        assertThat(communityPostMapper.selectById(postId).getCommentCount()).isZero();
+    }
+
+    @Test
+    void incrementCommentCountOnDeletedPostFailsAndKeepsCount() throws Exception {
+        String token = registerAndLogin("comment_increment_deleted_post_alice", "comment_increment_deleted_post_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Deleted post increment", "Count increment should require published post.");
+
+        mockMvc.perform(delete("/api/community/posts/{postId}", postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        assertThatThrownBy(() -> communityPostService.incrementCommentCount(postId, LocalDateTime.now()))
+                .isInstanceOf(BusinessException.class);
+        assertThat(communityPostMapper.selectById(postId).getCommentCount()).isZero();
     }
 
     private String registerAndLogin(String username, String email) throws Exception {

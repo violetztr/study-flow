@@ -83,11 +83,15 @@ public class CommunityPostService {
     }
 
     public void incrementCommentCount(Long postId, LocalDateTime now) {
-        communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+        int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, postId)
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
                 .setSql("comment_count = comment_count + 1")
                 .set(CommunityPost::getLastActivityAt, now)
                 .set(CommunityPost::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(404, "帖子不存在");
+        }
     }
 
     public void decrementCommentCount(Long postId, LocalDateTime now) {

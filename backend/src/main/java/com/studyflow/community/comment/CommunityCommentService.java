@@ -1,6 +1,7 @@
 package com.studyflow.community.comment;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
 import com.studyflow.community.comment.dto.CommunityCommentRequest;
@@ -96,10 +97,15 @@ public class CommunityCommentService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        comment.setStatus(STATUS_DELETED);
-        comment.setDeletedAt(now);
-        comment.setUpdatedAt(now);
-        communityCommentMapper.updateById(comment);
+        int updated = communityCommentMapper.update(null, new LambdaUpdateWrapper<CommunityComment>()
+                .eq(CommunityComment::getId, comment.getId())
+                .eq(CommunityComment::getStatus, STATUS_PUBLISHED)
+                .set(CommunityComment::getStatus, STATUS_DELETED)
+                .set(CommunityComment::getDeletedAt, now)
+                .set(CommunityComment::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(404, "评论不存在");
+        }
         communityPostService.decrementCommentCount(comment.getPostId(), now);
     }
 
