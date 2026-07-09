@@ -521,7 +521,7 @@ Expected: PASS.
 - Create portfolio files listed in File Structure.
 - Modify: `backend/src/main/java/com/studyflow/security/SecurityConfig.java`
 
-- [ ] **Step 1: Write failing test for public portfolio list**
+- [x] **Step 1: Write failing test for public portfolio list**
 
 Add:
 
@@ -542,7 +542,7 @@ void publicPortfolioReturnsVisibleProjectsWithoutLogin() throws Exception {
 }
 ```
 
-- [ ] **Step 2: Write failing test for public project detail**
+- [x] **Step 2: Write failing test for public project detail**
 
 Add:
 
@@ -561,7 +561,7 @@ void publicPortfolioDetailReturnsProjectBySlug() throws Exception {
 }
 ```
 
-- [ ] **Step 3: Allow public portfolio APIs**
+- [x] **Step 3: Allow public portfolio APIs**
 
 Modify `SecurityConfig` to permit:
 
@@ -569,7 +569,7 @@ Modify `SecurityConfig` to permit:
 /api/portfolio/**
 ```
 
-- [ ] **Step 4: Implement portfolio query service**
+- [x] **Step 4: Implement portfolio query service**
 
 Service signatures:
 
@@ -580,7 +580,7 @@ public PublicPortfolioProjectResponse getPublicProject(String slug)
 
 Only return records where `public_visible = true`.
 
-- [ ] **Step 5: Run portfolio tests and verify they pass**
+- [x] **Step 5: Run portfolio tests and verify they pass**
 
 Run:
 
