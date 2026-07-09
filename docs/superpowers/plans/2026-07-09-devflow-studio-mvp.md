@@ -392,7 +392,7 @@ Expected: PASS.
 - Create: `backend/src/test/java/com/studyflow/github/GitHubControllerTest.java`
 - Create GitHub files listed in File Structure.
 
-- [ ] **Step 1: Write failing test for saving GitHub repository settings**
+- [x] **Step 1: Write failing test for saving GitHub repository settings**
 
 Add:
 
@@ -417,7 +417,7 @@ void upsertGitHubRepositoryStoresOwnerAndRepo() throws Exception {
 }
 ```
 
-- [ ] **Step 2: Write failing test for GitHub sync**
+- [x] **Step 2: Write failing test for GitHub sync**
 
 Use a fake `GitHubClient` bean in the test context:
 
@@ -461,7 +461,7 @@ void syncGitHubRepositoryUpdatesMetadata() throws Exception {
 }
 ```
 
-- [ ] **Step 3: Run tests and verify they fail**
+- [x] **Step 3: Run tests and verify they fail**
 
 Run:
 
@@ -472,7 +472,7 @@ mvn -q -Dtest=GitHubControllerTest test
 
 Expected: FAIL because GitHub endpoints do not exist.
 
-- [ ] **Step 4: Implement GitHub client abstraction**
+- [x] **Step 4: Implement GitHub client abstraction**
 
 Create interface:
 
@@ -491,7 +491,7 @@ https://api.github.com/repos/{owner}/{repo}/commits?per_page=5
 https://api.github.com/repos/{owner}/{repo}/readme
 ```
 
-- [ ] **Step 5: Implement GitHub service and controller**
+- [x] **Step 5: Implement GitHub service and controller**
 
 Service signatures:
 
@@ -502,7 +502,7 @@ public GitHubRepositoryResponse syncRepository(Long userId, Long projectId)
 
 Sync must update metadata and `lastSyncedAt`.
 
-- [ ] **Step 6: Run GitHub tests and verify they pass**
+- [x] **Step 6: Run GitHub tests and verify they pass**
 
 Run:
 
