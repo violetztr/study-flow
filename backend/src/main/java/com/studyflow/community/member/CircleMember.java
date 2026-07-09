@@ -1,4 +1,4 @@
-package com.studyflow.user;
+package com.studyflow.community.member;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -6,15 +6,15 @@ import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.time.LocalDateTime;
 
-@TableName("users")
-public class User {
+@TableName("circle_members")
+public class CircleMember {
     @TableId(type = IdType.AUTO)
     private Long id;
-    private String username;
-    private String email;
-    private String passwordHash;
+    private Long circleId;
+    private Long userId;
     private String role;
     private String status;
+    private LocalDateTime joinedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -26,28 +26,20 @@ public class User {
         this.id = id;
     }
 
-    public String getUsername() {
-        return username;
+    public Long getCircleId() {
+        return circleId;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setCircleId(Long circleId) {
+        this.circleId = circleId;
     }
 
-    public String getEmail() {
-        return email;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public String getRole() {
@@ -64,6 +56,14 @@ public class User {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public LocalDateTime getJoinedAt() {
+        return joinedAt;
+    }
+
+    public void setJoinedAt(LocalDateTime joinedAt) {
+        this.joinedAt = joinedAt;
     }
 
     public LocalDateTime getCreatedAt() {

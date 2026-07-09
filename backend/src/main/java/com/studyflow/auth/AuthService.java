@@ -5,6 +5,7 @@ import com.studyflow.auth.dto.LoginRequest;
 import com.studyflow.auth.dto.LoginResponse;
 import com.studyflow.auth.dto.RegisterRequest;
 import com.studyflow.common.BusinessException;
+import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.security.JwtService;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
@@ -18,11 +19,18 @@ public class AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final CommunityMemberService communityMemberService;
 
-    public AuthService(UserMapper userMapper, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(
+            UserMapper userMapper,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            CommunityMemberService communityMemberService
+    ) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.communityMemberService = communityMemberService;
     }
 
     @Transactional
@@ -38,7 +46,10 @@ public class AuthService {
         user.setUsername(request.username());
         user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setRole("MEMBER");
+        user.setStatus("ACTIVE");
         userMapper.insert(user);
+        communityMemberService.ensureDefaultMembership(user.getId(), user.getUsername());
 
         return UserResponse.from(user);
     }

@@ -1,4 +1,4 @@
-package com.studyflow.user;
+package com.studyflow.community.circle;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -6,14 +6,14 @@ import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.time.LocalDateTime;
 
-@TableName("users")
-public class User {
+@TableName("circles")
+public class Circle {
     @TableId(type = IdType.AUTO)
     private Long id;
-    private String username;
-    private String email;
-    private String passwordHash;
-    private String role;
+    private String name;
+    private String slug;
+    private String description;
+    private String visibility;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -26,36 +26,36 @@ public class User {
         this.id = id;
     }
 
-    public String getUsername() {
-        return username;
+    public String getName() {
+        return name;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public String getEmail() {
-        return email;
+    public String getSlug() {
+        return slug;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setSlug(String slug) {
+        this.slug = slug;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
+    public String getDescription() {
+        return description;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    public void setDescription(String description) {
+        this.description = description;
     }
 
-    public String getRole() {
-        return role;
+    public String getVisibility() {
+        return visibility;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public void setVisibility(String visibility) {
+        this.visibility = visibility;
     }
 
     public String getStatus() {
