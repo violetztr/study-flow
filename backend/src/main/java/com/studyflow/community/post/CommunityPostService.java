@@ -1,6 +1,7 @@
 package com.studyflow.community.post;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
 import com.studyflow.community.member.CommunityMemberService;
@@ -66,14 +67,34 @@ public class CommunityPostService {
 
     public CommunityPostResponse getPost(Long userId, Long postId) {
         Circle circle = communityMemberService.requireDefaultMember(userId);
+        CommunityPost post = requirePublishedPost(circle.getId(), postId);
+        return toResponse(post);
+    }
+
+    public CommunityPost requirePublishedPost(Long circleId, Long postId) {
         CommunityPost post = communityPostMapper.selectOne(new LambdaQueryWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, postId)
-                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getCircleId, circleId)
                 .eq(CommunityPost::getStatus, STATUS_PUBLISHED));
         if (post == null) {
             throw new BusinessException(404, "帖子不存在");
         }
-        return toResponse(post);
+        return post;
+    }
+
+    public void incrementCommentCount(Long postId, LocalDateTime now) {
+        communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, postId)
+                .setSql("comment_count = comment_count + 1")
+                .set(CommunityPost::getLastActivityAt, now)
+                .set(CommunityPost::getUpdatedAt, now));
+    }
+
+    public void decrementCommentCount(Long postId, LocalDateTime now) {
+        communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, postId)
+                .setSql("comment_count = CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")
+                .set(CommunityPost::getUpdatedAt, now));
     }
 
     @Transactional
