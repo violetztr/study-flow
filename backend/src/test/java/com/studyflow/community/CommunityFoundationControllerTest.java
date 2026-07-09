@@ -1,5 +1,8 @@
 package com.studyflow.community;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -21,6 +24,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CommunityFoundationControllerTest {
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void registerCreatesDefaultCommunityMembership() throws Exception {
@@ -57,6 +63,42 @@ class CommunityFoundationControllerTest {
                 .andExpect(jsonPath("$.data.bio").value("Learning full stack step by step"));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "displayName,81",
+            "bio,501",
+            "avatarUrl,501",
+            "skills,501",
+            "githubUrl,301",
+            "websiteUrl,301"
+    })
+    void updateProfileRejectsOverlongValues(String fieldName, int length) throws Exception {
+        String username = "circle_validation_" + fieldName;
+        String token = registerAndLogin(username, username + "@example.com");
+        String overlongValue = "a".repeat(length);
+
+        mockMvc.perform(put("/api/community/members/me/profile")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "%s": "%s"
+                                }
+                                """.formatted(fieldName, overlongValue)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void getMemberReturnsNotFoundWhenTargetIsNotCommunityMember() throws Exception {
+        String token = registerAndLogin("circle_lookup_alice", "circle_lookup_alice@example.com");
+
+        mockMvc.perform(get("/api/community/members/999999")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404));
+    }
+
     private String registerAndLogin(String username, String email) throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,8 +122,7 @@ class CommunityFoundationControllerTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        return loginResult.getResponse()
-                .getContentAsString()
-                .replaceAll(".*\\\"token\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        String response = loginResult.getResponse().getContentAsString();
+        return objectMapper.readTree(response).path("data").path("token").asText();
     }
 }

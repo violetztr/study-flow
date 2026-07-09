@@ -8,12 +8,15 @@ import com.studyflow.community.member.dto.CommunityMemberResponse;
 import com.studyflow.community.member.dto.UserProfileRequest;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CommunityMemberService {
     public static final String DEFAULT_CIRCLE_SLUG = "violet-circle";
+    public static final String ROLE_MEMBER = "MEMBER";
+    public static final String STATUS_ACTIVE = "ACTIVE";
 
     private final CircleMapper circleMapper;
     private final CircleMemberMapper circleMemberMapper;
@@ -39,6 +42,7 @@ public class CommunityMemberService {
         ensureCircleMember(circle.getId(), userId);
     }
 
+    @Transactional
     public CommunityMemberResponse getCurrentMember(Long userId) {
         Circle circle = getDefaultCircle();
         CircleMember member = findRequiredMember(circle.getId(), userId);
@@ -47,6 +51,7 @@ public class CommunityMemberService {
         return CommunityMemberResponse.from(circle, member, profile, user.getUsername());
     }
 
+    @Transactional
     public CommunityMemberResponse getMember(Long currentUserId, Long targetUserId) {
         Circle circle = getDefaultCircle();
         findRequiredMember(circle.getId(), currentUserId);
@@ -64,6 +69,7 @@ public class CommunityMemberService {
         UserProfile profile = findOrCreateProfile(userId, user.getUsername());
         profile.setDisplayName(request.displayName());
         profile.setBio(request.bio());
+        profile.setAvatarUrl(request.avatarUrl());
         profile.setSkills(request.skills());
         profile.setGithubUrl(request.githubUrl());
         profile.setWebsiteUrl(request.websiteUrl());
@@ -85,8 +91,7 @@ public class CommunityMemberService {
     }
 
     private UserProfile findOrCreateProfile(Long userId, String username) {
-        UserProfile profile = userProfileMapper.selectOne(new LambdaQueryWrapper<UserProfile>()
-                .eq(UserProfile::getUserId, userId));
+        UserProfile profile = findProfile(userId);
         if (profile != null) {
             return profile;
         }
@@ -94,8 +99,21 @@ public class CommunityMemberService {
         UserProfile newProfile = new UserProfile();
         newProfile.setUserId(userId);
         newProfile.setDisplayName(username);
-        userProfileMapper.insert(newProfile);
+        try {
+            userProfileMapper.insert(newProfile);
+        } catch (DuplicateKeyException ex) {
+            UserProfile existingProfile = findProfile(userId);
+            if (existingProfile != null) {
+                return existingProfile;
+            }
+            throw ex;
+        }
         return newProfile;
+    }
+
+    private UserProfile findProfile(Long userId) {
+        return userProfileMapper.selectOne(new LambdaQueryWrapper<UserProfile>()
+                .eq(UserProfile::getUserId, userId));
     }
 
     private void ensureCircleMember(Long circleId, Long userId) {
@@ -109,8 +127,8 @@ public class CommunityMemberService {
         CircleMember newMember = new CircleMember();
         newMember.setCircleId(circleId);
         newMember.setUserId(userId);
-        newMember.setRole("MEMBER");
-        newMember.setStatus("ACTIVE");
+        newMember.setRole(ROLE_MEMBER);
+        newMember.setStatus(STATUS_ACTIVE);
         circleMemberMapper.insert(newMember);
     }
 

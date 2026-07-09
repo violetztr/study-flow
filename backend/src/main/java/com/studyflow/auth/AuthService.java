@@ -14,6 +14,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.studyflow.community.member.CommunityMemberService.ROLE_MEMBER;
+import static com.studyflow.community.member.CommunityMemberService.STATUS_ACTIVE;
+
 @Service
 public class AuthService {
     private final UserMapper userMapper;
@@ -46,8 +49,8 @@ public class AuthService {
         user.setUsername(request.username());
         user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setRole("MEMBER");
-        user.setStatus("ACTIVE");
+        user.setRole(ROLE_MEMBER);
+        user.setStatus(STATUS_ACTIVE);
         userMapper.insert(user);
         communityMemberService.ensureDefaultMembership(user.getId(), user.getUsername());
 

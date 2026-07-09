@@ -79,7 +79,7 @@ class NoteControllerTest {
                                   "parentId": %d
                                 }
                                 """.formatted(aliceParentId)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404));
     }
 
