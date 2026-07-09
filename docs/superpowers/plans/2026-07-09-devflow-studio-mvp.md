@@ -276,7 +276,7 @@ Expected: PASS for the profile test.
 - Modify: `backend/src/main/java/com/studyflow/project/profile/ProjectHubService.java`
 - Modify: `backend/src/main/java/com/studyflow/project/profile/ProjectHubController.java`
 
-- [ ] **Step 1: Write failing test for replacing tech stacks**
+- [x] **Step 1: Write failing test for replacing tech stacks**
 
 Add:
 
@@ -303,7 +303,7 @@ void replaceTechStacksReturnsOrderedStacks() throws Exception {
 }
 ```
 
-- [ ] **Step 2: Write failing test for portfolio settings**
+- [x] **Step 2: Write failing test for portfolio settings**
 
 Add:
 
@@ -331,7 +331,7 @@ void upsertPortfolioSettingsMakesProjectPublic() throws Exception {
 }
 ```
 
-- [ ] **Step 3: Run tests and verify they fail**
+- [x] **Step 3: Run tests and verify they fail**
 
 Run:
 
@@ -342,7 +342,7 @@ mvn -q -Dtest=ProjectHubControllerTest test
 
 Expected: FAIL because tech stack and portfolio endpoints do not exist.
 
-- [ ] **Step 4: Implement tech stack replacement**
+- [x] **Step 4: Implement tech stack replacement**
 
 Service signature:
 
@@ -356,7 +356,7 @@ public List<ProjectTechStackResponse> replaceTechStacks(
 
 Delete old stacks by `project_id`, insert incoming stacks, then return ordered list by `sort_order`.
 
-- [ ] **Step 5: Implement portfolio settings upsert**
+- [x] **Step 5: Implement portfolio settings upsert**
 
 Service signature:
 
@@ -374,7 +374,7 @@ Validate that `slug` is lowercase URL-safe with this regex:
 "^[a-z0-9]+(?:-[a-z0-9]+)*$"
 ```
 
-- [ ] **Step 6: Run tests and verify they pass**
+- [x] **Step 6: Run tests and verify they pass**
 
 Run:
 

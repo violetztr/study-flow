@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.blankOrNullString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -52,6 +53,49 @@ class ProjectHubControllerTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.architectureSummary").value("React + Spring Boot + MySQL + Docker"));
+    }
+
+    @Test
+    void replaceTechStacksReturnsOrderedStacks() throws Exception {
+        String token = registerAndLogin("hub_stack_user", "hub_stack_user@example.com");
+        Long projectId = createProject(token, "DevFlow Studio");
+
+        mockMvc.perform(put("/api/projects/{id}/tech-stacks", projectId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                [
+                                  { "name": "React", "category": "FRONTEND", "sortOrder": 1 },
+                                  { "name": "Spring Boot", "category": "BACKEND", "sortOrder": 2 },
+                                  { "name": "Docker", "category": "DEPLOYMENT", "sortOrder": 3 }
+                                ]
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(3)))
+                .andExpect(jsonPath("$.data[0].name").value("React"))
+                .andExpect(jsonPath("$.data[2].category").value("DEPLOYMENT"));
+    }
+
+    @Test
+    void upsertPortfolioSettingsMakesProjectPublic() throws Exception {
+        String token = registerAndLogin("hub_portfolio_user", "hub_portfolio_user@example.com");
+        Long projectId = createProject(token, "DevFlow Studio");
+
+        mockMvc.perform(put("/api/projects/{id}/portfolio", projectId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "slug": "devflow-studio",
+                                  "publicVisible": true,
+                                  "featured": true,
+                                  "displayOrder": 1,
+                                  "publicSummary": "一个个人全栈研发中台。"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.slug").value("devflow-studio"))
+                .andExpect(jsonPath("$.data.publicVisible").value(true));
     }
 
     private String registerAndLogin(String username, String email) throws Exception {
