@@ -10,6 +10,7 @@ import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -35,14 +36,14 @@ public class CommunityMemberService {
         this.userMapper = userMapper;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void ensureDefaultMembership(Long userId, String username) {
         Circle circle = getDefaultCircle();
         ensureProfile(userId, username);
         ensureCircleMember(circle.getId(), userId);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public CommunityMemberResponse getCurrentMember(Long userId) {
         Circle circle = getDefaultCircle();
         CircleMember member = findRequiredMember(circle.getId(), userId);
@@ -51,7 +52,7 @@ public class CommunityMemberService {
         return CommunityMemberResponse.from(circle, member, profile, user.getUsername());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public CommunityMemberResponse getMember(Long currentUserId, Long targetUserId) {
         Circle circle = getDefaultCircle();
         findRequiredMember(circle.getId(), currentUserId);
@@ -61,7 +62,7 @@ public class CommunityMemberService {
         return CommunityMemberResponse.from(circle, targetMember, profile, targetUser.getUsername());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public CommunityMemberResponse updateCurrentProfile(Long userId, UserProfileRequest request) {
         Circle circle = getDefaultCircle();
         CircleMember member = findRequiredMember(circle.getId(), userId);
@@ -90,6 +91,7 @@ public class CommunityMemberService {
         findOrCreateProfile(userId, username);
     }
 
+    // READ_COMMITTED callers can re-read a profile inserted by a concurrent request after a duplicate key race.
     private UserProfile findOrCreateProfile(Long userId, String username) {
         UserProfile profile = findProfile(userId);
         if (profile != null) {
