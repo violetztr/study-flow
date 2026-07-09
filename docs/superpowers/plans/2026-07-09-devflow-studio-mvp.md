@@ -195,7 +195,7 @@ Private frontend routes:
 - Create: `backend/src/test/java/com/studyflow/project/ProjectHubControllerTest.java`
 - Create backend profile entity, mapper, DTO, service, and controller files listed above.
 
-- [ ] **Step 1: Write failing test for project profile upsert**
+- [x] **Step 1: Write failing test for project profile upsert**
 
 Add this test method to `ProjectHubControllerTest`:
 
@@ -231,7 +231,7 @@ void upsertProjectProfileStoresEngineeringMetadata() throws Exception {
 }
 ```
 
-- [ ] **Step 2: Run test and verify it fails**
+- [x] **Step 2: Run test and verify it fails**
 
 Run:
 
@@ -242,11 +242,11 @@ mvn -q -Dtest=ProjectHubControllerTest test
 
 Expected: FAIL because `/api/projects/{id}/profile` does not exist.
 
-- [ ] **Step 3: Add database migration**
+- [x] **Step 3: Add database migration**
 
 Create `V5__add_devflow_project_hub.sql` with the SQL from the Data Model section.
 
-- [ ] **Step 4: Implement profile entity, mapper, DTO, service, controller**
+- [x] **Step 4: Implement profile entity, mapper, DTO, service, controller**
 
 Use these method signatures:
 
@@ -257,7 +257,7 @@ public ProjectProfileResponse upsertProfile(Long userId, Long projectId, Project
 
 Service must verify project ownership by selecting `projects.id` and `projects.user_id`.
 
-- [ ] **Step 5: Run profile test and verify it passes**
+- [x] **Step 5: Run profile test and verify it passes**
 
 Run:
 
@@ -919,4 +919,3 @@ sudo docker compose ps
 ```
 
 Expected: backend starts and Flyway migrates to version 5.
-
