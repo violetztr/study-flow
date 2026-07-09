@@ -90,6 +90,7 @@ public class CommunityCommentService {
         if (comment == null) {
             throw new BusinessException(404, "评论不存在");
         }
+        communityPostService.requirePublishedPost(circle.getId(), comment.getPostId());
         if (!comment.getAuthorId().equals(userId)) {
             throw new BusinessException(403, "没有权限操作这条评论");
         }

@@ -2,6 +2,7 @@ package com.studyflow.community;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyflow.community.post.CommunityPostMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,6 +29,9 @@ class CommunityCommentControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private CommunityPostMapper communityPostMapper;
 
     @Test
     void addCommentIncrementsPostCommentCount() throws Exception {
@@ -130,6 +134,25 @@ class CommunityCommentControllerTest {
                                 }
                                 """))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteCommentOnDeletedPostFailsAndKeepsCommentCount() throws Exception {
+        String token = registerAndLogin("comment_delete_after_post_alice", "comment_delete_after_post_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Deleted post comment delete", "Cannot delete comment after post deletion.");
+        Long commentId = createComment(token, postId, "Keep count after post deletion.");
+
+        mockMvc.perform(delete("/api/community/posts/{postId}", postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/community/comments/{commentId}", commentId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().is4xxClientError());
+
+        Integer commentCount = communityPostMapper.selectById(postId).getCommentCount();
+        org.assertj.core.api.Assertions.assertThat(commentCount).isEqualTo(1);
     }
 
     @Test
