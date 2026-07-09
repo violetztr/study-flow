@@ -9,6 +9,7 @@ import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
 import com.studyflow.community.post.dto.CommunityPostRequest;
 import com.studyflow.community.post.dto.CommunityPostResponse;
+import com.studyflow.community.reaction.CommunityReactionService;
 import com.studyflow.community.topic.CommunityTopic;
 import com.studyflow.community.topic.CommunityTopicMapper;
 import com.studyflow.user.User;
@@ -39,19 +40,22 @@ public class CommunityPostService {
     private final CommunityMemberService communityMemberService;
     private final UserProfileMapper userProfileMapper;
     private final UserMapper userMapper;
+    private final CommunityReactionService communityReactionService;
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
             CommunityTopicMapper communityTopicMapper,
             CommunityMemberService communityMemberService,
             UserProfileMapper userProfileMapper,
-            UserMapper userMapper
+            UserMapper userMapper,
+            CommunityReactionService communityReactionService
     ) {
         this.communityPostMapper = communityPostMapper;
         this.communityTopicMapper = communityTopicMapper;
         this.communityMemberService = communityMemberService;
         this.userProfileMapper = userProfileMapper;
         this.userMapper = userMapper;
+        this.communityReactionService = communityReactionService;
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
@@ -62,13 +66,13 @@ public class CommunityPostService {
                         .orderByDesc(CommunityPost::getPinned)
                         .orderByDesc(CommunityPost::getLastActivityAt)
                         .orderByDesc(CommunityPost::getCreatedAt));
-        return toResponses(posts);
+        return toResponses(posts, userId);
     }
 
     public CommunityPostResponse getPost(Long userId, Long postId) {
         Circle circle = communityMemberService.requireDefaultMember(userId);
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
-        return toResponse(post);
+        return toResponse(post, userId);
     }
 
     public CommunityPost requirePublishedPost(Long circleId, Long postId) {
@@ -127,7 +131,7 @@ public class CommunityPostService {
         if (post.getTopicId() != null) {
             communityTopicMapper.incrementPostCount(post.getTopicId());
         }
-        return toResponse(post);
+        return toResponse(post, userId);
     }
 
     @Transactional
@@ -144,7 +148,7 @@ public class CommunityPostService {
         post.setUpdatedAt(LocalDateTime.now());
         communityPostMapper.updateById(post);
         updateTopicCounts(previousTopicId, nextTopicId);
-        return toResponse(post);
+        return toResponse(post, userId);
     }
 
     @Transactional
@@ -201,13 +205,16 @@ public class CommunityPostService {
         }
     }
 
-    private List<CommunityPostResponse> toResponses(List<CommunityPost> posts) {
+    private List<CommunityPostResponse> toResponses(List<CommunityPost> posts, Long userId) {
         if (posts.isEmpty()) {
             return Collections.emptyList();
         }
 
         Set<Long> authorIds = posts.stream()
                 .map(CommunityPost::getAuthorId)
+                .collect(Collectors.toSet());
+        Set<Long> postIds = posts.stream()
+                .map(CommunityPost::getId)
                 .collect(Collectors.toSet());
         Set<Long> topicIds = posts.stream()
                 .map(CommunityPost::getTopicId)
@@ -216,19 +223,21 @@ public class CommunityPostService {
 
         Map<Long, String> authorNames = authorNames(authorIds);
         Map<Long, CommunityTopic> topics = topics(topicIds);
+        Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
         return posts.stream()
-                .map(post -> toResponse(post, authorNames, topics))
+                .map(post -> toResponse(post, authorNames, topics, likedPostIds))
                 .toList();
     }
 
-    private CommunityPostResponse toResponse(CommunityPost post) {
-        return toResponses(List.of(post)).get(0);
+    private CommunityPostResponse toResponse(CommunityPost post, Long userId) {
+        return toResponses(List.of(post), userId).get(0);
     }
 
     private CommunityPostResponse toResponse(
             CommunityPost post,
             Map<Long, String> authorNames,
-            Map<Long, CommunityTopic> topics
+            Map<Long, CommunityTopic> topics,
+            Set<Long> likedPostIds
     ) {
         CommunityTopic topic = post.getTopicId() == null ? null : topics.get(post.getTopicId());
         return new CommunityPostResponse(
@@ -245,7 +254,7 @@ public class CommunityPostService {
                 post.getCommentCount(),
                 post.getReactionCount(),
                 post.getViewCount(),
-                false,
+                likedPostIds.contains(post.getId()),
                 post.getLastActivityAt(),
                 post.getCreatedAt(),
                 post.getUpdatedAt()
