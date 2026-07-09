@@ -18,6 +18,7 @@ public class CommunityMemberService {
     public static final String DEFAULT_CIRCLE_SLUG = "violet-circle";
     public static final String ROLE_MEMBER = "MEMBER";
     public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_MUTED = "MUTED";
 
     private final CircleMapper circleMapper;
     private final CircleMemberMapper circleMemberMapper;
@@ -56,9 +57,25 @@ public class CommunityMemberService {
         Circle circle = getDefaultCircle();
         CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
                 .eq(CircleMember::getCircleId, circle.getId())
-                .eq(CircleMember::getUserId, userId)
-                .eq(CircleMember::getStatus, STATUS_ACTIVE));
+                .eq(CircleMember::getUserId, userId));
         if (member == null) {
+            throw new BusinessException(403, "没有权限访问圈子内容");
+        }
+        return circle;
+    }
+
+    public Circle requireActiveDefaultMember(Long userId) {
+        Circle circle = getDefaultCircle();
+        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
+                .eq(CircleMember::getCircleId, circle.getId())
+                .eq(CircleMember::getUserId, userId));
+        if (member == null) {
+            throw new BusinessException(403, "没有权限访问圈子内容");
+        }
+        if (STATUS_MUTED.equals(member.getStatus())) {
+            throw new BusinessException(403, "当前账号已被禁言");
+        }
+        if (!STATUS_ACTIVE.equals(member.getStatus())) {
             throw new BusinessException(403, "没有权限访问圈子内容");
         }
         return circle;

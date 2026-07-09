@@ -62,7 +62,7 @@ public class CommunityCommentService {
 
     @Transactional
     public CommunityCommentResponse createComment(Long userId, Long postId, CommunityCommentRequest request) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityPost post = communityPostService.requirePublishedPost(circle.getId(), postId);
         LocalDateTime now = LocalDateTime.now();
 

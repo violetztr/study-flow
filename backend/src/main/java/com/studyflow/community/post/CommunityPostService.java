@@ -107,7 +107,7 @@ public class CommunityPostService {
 
     @Transactional
     public CommunityPostResponse createPost(Long userId, CommunityPostRequest request) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityTopic topic = findActiveTopic(circle.getId(), request.topicId());
         LocalDateTime now = LocalDateTime.now();
 

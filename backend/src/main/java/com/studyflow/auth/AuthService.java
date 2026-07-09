@@ -64,6 +64,9 @@ public class AuthService {
         if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new BusinessException(400, "用户名或密码错误");
         }
+        if ("DISABLED".equals(user.getStatus())) {
+            throw new BusinessException(403, "账号已被禁用");
+        }
 
         String token = jwtService.generateToken(user.getId(), user.getUsername());
         return new LoginResponse(token, UserResponse.from(user));
