@@ -1,20 +1,21 @@
 # 部署说明
 
-本文档记录 StudyFlow 使用 GitHub、Docker Compose、Nginx 和 Linux 云服务器部署的流程。
+本文档记录 DevFlow Studio 在 Linux 云服务器上使用 GitHub、Docker Compose 和 Nginx 部署的流程。
 
-## 一、当前线上信息
+## 当前线上信息
 
 - 服务器 IP：`45.56.91.109`
-- 线上访问地址：`https://www.violet-surf.com/login`
-- 接口文档地址：`https://www.violet-surf.com/doc.html`
-- GitHub 仓库：`https://github.com/violetztr/study-flow`
+- 访问地址：https://www.violet-surf.com/login
+- 公开作品集：https://www.violet-surf.com/portfolio
+- 接口文档：https://www.violet-surf.com/doc.html
+- GitHub 仓库：https://github.com/violetztr/study-flow
 
-## 二、部署结构
+## 部署结构
 
 线上访问链路：
 
 ```text
-用户浏览器
+浏览器
   -> https://www.violet-surf.com
   -> 服务器 Nginx stream 监听 443
   -> 127.0.0.1:5443
@@ -34,7 +35,7 @@
   -> MySQL / Redis
 ```
 
-Docker Compose 会启动 4 个服务：
+Docker Compose 服务：
 
 ```text
 study-flow-frontend   前端 Nginx，宿主机端口 8088
@@ -43,17 +44,17 @@ study-flow-mysql      MySQL
 study-flow-redis      Redis
 ```
 
-## 三、服务器准备
+## 服务器准备
 
 服务器系统：Ubuntu 20.04。
 
-需要先安装：
+需要安装：
 
 - Git
 - Docker
 - Docker Compose 插件
 
-安装完成后确认：
+确认命令：
 
 ```bash
 git --version
@@ -63,7 +64,7 @@ docker compose version
 
 如果当前用户没有 Docker 权限，可以先使用 `sudo docker ...`。
 
-## 四、从 GitHub 拉取项目
+## 拉取项目
 
 第一次部署：
 
@@ -73,14 +74,14 @@ git clone https://github.com/violetztr/study-flow.git
 cd study-flow
 ```
 
-如果已经克隆过，以后更新代码：
+以后更新：
 
 ```bash
 cd /home/violet/study-flow
 git pull
 ```
 
-## 五、配置环境变量
+## 环境变量
 
 复制模板：
 
@@ -88,25 +89,31 @@ git pull
 cp .env.example .env
 ```
 
-编辑 `.env`：
+编辑：
 
 ```bash
 nano .env
 ```
 
-生产环境当前使用：
+示例：
 
 ```env
 MYSQL_DATABASE=study_flow
-MYSQL_ROOT_PASSWORD=换成你自己的强密码
-STUDY_FLOW_JWT_SECRET=换成至少32位的随机字符串
+MYSQL_ROOT_PASSWORD=change-this-mysql-root-password
+STUDY_FLOW_JWT_SECRET=change-this-to-a-long-random-secret-at-least-32-characters
 STUDY_FLOW_JWT_EXPIRATION_MINUTES=1440
 FRONTEND_PORT=8088
 ```
 
-注意：`.env` 不要提交到 GitHub，里面会放真实密码。
+如果 GitHub API 频率限制不够，可以额外配置：
 
-## 六、启动服务
+```env
+GITHUB_TOKEN=your_github_token
+```
+
+不要把 `.env` 提交到 GitHub。
+
+## 启动服务
 
 ```bash
 sudo docker compose up -d --build
@@ -118,7 +125,7 @@ sudo docker compose up -d --build
 sudo docker compose ps
 ```
 
-正常状态应该能看到：
+正常状态应该看到：
 
 ```text
 study-flow-frontend   Up   0.0.0.0:8088->80/tcp
@@ -146,7 +153,7 @@ sudo docker compose down
 sudo docker compose down -v
 ```
 
-## 七、主域名反向代理
+## Nginx 反向代理
 
 当前服务器的 `443` 使用 Nginx stream 做 SNI 分流：
 
@@ -156,7 +163,7 @@ notion.violet-surf.com   -> 127.0.0.1:5444
 其他域名                 -> 127.0.0.1:5443
 ```
 
-StudyFlow 不修改 `internet.violet-surf.com`，避免影响原有代理服务。
+不要修改 `internet.violet-surf.com`，避免影响原来的代理服务。
 
 主域名配置文件：
 
@@ -192,31 +199,31 @@ server {
 }
 ```
 
-修改 Nginx 配置前先备份：
+修改 Nginx 前先备份：
 
 ```bash
 sudo cp /etc/nginx/sites-available/violet /etc/nginx/sites-available/violet.bak.$(date +%F-%H%M%S)
 ```
 
-修改后先测试：
+测试配置：
 
 ```bash
 sudo nginx -t
 ```
 
-通过后再重载：
+重载：
 
 ```bash
 sudo systemctl reload nginx
 ```
 
-## 八、更新版本
+## 更新版本
 
 本地开发完成后：
 
 ```bash
 git add .
-git commit -m "你的提交信息"
+git commit -m "your message"
 git push
 ```
 
@@ -226,9 +233,12 @@ git push
 cd /home/violet/study-flow
 git pull
 sudo docker compose up -d --build
+sudo docker compose ps
 ```
 
-## 九、常见排查
+Flyway 会在后端启动时自动迁移数据库。
+
+## 常见排查
 
 查看容器：
 
@@ -248,12 +258,6 @@ sudo lsof -i :8088
 
 ```bash
 sudo docker compose logs -f backend
-```
-
-查看前端 Nginx 日志：
-
-```bash
-sudo docker compose logs -f frontend
 ```
 
 重新构建：

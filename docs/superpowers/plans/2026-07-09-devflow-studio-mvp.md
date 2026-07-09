@@ -823,7 +823,7 @@ Expected: build succeeds.
 - Modify: `docs/database.md`
 - Modify: `docs/deploy.md`
 
-- [ ] **Step 1: Update README positioning**
+- [x] **Step 1: Update README positioning**
 
 Change title to:
 
@@ -833,7 +833,7 @@ DevFlow Studio 个人全栈研发中台
 
 Explain that StudyFlow is now the learning-growth module inside DevFlow Studio.
 
-- [ ] **Step 2: Update API docs**
+- [x] **Step 2: Update API docs**
 
 Document:
 
@@ -847,7 +847,7 @@ Document:
 /api/portfolio/projects/{slug}
 ```
 
-- [ ] **Step 3: Update database docs**
+- [x] **Step 3: Update database docs**
 
 Document:
 
@@ -858,7 +858,7 @@ github_repositories
 portfolio_projects
 ```
 
-- [ ] **Step 4: Run full verification**
+- [x] **Step 4: Run full verification**
 
 Run:
 
@@ -888,7 +888,7 @@ Expected:
 ✓ built
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit in logical chunks:
 
@@ -907,7 +907,7 @@ Run:
 git push
 ```
 
-- [ ] **Step 7: Server deployment command**
+- [x] **Step 7: Server deployment command**
 
 On server:
 

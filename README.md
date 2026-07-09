@@ -1,29 +1,31 @@
-# StudyFlow 学习任务管理系统
+# DevFlow Studio 个人全栈研发中台
 
-StudyFlow 是一个 Java 全栈学习驾驶舱，用来管理个人学习项目、任务、笔记、日常计划和进度统计。项目包含前端页面、后端接口、数据库设计、接口文档、基础测试和 Docker 部署流程，目标是作为可展示、可复盘、可继续迭代的全栈作品。
+DevFlow Studio 是一个面向个人成长和作品展示的全栈项目中台。它把原来的 StudyFlow 学习任务管理系统升级成更完整的研发驾驶舱：既能管理学习项目、任务、笔记和日常计划，也能把一个项目整理成可展示的全栈作品，包括技术栈、线上地址、GitHub 数据、数据库设计、接口文档和公开作品集页面。
+
+StudyFlow 现在是 DevFlow Studio 里的“学习成长模块”，不是被删掉，而是成为更大系统的一部分。
 
 ## 线上地址
 
 - 在线访问：https://www.violet-surf.com/login
+- 公开作品集：https://www.violet-surf.com/portfolio
 - 接口文档：https://www.violet-surf.com/doc.html
 - GitHub 仓库：https://github.com/violetztr/study-flow
 
 ## 技术栈
 
-- 后端：Java 17、Spring Boot 3、MyBatis-Plus、MySQL、Redis、JWT、Knife4j、JUnit
+- 后端：Java 17、Spring Boot 3、MyBatis-Plus、MySQL、Redis、JWT、Flyway、Knife4j、JUnit
 - 前端：React、TypeScript、Vite、Ant Design、React Router、TanStack Query、Axios
 - 部署：Docker、Docker Compose、Nginx、Linux 云服务器
 
 ## 核心功能
 
 - 用户注册、登录和 JWT 鉴权
-- 三大模块入口：学习模块、笔记模块、日常模块
-- 项目创建、编辑、归档和删除
-- 任务创建、编辑、删除和筛选
-- 标签创建和任务标签绑定
-- 学习任务统计概览
-- 笔记页面、笔记块、日常计划、日记、习惯和打卡记录后端接口
-- Knife4j / Swagger 接口文档
+- 学习模块：项目、任务、标签、统计
+- 笔记模块：Notion 风格的笔记页和块编辑数据模型
+- 日常模块：今日计划、日记、习惯、打卡
+- 项目中台：维护项目档案、技术栈、线上地址、文档地址、面试亮点
+- GitHub 仓库中心：绑定仓库并同步 star、fork、主语言、README 状态
+- 公开作品集：把项目发布成无需登录即可访问的公开展示页
 - Docker Compose 一键部署
 
 ## 项目结构
@@ -66,7 +68,7 @@ npm install
 npm run dev
 ```
 
-前端开发代理默认转发到 `http://localhost:18080`。如果本机后端跑在其他端口，可以设置：
+前端开发代理默认转发到 `http://localhost:18080`。如果本机后端运行在其他端口，可以设置：
 
 ```powershell
 $env:VITE_API_PROXY_TARGET="http://localhost:8080"
@@ -75,7 +77,7 @@ npm run dev
 
 ## Docker 启动
 
-先复制环境变量模板：
+复制环境变量模板：
 
 ```bash
 cp .env.example .env
