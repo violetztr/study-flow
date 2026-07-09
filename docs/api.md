@@ -260,6 +260,180 @@ GET /api/statistics/overview
 - `totalEstimatedMinutes`：当前用户所有任务的预计学习总时长，单位分钟；未设置预计时长的任务按 0 计算。
 - `completedEstimatedMinutes`：当前用户已完成任务的预计学习时长合计，单位分钟。
 
+## 笔记接口
+
+### 查询笔记列表
+
+```text
+GET /api/notes
+```
+
+### 新增笔记
+
+```text
+POST /api/notes
+```
+
+请求体：
+
+```json
+{
+  "parentId": null,
+  "title": "React 学习笔记",
+  "icon": "book",
+  "favorite": false,
+  "sortOrder": 0
+}
+```
+
+### 查询笔记详情
+
+```text
+GET /api/notes/{id}
+```
+
+### 修改笔记
+
+```text
+PUT /api/notes/{id}
+```
+
+### 归档笔记
+
+```text
+DELETE /api/notes/{id}
+```
+
+说明：当前版本删除接口采用软删除，把 `archived` 标记为 `true`。
+
+### 保存笔记块
+
+```text
+PUT /api/notes/{id}/blocks
+```
+
+请求体：
+
+```json
+[
+  {
+    "type": "heading",
+    "content": "第一章",
+    "checked": false,
+    "sortOrder": 1
+  },
+  {
+    "type": "todo",
+    "content": "完成后端接口",
+    "checked": true,
+    "sortOrder": 2
+  }
+]
+```
+
+块类型：
+
+- `paragraph`：普通段落
+- `heading`：标题
+- `todo`：待办
+- `quote`：引用
+- `code`：代码块
+
+## 日常接口
+
+### 查询某天计划
+
+```text
+GET /api/daily/plans?date=2026-07-09
+```
+
+### 新增计划
+
+```text
+POST /api/daily/plans
+```
+
+请求体：
+
+```json
+{
+  "planDate": "2026-07-09",
+  "title": "完成笔记模块后端",
+  "description": "写测试、建表、写接口",
+  "status": "TODO"
+}
+```
+
+### 修改计划
+
+```text
+PUT /api/daily/plans/{id}
+```
+
+计划状态：
+
+- `TODO`：待做
+- `DOING`：进行中
+- `DONE`：完成
+
+### 查询某天日记
+
+```text
+GET /api/daily/journal?date=2026-07-09
+```
+
+### 新增或更新日记
+
+```text
+PUT /api/daily/journal
+```
+
+请求体：
+
+```json
+{
+  "journalDate": "2026-07-09",
+  "mood": "FOCUSED",
+  "content": "今天把后端数据库补齐。"
+}
+```
+
+### 查询习惯列表
+
+```text
+GET /api/daily/habits
+```
+
+### 新增习惯
+
+```text
+POST /api/daily/habits
+```
+
+请求体：
+
+```json
+{
+  "name": "每天写项目",
+  "description": "保持全栈项目推进"
+}
+```
+
+### 新增或更新习惯打卡
+
+```text
+PUT /api/daily/habits/{id}/records
+```
+
+请求体：
+
+```json
+{
+  "recordDate": "2026-07-09",
+  "completed": true
+}
+```
+
 ## 常见错误
 
 - `401`：未登录或 Token 无效
