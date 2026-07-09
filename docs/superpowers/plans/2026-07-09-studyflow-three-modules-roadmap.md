@@ -140,7 +140,7 @@ Frontend routes:
 
 ### Tasks
 
-- [ ] Rename sidebar structure from flat menu to grouped menu:
+- [x] Rename sidebar structure from flat menu to grouped menu:
 
 ```text
 驾驶舱
@@ -155,7 +155,7 @@ Frontend routes:
   个人资料
 ```
 
-- [ ] Keep current pages working:
+- [x] Keep current pages working:
 
 ```text
 /dashboard
@@ -164,21 +164,21 @@ Frontend routes:
 /settings/profile
 ```
 
-- [ ] Add placeholder routes:
+- [x] Add placeholder routes:
 
 ```text
 /notes
 /daily
 ```
 
-- [ ] Create placeholder pages:
+- [x] Create placeholder pages:
 
 ```text
 frontend/src/pages/NotesPage.tsx
 frontend/src/pages/DailyPage.tsx
 ```
 
-- [ ] Dashboard should show three entry cards:
+- [x] Dashboard should show three entry cards:
 
 ```text
 学习模块：项目、任务、学习时长
@@ -186,14 +186,14 @@ frontend/src/pages/DailyPage.tsx
 日常模块：今日计划、习惯打卡
 ```
 
-- [ ] Run frontend build:
+- [x] Run frontend build:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-- [ ] Commit:
+- [x] Commit:
 
 ```bash
 git add frontend/src README.md

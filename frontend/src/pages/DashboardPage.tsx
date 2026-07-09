@@ -1,11 +1,13 @@
 import {
   BookOutlined,
+  CalendarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  FileTextOutlined,
   FolderOpenOutlined,
   ProjectOutlined,
 } from '@ant-design/icons'
-import { Alert, Card, Skeleton, Space, Statistic, Tag } from 'antd'
+import { Alert, Card, Skeleton, Statistic, Tag } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { getCurrentUser, getStoredUser } from '../api/auth'
@@ -129,24 +131,21 @@ function DashboardPage() {
         <div className="quick-grid">
           <Card className="quick-card">
             <FolderOpenOutlined style={{ color: '#256f62', fontSize: 28 }} />
-            <h2 className="quick-title">项目管理</h2>
-            <p className="quick-copy">查看学习项目，把 Java、React、部署拆成独立路线。</p>
-            <Link to="/projects">进入项目</Link>
+            <h2 className="quick-title">学习模块</h2>
+            <p className="quick-copy">管理学习项目、任务、标签和预计学习时长，把全栈路线拆成能推进的小步。</p>
+            <Link to="/projects">进入学习项目</Link>
           </Card>
           <Card className="quick-card">
-            <CheckCircleOutlined style={{ color: '#256f62', fontSize: 28 }} />
-            <h2 className="quick-title">任务清单</h2>
-            <p className="quick-copy">用状态、优先级、标签筛选今天最该推进的任务。</p>
-            <Link to="/tasks">进入任务</Link>
+            <FileTextOutlined style={{ color: '#256f62', fontSize: 28 }} />
+            <h2 className="quick-title">笔记模块</h2>
+            <p className="quick-copy">沉淀学习笔记、项目复盘和代码理解，后面会升级成 Notion 风格工作台。</p>
+            <Link to="/notes">进入笔记工作台</Link>
           </Card>
           <Card className="quick-card">
-            <Space direction="vertical" size={10}>
-              <Tag color="gold">下一步</Tag>
-              <h2 className="quick-title">前后端联调</h2>
-              <p className="quick-copy">
-                启动后端和前端后，登录页会真实调用 Spring Boot API。
-              </p>
-            </Space>
+            <CalendarOutlined style={{ color: '#256f62', fontSize: 28 }} />
+            <h2 className="quick-title">日常模块</h2>
+            <p className="quick-copy">安排今日计划、习惯打卡和学习日记，让项目推进变成每天可执行的节奏。</p>
+            <Link to="/daily">进入今日计划</Link>
           </Card>
         </div>
       </section>

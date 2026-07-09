@@ -1,22 +1,64 @@
 import {
   BarChartOutlined,
+  CalendarOutlined,
   CheckSquareOutlined,
+  FileTextOutlined,
   FolderOpenOutlined,
   LogoutOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import { Button, Layout, Menu, Space, Typography } from 'antd'
+import type { MenuProps } from 'antd'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { clearSession, getStoredUser } from '../api/auth'
 
-const menuItems = [
-  { key: '/dashboard', icon: <BarChartOutlined />, label: <Link to="/dashboard">仪表盘</Link> },
-  { key: '/projects', icon: <FolderOpenOutlined />, label: <Link to="/projects">项目</Link> },
-  { key: '/tasks', icon: <CheckSquareOutlined />, label: <Link to="/tasks">任务</Link> },
+const selectableMenuKeys = [
+  '/dashboard',
+  '/projects',
+  '/tasks',
+  '/notes',
+  '/daily',
+  '/settings/profile',
+]
+
+const menuItems: MenuProps['items'] = [
+  { key: '/dashboard', icon: <BarChartOutlined />, label: <Link to="/dashboard">驾驶舱</Link> },
   {
-    key: '/settings/profile',
-    icon: <UserOutlined />,
-    label: <Link to="/settings/profile">个人资料</Link>,
+    key: 'study',
+    type: 'group',
+    label: '学习',
+    children: [
+      { key: '/projects', icon: <FolderOpenOutlined />, label: <Link to="/projects">学习项目</Link> },
+      { key: '/tasks', icon: <CheckSquareOutlined />, label: <Link to="/tasks">学习任务</Link> },
+    ],
+  },
+  {
+    key: 'notes',
+    type: 'group',
+    label: '笔记',
+    children: [
+      { key: '/notes', icon: <FileTextOutlined />, label: <Link to="/notes">笔记工作台</Link> },
+    ],
+  },
+  {
+    key: 'daily',
+    type: 'group',
+    label: '日常',
+    children: [
+      { key: '/daily', icon: <CalendarOutlined />, label: <Link to="/daily">今日计划</Link> },
+    ],
+  },
+  {
+    key: 'settings',
+    type: 'group',
+    label: '设置',
+    children: [
+      {
+        key: '/settings/profile',
+        icon: <UserOutlined />,
+        label: <Link to="/settings/profile">个人资料</Link>,
+      },
+    ],
   },
 ]
 
@@ -31,8 +73,7 @@ function AppLayout() {
   }
 
   const selectedKey =
-    menuItems.find((item) => location.pathname.startsWith(item.key))?.key ??
-    '/dashboard'
+    selectableMenuKeys.find((key) => location.pathname.startsWith(key)) ?? '/dashboard'
 
   return (
     <Layout className="app-layout">

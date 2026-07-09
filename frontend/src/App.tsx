@@ -6,6 +6,8 @@ import DashboardPage from './pages/DashboardPage'
 import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import TasksPage from './pages/TasksPage'
+import NotesPage from './pages/NotesPage'
+import DailyPage from './pages/DailyPage'
 import ProfilePage from './pages/ProfilePage'
 import ProtectedRoute from './routes/ProtectedRoute'
 
@@ -21,6 +23,8 @@ function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/notes" element={<NotesPage />} />
+          <Route path="/daily" element={<DailyPage />} />
           <Route path="/settings/profile" element={<ProfilePage />} />
         </Route>
       </Route>
