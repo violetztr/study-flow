@@ -3,9 +3,7 @@ package com.studyflow.community.post;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
-import com.studyflow.community.circle.CircleMapper;
-import com.studyflow.community.member.CircleMember;
-import com.studyflow.community.member.CircleMemberMapper;
+import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
 import com.studyflow.community.post.dto.CommunityPostRequest;
@@ -18,9 +16,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-import static com.studyflow.community.member.CommunityMemberService.DEFAULT_CIRCLE_SLUG;
 import static com.studyflow.community.member.CommunityMemberService.STATUS_ACTIVE;
 
 @Service
@@ -32,42 +35,37 @@ public class CommunityPostService {
 
     private final CommunityPostMapper communityPostMapper;
     private final CommunityTopicMapper communityTopicMapper;
-    private final CircleMapper circleMapper;
-    private final CircleMemberMapper circleMemberMapper;
+    private final CommunityMemberService communityMemberService;
     private final UserProfileMapper userProfileMapper;
     private final UserMapper userMapper;
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
             CommunityTopicMapper communityTopicMapper,
-            CircleMapper circleMapper,
-            CircleMemberMapper circleMemberMapper,
+            CommunityMemberService communityMemberService,
             UserProfileMapper userProfileMapper,
             UserMapper userMapper
     ) {
         this.communityPostMapper = communityPostMapper;
         this.communityTopicMapper = communityTopicMapper;
-        this.circleMapper = circleMapper;
-        this.circleMemberMapper = circleMemberMapper;
+        this.communityMemberService = communityMemberService;
         this.userProfileMapper = userProfileMapper;
         this.userMapper = userMapper;
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
-        Circle circle = getDefaultCircle();
-        return communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+        Circle circle = communityMemberService.requireDefaultMember(userId);
+        List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
                         .eq(CommunityPost::getCircleId, circle.getId())
                         .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
                         .orderByDesc(CommunityPost::getPinned)
                         .orderByDesc(CommunityPost::getLastActivityAt)
-                        .orderByDesc(CommunityPost::getCreatedAt))
-                .stream()
-                .map(post -> toResponse(post, userId))
-                .toList();
+                        .orderByDesc(CommunityPost::getCreatedAt));
+        return toResponses(posts);
     }
 
     public CommunityPostResponse getPost(Long userId, Long postId) {
-        Circle circle = getDefaultCircle();
+        Circle circle = communityMemberService.requireDefaultMember(userId);
         CommunityPost post = communityPostMapper.selectOne(new LambdaQueryWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, postId)
                 .eq(CommunityPost::getCircleId, circle.getId())
@@ -75,13 +73,12 @@ public class CommunityPostService {
         if (post == null) {
             throw new BusinessException(404, "帖子不存在");
         }
-        return toResponse(post, userId);
+        return toResponse(post);
     }
 
     @Transactional
     public CommunityPostResponse createPost(Long userId, CommunityPostRequest request) {
-        Circle circle = getDefaultCircle();
-        requireActiveMember(circle.getId(), userId);
+        Circle circle = communityMemberService.requireDefaultMember(userId);
         CommunityTopic topic = findActiveTopic(circle.getId(), request.topicId());
         LocalDateTime now = LocalDateTime.now();
 
@@ -102,51 +99,40 @@ public class CommunityPostService {
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
         communityPostMapper.insert(post);
-        return toResponse(post, userId);
+        if (post.getTopicId() != null) {
+            communityTopicMapper.incrementPostCount(post.getTopicId());
+        }
+        return toResponse(post);
     }
 
     @Transactional
     public CommunityPostResponse updatePost(Long userId, Long postId, CommunityPostRequest request) {
-        Circle circle = getDefaultCircle();
+        Circle circle = communityMemberService.requireDefaultMember(userId);
         CommunityPost post = requireOwnedPost(circle.getId(), userId, postId);
         CommunityTopic topic = findActiveTopic(circle.getId(), request.topicId());
+        Long previousTopicId = post.getTopicId();
+        Long nextTopicId = topic == null ? null : topic.getId();
 
-        post.setTopicId(topic == null ? null : topic.getId());
+        post.setTopicId(nextTopicId);
         post.setTitle(request.title());
         post.setContent(request.content());
-        post.setLastActivityAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
         communityPostMapper.updateById(post);
-        return toResponse(post, userId);
+        updateTopicCounts(previousTopicId, nextTopicId);
+        return toResponse(post);
     }
 
     @Transactional
     public void deletePost(Long userId, Long postId) {
-        Circle circle = getDefaultCircle();
+        Circle circle = communityMemberService.requireDefaultMember(userId);
         CommunityPost post = requireOwnedPost(circle.getId(), userId, postId);
         LocalDateTime now = LocalDateTime.now();
         post.setStatus(STATUS_DELETED);
         post.setDeletedAt(now);
         post.setUpdatedAt(now);
         communityPostMapper.updateById(post);
-    }
-
-    private Circle getDefaultCircle() {
-        Circle circle = circleMapper.selectOne(new LambdaQueryWrapper<Circle>()
-                .eq(Circle::getSlug, DEFAULT_CIRCLE_SLUG));
-        if (circle == null) {
-            throw new BusinessException(500, "默认圈子不存在");
-        }
-        return circle;
-    }
-
-    private void requireActiveMember(Long circleId, Long userId) {
-        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
-                .eq(CircleMember::getCircleId, circleId)
-                .eq(CircleMember::getUserId, userId)
-                .eq(CircleMember::getStatus, STATUS_ACTIVE));
-        if (member == null) {
-            throw new BusinessException(403, "没有权限操作这条帖子");
+        if (post.getTopicId() != null) {
+            communityTopicMapper.decrementPostCount(post.getTopicId());
         }
     }
 
@@ -178,13 +164,53 @@ public class CommunityPostService {
         return post;
     }
 
-    private CommunityPostResponse toResponse(CommunityPost post, Long currentUserId) {
-        CommunityTopic topic = post.getTopicId() == null ? null : communityTopicMapper.selectById(post.getTopicId());
+    private void updateTopicCounts(Long previousTopicId, Long nextTopicId) {
+        if (Objects.equals(previousTopicId, nextTopicId)) {
+            return;
+        }
+        if (previousTopicId != null) {
+            communityTopicMapper.decrementPostCount(previousTopicId);
+        }
+        if (nextTopicId != null) {
+            communityTopicMapper.incrementPostCount(nextTopicId);
+        }
+    }
+
+    private List<CommunityPostResponse> toResponses(List<CommunityPost> posts) {
+        if (posts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Set<Long> authorIds = posts.stream()
+                .map(CommunityPost::getAuthorId)
+                .collect(Collectors.toSet());
+        Set<Long> topicIds = posts.stream()
+                .map(CommunityPost::getTopicId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, String> authorNames = authorNames(authorIds);
+        Map<Long, CommunityTopic> topics = topics(topicIds);
+        return posts.stream()
+                .map(post -> toResponse(post, authorNames, topics))
+                .toList();
+    }
+
+    private CommunityPostResponse toResponse(CommunityPost post) {
+        return toResponses(List.of(post)).get(0);
+    }
+
+    private CommunityPostResponse toResponse(
+            CommunityPost post,
+            Map<Long, String> authorNames,
+            Map<Long, CommunityTopic> topics
+    ) {
+        CommunityTopic topic = post.getTopicId() == null ? null : topics.get(post.getTopicId());
         return new CommunityPostResponse(
                 post.getId(),
                 post.getCircleId(),
                 post.getAuthorId(),
-                authorName(post.getAuthorId()),
+                authorNames.getOrDefault(post.getAuthorId(), ""),
                 post.getTopicId(),
                 topic == null ? null : topic.getName(),
                 post.getTitle(),
@@ -201,13 +227,31 @@ public class CommunityPostService {
         );
     }
 
-    private String authorName(Long authorId) {
-        UserProfile profile = userProfileMapper.selectOne(new LambdaQueryWrapper<UserProfile>()
-                .eq(UserProfile::getUserId, authorId));
-        if (profile != null && profile.getDisplayName() != null && !profile.getDisplayName().isBlank()) {
-            return profile.getDisplayName();
+    private Map<Long, String> authorNames(Set<Long> authorIds) {
+        if (authorIds.isEmpty()) {
+            return Collections.emptyMap();
         }
-        User user = userMapper.selectById(authorId);
-        return user == null ? "" : user.getUsername();
+        Map<Long, String> names = userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .in(User::getId, authorIds))
+                .stream()
+                .collect(Collectors.toMap(User::getId, User::getUsername));
+        userProfileMapper.selectList(new LambdaQueryWrapper<UserProfile>()
+                        .in(UserProfile::getUserId, authorIds))
+                .forEach(profile -> {
+                    if (profile.getDisplayName() != null && !profile.getDisplayName().isBlank()) {
+                        names.put(profile.getUserId(), profile.getDisplayName());
+                    }
+                });
+        return names;
+    }
+
+    private Map<Long, CommunityTopic> topics(Set<Long> topicIds) {
+        if (topicIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return communityTopicMapper.selectList(new LambdaQueryWrapper<CommunityTopic>()
+                        .in(CommunityTopic::getId, topicIds))
+                .stream()
+                .collect(Collectors.toMap(CommunityTopic::getId, Function.identity()));
     }
 }

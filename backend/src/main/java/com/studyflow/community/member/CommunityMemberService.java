@@ -52,6 +52,18 @@ public class CommunityMemberService {
         return CommunityMemberResponse.from(circle, member, profile, user.getUsername());
     }
 
+    public Circle requireDefaultMember(Long userId) {
+        Circle circle = getDefaultCircle();
+        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
+                .eq(CircleMember::getCircleId, circle.getId())
+                .eq(CircleMember::getUserId, userId)
+                .eq(CircleMember::getStatus, STATUS_ACTIVE));
+        if (member == null) {
+            throw new BusinessException(403, "没有权限访问圈子内容");
+        }
+        return circle;
+    }
+
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public CommunityMemberResponse getMember(Long currentUserId, Long targetUserId) {
         Circle circle = getDefaultCircle();
