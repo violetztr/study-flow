@@ -111,7 +111,8 @@ DELETE /api/community/posts/{postId}
 {
   "topicId": 1,
   "title": "第一条社区帖子",
-  "content": "今天开始把想法发到 Ruru 社区。"
+  "content": "今天开始把想法发到 Ruru 社区。",
+  "mediaFileIds": [1, 2]
 }
 ```
 
@@ -120,6 +121,76 @@ DELETE /api/community/posts/{postId}
 - 只能编辑和删除自己的帖子。
 - 删除是软删除，帖子状态变为 `DELETED`。
 - 禁言成员不能发帖、改帖或删帖。
+- `mediaFileIds` 可为空，最多 9 个，必须是当前用户已经上传完成的图片文件。
+
+返回的帖子数据会包含 `media` 图片列表：
+
+```json
+{
+  "id": 1,
+  "title": "第一条社区帖子",
+  "media": [
+    {
+      "id": 1,
+      "fileType": "IMAGE",
+      "contentType": "image/png",
+      "originalFilename": "cat.png",
+      "fileSize": 2048,
+      "url": "https://..."
+    }
+  ]
+}
+```
+
+`url` 是临时签名访问地址，R2 Bucket 保持私有。
+
+### 媒体上传
+
+```text
+POST /api/media/uploads/presign
+POST /api/media/uploads/{mediaFileId}/complete
+```
+
+第一步：申请上传地址。
+
+```json
+{
+  "filename": "cat.png",
+  "contentType": "image/png",
+  "fileSize": 2048
+}
+```
+
+返回：
+
+```json
+{
+  "mediaFileId": 1,
+  "objectKey": "community/images/1/2026/07/uuid.png",
+  "uploadUrl": "https://...",
+  "headers": {
+    "Content-Type": "image/png"
+  },
+  "contentType": "image/png",
+  "maxSizeBytes": 10485760,
+  "expiresAt": "2026-07-10T18:00:00"
+}
+```
+
+第二步：前端使用 `uploadUrl` 直接 `PUT` 文件到 R2，上传时必须带上返回的 `headers`。
+
+第三步：上传完成后调用：
+
+```text
+POST /api/media/uploads/{mediaFileId}/complete
+```
+
+规则：
+
+- 当前只支持 `image/jpeg`、`image/png`、`image/webp`、`image/gif`。
+- 默认单张图片最大 `10MB`。
+- 服务器不保存图片文件，只保存 R2 object key、文件类型、大小、上传人和状态。
+- R2 密钥只放在后端 `.env`，浏览器永远不能拿到密钥。
 
 ### 评论
 

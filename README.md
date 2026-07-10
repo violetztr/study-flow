@@ -1,6 +1,6 @@
 # Ruru 社区
 
-Ruru 社区是一个先从朋友小圈子开始的全栈社区项目。当前版本只保留最基础、最重要的社区能力：注册登录、动态流、发帖、评论、点赞、成员资料和基础管理。
+Ruru 社区是一个先从朋友小圈子开始的全栈社区项目。当前版本只保留最基础、最重要的社区能力：注册登录、动态流、发帖、图片上传、评论、点赞、成员资料和基础管理。
 
 旧的学习项目、任务、笔记、日常、项目中台和公开作品集模块已经从前后端代码中删除；数据库通过 Flyway `V8__remove_legacy_modules.sql` 删除旧业务表，只保留用户和社区相关表。
 
@@ -13,8 +13,9 @@ Ruru 社区是一个先从朋友小圈子开始的全栈社区项目。当前版
 
 ## 技术栈
 
-- 后端：Java 17、Spring Boot 3、Spring Security、JWT、MyBatis-Plus、MySQL、Redis、Flyway、Knife4j、JUnit
+- 后端：Java 17、Spring Boot 3、Spring Security、JWT、MyBatis-Plus、MySQL、Redis、Flyway、Knife4j、AWS S3 SDK、JUnit
 - 前端：React、TypeScript、Vite、Ant Design、React Router、TanStack Query、Axios
+- 存储：Cloudflare R2 对象存储，使用 S3 兼容签名上传
 - 部署：Docker、Docker Compose、Nginx、Linux 云服务器
 
 ## 核心功能
@@ -22,11 +23,13 @@ Ruru 社区是一个先从朋友小圈子开始的全栈社区项目。当前版
 - 用户注册、登录、JWT 鉴权
 - 新用户注册后自动加入默认 `Ruru 社区`
 - 社区动态流、帖子详情、发布帖子
+- 图片上传到 Cloudflare R2，服务器只保存文件元信息
 - 评论列表、发表评论、删除自己的评论
 - 帖子点赞和取消点赞
 - 社区成员列表、成员资料页
 - 管理员隐藏/恢复帖子和评论、禁言/解除禁言成员
 - Flyway 管理数据库迁移，旧业务表通过 V8 自动删除
+- Flyway `V9__add_media_files.sql` 新增媒体文件表和帖子图片关联表
 
 ## 项目结构
 
@@ -76,6 +79,17 @@ cp .env.example .env
 ```bash
 docker compose up -d --build
 ```
+
+如果要使用图片上传，还需要在 `.env` 配置 Cloudflare R2：
+
+```env
+R2_ACCOUNT_ID=your-cloudflare-account-id
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_BUCKET=ruru-community
+```
+
+不要把真实 R2 密钥提交到 GitHub。
 
 查看容器：
 

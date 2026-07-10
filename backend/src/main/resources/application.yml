@@ -27,3 +27,12 @@ study-flow:
   jwt:
     secret: ${STUDY_FLOW_JWT_SECRET:study-flow-local-development-secret-key-change-before-production}
     expiration-minutes: ${STUDY_FLOW_JWT_EXPIRATION_MINUTES:1440}
+  media:
+    r2:
+      account-id: ${R2_ACCOUNT_ID:}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      bucket: ${R2_BUCKET:ruru-community}
+      upload-url-ttl: ${R2_UPLOAD_URL_TTL:10m}
+      read-url-ttl: ${R2_READ_URL_TTL:1h}
+      max-image-bytes: ${R2_MAX_IMAGE_BYTES:10485760}

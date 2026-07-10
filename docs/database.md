@@ -13,6 +13,8 @@
 - `community_comments`：评论
 - `community_reactions`：互动记录，目前用于帖子点赞
 - `community_moderation_actions`：管理操作记录
+- `media_files`：上传到对象存储的媒体文件记录
+- `community_post_media`：帖子和媒体文件关联表
 
 ## 旧表删除
 
@@ -144,6 +146,42 @@ portfolio_projects
 | deleted_at | DATETIME | 软删除时间 |
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |
+
+帖子图片不直接存在 `community_posts`，而是通过 `community_post_media` 关联到 `media_files`。
+
+## media_files
+
+保存上传到 Cloudflare R2 的图片元信息。真实图片文件在 R2，数据库不存二进制文件。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| uploader_id | BIGINT | 上传用户 ID |
+| storage_provider | VARCHAR(30) | 存储提供商，当前为 `R2` |
+| bucket_name | VARCHAR(120) | R2 Bucket 名称 |
+| object_key | VARCHAR(500) | R2 对象路径，唯一 |
+| original_filename | VARCHAR(255) | 原始文件名 |
+| content_type | VARCHAR(120) | MIME 类型 |
+| file_type | VARCHAR(30) | 文件类型，当前为 `IMAGE` |
+| file_size | BIGINT | 文件大小，单位字节 |
+| status | VARCHAR(30) | `PENDING`、`UPLOADED`、`ATTACHED` |
+| uploaded_at | DATETIME | 前端确认上传完成时间 |
+| created_at | DATETIME | 创建时间 |
+| updated_at | DATETIME | 更新时间 |
+
+## community_post_media
+
+保存帖子和图片的多对多关系。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| post_id | BIGINT | 帖子 ID |
+| media_file_id | BIGINT | 媒体文件 ID |
+| sort_order | INT | 图片排序 |
+| created_at | DATETIME | 创建时间 |
+
+一条帖子最多关联 9 张图片。后期如果拆微服务，`media_files` 会是第一个适合迁出去的表。
 
 ## community_comments
 

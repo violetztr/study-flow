@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -62,6 +63,39 @@ class CommunityPostControllerTest {
                 .andExpect(jsonPath("$.data[0].title").value("第一条社区帖子"))
                 .andExpect(jsonPath("$.data[0].commentCount").value(0))
                 .andExpect(jsonPath("$.data[0].reactionCount").value(0));
+    }
+
+    @Test
+    void createPostCanAttachUploadedImagesAndFeedShowsMedia() throws Exception {
+        String token = registerAndLogin("post_media_alice", "post_media_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long mediaFileId = prepareAndCompleteImageUpload(token);
+
+        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "带图片的动态",
+                                  "content": "这条动态应该显示一张图片。",
+                                  "mediaFileIds": [%d]
+                                }
+                                """.formatted(topicId, mediaFileId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.media[0].id").value(mediaFileId))
+                .andExpect(jsonPath("$.data.media[0].fileType").value("IMAGE"))
+                .andExpect(jsonPath("$.data.media[0].url", containsString("test-account.r2.cloudflarestorage.com")))
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
+        Long postId = response.path("data").path("id").asLong();
+
+        mockMvc.perform(get("/api/community/feed")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(postId))
+                .andExpect(jsonPath("$.data[0].media[0].id").value(mediaFileId));
     }
 
     @Test
@@ -400,6 +434,30 @@ class CommunityPostControllerTest {
 
         JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
         return response.path("data").path("id").asLong();
+    }
+
+    private Long prepareAndCompleteImageUpload(String token) throws Exception {
+        MvcResult prepareResult = mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "feed-image.png",
+                                  "contentType": "image/png",
+                                  "fileSize": 2048
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode prepareResponse = objectMapper.readTree(prepareResult.getResponse().getContentAsByteArray());
+        Long mediaFileId = prepareResponse.path("data").path("mediaFileId").asLong();
+
+        mockMvc.perform(post("/api/media/uploads/{mediaFileId}/complete", mediaFileId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        return mediaFileId;
     }
 
     private JsonNode getPost(String token, Long postId) throws Exception {

@@ -42,6 +42,7 @@ study-flow-frontend   前端 Nginx，暴露主机端口 8088
 study-flow-backend    后端 Spring Boot
 study-flow-mysql      MySQL
 study-flow-redis      Redis
+Cloudflare R2         图片对象存储，不在服务器硬盘保存图片
 ```
 
 ## 服务器准备
@@ -103,9 +104,45 @@ MYSQL_ROOT_PASSWORD=change-this-mysql-root-password
 STUDY_FLOW_JWT_SECRET=change-this-to-a-long-random-secret-at-least-32-characters
 STUDY_FLOW_JWT_EXPIRATION_MINUTES=1440
 FRONTEND_PORT=8088
+R2_ACCOUNT_ID=your-cloudflare-account-id
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_BUCKET=ruru-community
+R2_UPLOAD_URL_TTL=10m
+R2_READ_URL_TTL=1h
+R2_MAX_IMAGE_BYTES=10485760
 ```
 
 不要把 `.env` 提交到 GitHub。
+
+## Cloudflare R2 配置
+
+R2 Bucket：
+
+```text
+ruru-community
+```
+
+Bucket 保持私有，后端使用 S3 兼容签名 URL 上传和读取图片。
+
+为了让浏览器可以直传 R2，需要在 R2 Bucket 的 CORS 配置中允许站点来源。示例：
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://www.violet-surf.com",
+      "http://localhost:5173"
+    ],
+    "AllowedMethods": ["PUT", "GET"],
+    "AllowedHeaders": ["content-type"],
+    "ExposeHeaders": ["etag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+如果浏览器上传时报 CORS 错误，优先检查这里。
 
 ## 启动服务
 
@@ -245,6 +282,12 @@ Flyway 会在后端启动时自动迁移数据库。
 - 已经在线上执行过的 Flyway 历史迁移不要修改或删除。
 - 如果以后还要调整数据库，继续新增 `V9__xxx.sql`、`V10__xxx.sql` 这种新迁移。
 
+当前媒体模块新增 `V9__add_media_files.sql`：
+
+- 新增 `media_files`，记录 R2 图片对象元信息。
+- 新增 `community_post_media`，把图片挂到帖子上。
+- 图片真实文件不进 MySQL，也不占服务器硬盘。
+
 ## 上线检查
 
 浏览器检查：
@@ -261,6 +304,7 @@ https://www.violet-surf.com/circle/members
 - 新用户注册后自动加入 Ruru 社区。
 - 登录后默认进入 `/circle`。
 - 可以发帖、评论、点赞、取消点赞。
+- 可以在发帖时选择图片，图片上传到 R2 后显示在动态流和帖子详情。
 - 成员列表可以看到正常注册用户，`DISABLED` 圈内成员不会展示。
 - 普通用户看不到管理菜单。
 - `ADMIN` 或 `OWNER` 用户可以访问 `/admin/community`，并执行隐藏、恢复、禁言、解禁等真实管理操作。

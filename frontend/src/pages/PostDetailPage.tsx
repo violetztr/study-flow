@@ -108,6 +108,18 @@ function PostDetailPage() {
               <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', fontSize: 16 }}>
                 {postQuery.data.content}
               </Typography.Paragraph>
+              {postQuery.data.media.length > 0 ? (
+                <div className="post-detail-media-grid">
+                  {postQuery.data.media.map((media) => (
+                    <img
+                      key={media.id}
+                      alt={media.originalFilename}
+                      className="post-detail-media-image"
+                      src={media.url}
+                    />
+                  ))}
+                </div>
+              ) : null}
               <Space wrap>
                 <Button
                   type={postQuery.data.likedByCurrentUser ? 'primary' : 'default'}

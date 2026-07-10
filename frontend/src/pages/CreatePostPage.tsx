@@ -2,8 +2,9 @@ import { ArrowLeftOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, Skeleton, Space } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { type CommunityPostRequest, communityApi } from '../api/community'
-import PostComposer from '../components/community/PostComposer'
+import { communityApi } from '../api/community'
+import { mediaApi } from '../api/media'
+import PostComposer, { type CommunityPostFormValues } from '../components/community/PostComposer'
 
 function CreatePostPage() {
   const navigate = useNavigate()
@@ -15,14 +16,33 @@ function CreatePostPage() {
   })
 
   const createMutation = useMutation({
-    mutationFn: communityApi.createPost,
+    mutationFn: async (values: CommunityPostFormValues) => {
+      const mediaFileIds: number[] = []
+      for (const file of values.imageFiles ?? []) {
+        const prepareResponse = await mediaApi.prepareUpload({
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+          fileSize: file.size,
+        })
+        await mediaApi.uploadToSignedUrl(prepareResponse.uploadUrl, file, prepareResponse.headers)
+        const completeResponse = await mediaApi.completeUpload(prepareResponse.mediaFileId)
+        mediaFileIds.push(completeResponse.id)
+      }
+
+      return communityApi.createPost({
+        title: values.title,
+        content: values.content,
+        topicId: values.topicId ?? null,
+        mediaFileIds,
+      })
+    },
     onSuccess: (post) => {
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
       navigate(`/circle/posts/${post.id}`)
     },
   })
 
-  function handleSubmit(values: CommunityPostRequest) {
+  function handleSubmit(values: CommunityPostFormValues) {
     createMutation.mutate(values)
   }
 

@@ -1,6 +1,9 @@
 package com.studyflow.community.post.dto;
 
+import com.studyflow.media.dto.MediaAttachmentResponse;
+
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record CommunityPostResponse(
         Long id,
@@ -17,6 +20,7 @@ public record CommunityPostResponse(
         Integer reactionCount,
         Integer viewCount,
         Boolean likedByCurrentUser,
+        List<MediaAttachmentResponse> media,
         LocalDateTime lastActivityAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

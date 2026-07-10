@@ -12,6 +12,8 @@ import com.studyflow.community.post.dto.CommunityPostResponse;
 import com.studyflow.community.reaction.CommunityReactionService;
 import com.studyflow.community.topic.CommunityTopic;
 import com.studyflow.community.topic.CommunityTopicMapper;
+import com.studyflow.media.MediaService;
+import com.studyflow.media.dto.MediaAttachmentResponse;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
 import org.springframework.stereotype.Service;
@@ -41,6 +43,7 @@ public class CommunityPostService {
     private final UserProfileMapper userProfileMapper;
     private final UserMapper userMapper;
     private final CommunityReactionService communityReactionService;
+    private final MediaService mediaService;
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
@@ -48,7 +51,8 @@ public class CommunityPostService {
             CommunityMemberService communityMemberService,
             UserProfileMapper userProfileMapper,
             UserMapper userMapper,
-            CommunityReactionService communityReactionService
+            CommunityReactionService communityReactionService,
+            MediaService mediaService
     ) {
         this.communityPostMapper = communityPostMapper;
         this.communityTopicMapper = communityTopicMapper;
@@ -56,6 +60,7 @@ public class CommunityPostService {
         this.userProfileMapper = userProfileMapper;
         this.userMapper = userMapper;
         this.communityReactionService = communityReactionService;
+        this.mediaService = mediaService;
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
@@ -131,6 +136,7 @@ public class CommunityPostService {
         if (post.getTopicId() != null) {
             communityTopicMapper.incrementPostCount(post.getTopicId());
         }
+        mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), now);
         return toResponse(post, userId);
     }
 
@@ -160,6 +166,7 @@ public class CommunityPostService {
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setUpdatedAt(now);
+        mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), now);
         return toResponse(post, userId);
     }
 
@@ -243,8 +250,9 @@ public class CommunityPostService {
         Map<Long, String> authorNames = authorNames(authorIds);
         Map<Long, CommunityTopic> topics = topics(topicIds);
         Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
+        Map<Long, List<MediaAttachmentResponse>> mediaByPostId = mediaService.attachmentsByPostIds(postIds);
         return posts.stream()
-                .map(post -> toResponse(post, authorNames, topics, likedPostIds))
+                .map(post -> toResponse(post, authorNames, topics, likedPostIds, mediaByPostId))
                 .toList();
     }
 
@@ -256,7 +264,8 @@ public class CommunityPostService {
             CommunityPost post,
             Map<Long, String> authorNames,
             Map<Long, CommunityTopic> topics,
-            Set<Long> likedPostIds
+            Set<Long> likedPostIds,
+            Map<Long, List<MediaAttachmentResponse>> mediaByPostId
     ) {
         CommunityTopic topic = post.getTopicId() == null ? null : topics.get(post.getTopicId());
         return new CommunityPostResponse(
@@ -274,6 +283,7 @@ public class CommunityPostService {
                 post.getReactionCount(),
                 post.getViewCount(),
                 likedPostIds.contains(post.getId()),
+                mediaByPostId.getOrDefault(post.getId(), Collections.emptyList()),
                 post.getLastActivityAt(),
                 post.getCreatedAt(),
                 post.getUpdatedAt()

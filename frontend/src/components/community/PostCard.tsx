@@ -43,6 +43,19 @@ function PostCard({ post, topics = [] }: PostCardProps) {
           {getExcerpt(post.content)}
         </Typography.Paragraph>
 
+        {post.media.length > 0 ? (
+          <div className="post-media-grid">
+            {post.media.slice(0, 4).map((media) => (
+              <img
+                key={media.id}
+                alt={media.originalFilename}
+                className="post-media-image"
+                src={media.url}
+              />
+            ))}
+          </div>
+        ) : null}
+
         <Space wrap size={18}>
           <Typography.Text type="secondary">
             <CommentOutlined /> {post.commentCount}

@@ -23,3 +23,12 @@ study-flow:
   jwt:
     secret: study-flow-test-secret-key-with-enough-length-for-jjwt-signing
     expiration-minutes: 1440
+  media:
+    r2:
+      account-id: test-account
+      access-key-id: test-access-key
+      secret-access-key: test-secret-key
+      bucket: ruru-community
+      upload-url-ttl: 10m
+      read-url-ttl: 1h
+      max-image-bytes: 10485760

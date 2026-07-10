@@ -103,6 +103,8 @@ class CommunityMigrationTest {
             assertThat(tableExists(connection, "community_comments")).isTrue();
             assertThat(tableExists(connection, "community_reactions")).isTrue();
             assertThat(tableExists(connection, "community_moderation_actions")).isTrue();
+            assertThat(tableExists(connection, "media_files")).isTrue();
+            assertThat(tableExists(connection, "community_post_media")).isTrue();
 
             assertThat(tableExists(connection, "portfolio_projects")).isFalse();
             assertThat(tableExists(connection, "github_repositories")).isFalse();

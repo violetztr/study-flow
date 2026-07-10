@@ -13,6 +13,16 @@ export type CommunityPostRequest = {
   title: string
   content: string
   topicId?: number | null
+  mediaFileIds?: number[]
+}
+
+export type MediaAttachmentResponse = {
+  id: number
+  fileType: string
+  contentType: string
+  originalFilename: string
+  fileSize: number
+  url: string
 }
 
 export type CommunityPostResponse = {
@@ -30,6 +40,7 @@ export type CommunityPostResponse = {
   reactionCount: number
   viewCount: number
   likedByCurrentUser: boolean
+  media: MediaAttachmentResponse[]
   lastActivityAt?: string | null
   createdAt: string
   updatedAt?: string | null
