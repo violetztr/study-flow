@@ -21,7 +21,7 @@ public class CommunityTopicService {
     }
 
     public List<CommunityTopicResponse> listTopics(Long userId) {
-        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
+        Circle circle = communityMemberService.getDefaultCircle();
         return communityTopicMapper.selectList(new LambdaQueryWrapper<CommunityTopic>()
                         .eq(CommunityTopic::getCircleId, circle.getId())
                         .eq(CommunityTopic::getStatus, STATUS_ACTIVE)

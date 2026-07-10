@@ -1,11 +1,14 @@
-import { PlusOutlined, TeamOutlined } from '@ant-design/icons'
-import { Alert, Button, Empty, Skeleton, Space } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
+import { Alert, Button, Empty, Skeleton, Space, Typography } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
 import PostCard from '../components/community/PostCard'
 
 function CircleFeedPage() {
+  const user = getStoredUser()
+
   const feedQuery = useQuery({
     queryKey: ['community-feed'],
     queryFn: communityApi.listFeed,
@@ -17,23 +20,25 @@ function CircleFeedPage() {
   })
 
   const posts = feedQuery.data ?? []
+  const publishTarget = user ? '/circle/posts/new' : '/login'
+  const publishState = user ? undefined : { from: '/circle/posts/new' }
 
   return (
     <section className="page-section">
-      <section className="dashboard-header">
+      <section className="community-toolbar">
         <div>
-          <p className="dashboard-kicker">Ruru Community</p>
-          <h1 className="dashboard-title">Ruru 社区</h1>
-          <p className="dashboard-subtitle">
-            一个先从朋友小圈子开始的社区。先把发帖、评论、点赞、成员和管理这些基础能力做好，后面再一点点长出更强的模块。
-          </p>
+          <Typography.Title level={2} className="community-title">
+            最新动态
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            不登录也能浏览社区；发布、点赞和评论需要注册登录。
+          </Typography.Text>
         </div>
         <Space wrap>
-          <Button icon={<TeamOutlined />}>
-            <Link to="/circle/members">成员</Link>
-          </Button>
           <Button type="primary" icon={<PlusOutlined />}>
-            <Link to="/circle/posts/new">发布动态</Link>
+            <Link to={publishTarget} state={publishState}>
+              发布动态
+            </Link>
           </Button>
         </Space>
       </section>
@@ -45,7 +50,9 @@ function CircleFeedPage() {
         {!feedQuery.isLoading && posts.length === 0 ? (
           <Empty description="社区里还没有动态，来发第一条吧。">
             <Button type="primary">
-              <Link to="/circle/posts/new">发布第一条动态</Link>
+              <Link to={publishTarget} state={publishState}>
+                发布第一条动态
+              </Link>
             </Button>
           </Empty>
         ) : null}

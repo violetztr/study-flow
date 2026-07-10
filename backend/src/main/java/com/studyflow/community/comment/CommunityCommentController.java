@@ -30,7 +30,7 @@ public class CommunityCommentController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId
     ) {
-        return ApiResponse.success(communityCommentService.listComments(principal.userId(), postId));
+        return ApiResponse.success(communityCommentService.listComments(currentUserId(principal), postId));
     }
 
     @PostMapping("/posts/{postId}/comments")
@@ -49,5 +49,9 @@ public class CommunityCommentController {
     ) {
         communityCommentService.deleteComment(principal.userId(), commentId);
         return ApiResponse.success();
+    }
+
+    private Long currentUserId(UserPrincipal principal) {
+        return principal == null ? null : principal.userId();
     }
 }

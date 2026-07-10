@@ -357,23 +357,71 @@ class CommunityPostControllerTest {
     }
 
     @Test
-    void readRoutesRequireDefaultCircleMembership() throws Exception {
-        String memberToken = registerAndLogin("post_read_member", "post_read_member@example.com");
+    void readRoutesArePublicForGuestsAndNonMembers() throws Exception {
+        String memberToken = registerAndLogin("post_public_read_member", "post_public_read_member@example.com");
         Long topicId = firstTopicId(memberToken);
-        Long postId = createPost(memberToken, topicId, "Members only", "Circle visibility requires membership.");
-        String nonMemberToken = registerAndLogin("post_read_non_member", "post_read_non_member@example.com");
+        Long postId = createPost(memberToken, topicId, "公开可读", "游客和非成员都可以先看社区内容。");
+        String nonMemberToken = registerAndLogin("post_public_read_non_member", "post_public_read_non_member@example.com");
         removeDefaultMembership(extractUserId(nonMemberToken));
 
         mockMvc.perform(get("/api/community/topics")
                         .header("Authorization", "Bearer " + nonMemberToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(4)));
 
         mockMvc.perform(get("/api/community/feed")
                         .header("Authorization", "Bearer " + nonMemberToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", hasItem(postId.intValue())));
 
         mockMvc.perform(get("/api/community/posts/{id}", postId)
                         .header("Authorization", "Bearer " + nonMemberToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(postId))
+                .andExpect(jsonPath("$.data.likedByCurrentUser").value(false));
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", hasItem(postId.intValue())));
+
+        mockMvc.perform(get("/api/community/posts/{id}", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(postId))
+                .andExpect(jsonPath("$.data.likedByCurrentUser").value(false));
+    }
+
+    @Test
+    void writeRoutesStillRequireLogin() throws Exception {
+        String token = registerAndLogin("post_public_write_owner", "post_public_write_owner@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "写操作要登录", "游客不能发帖、改帖、删帖或点赞。");
+
+        mockMvc.perform(post("/api/community/posts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "游客发帖",
+                                  "content": "这应该被拦截。"
+                                }
+                                """.formatted(topicId)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/community/posts/{id}", postId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "游客改帖",
+                                  "content": "这应该被拦截。"
+                                }
+                                """.formatted(topicId)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/community/posts/{id}", postId))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/community/posts/{id}/reactions/like", postId))
                 .andExpect(status().isForbidden());
     }
 

@@ -16,11 +16,11 @@ function App() {
       <Route path="/" element={<Navigate to="/circle" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
-          <Route path="/circle" element={<CircleFeedPage />} />
+      <Route element={<AppLayout />}>
+        <Route path="/circle" element={<CircleFeedPage />} />
+        <Route path="/circle/posts/:id" element={<PostDetailPage />} />
+        <Route element={<ProtectedRoute />}>
           <Route path="/circle/posts/new" element={<CreatePostPage />} />
-          <Route path="/circle/posts/:id" element={<PostDetailPage />} />
           <Route path="/circle/members" element={<MembersPage />} />
           <Route path="/circle/members/:id" element={<MemberProfilePage />} />
           <Route path="/admin/community" element={<CommunityAdminPage />} />

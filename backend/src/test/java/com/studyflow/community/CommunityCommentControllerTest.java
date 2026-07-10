@@ -124,6 +124,27 @@ class CommunityCommentControllerTest {
     }
 
     @Test
+    void commentsCanBeReadWithoutLoginButWritingRequiresLogin() throws Exception {
+        String token = registerAndLogin("comment_public_read_alice", "comment_public_read_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "公开评论", "游客可以看评论，但不能直接评论。");
+        Long commentId = createComment(token, postId, "这条评论游客也能看到。");
+
+        mockMvc.perform(get("/api/community/posts/{postId}/comments", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", hasItem(commentId.intValue())));
+
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", postId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "游客不能直接评论"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void validationRejectsBlankAndOverlongCommentContent() throws Exception {
         String token = registerAndLogin("comment_validation_alice", "comment_validation_alice@example.com");
         Long topicId = firstTopicId(token);

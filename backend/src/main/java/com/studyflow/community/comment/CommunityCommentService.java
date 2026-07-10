@@ -49,7 +49,7 @@ public class CommunityCommentService {
     }
 
     public List<CommunityCommentResponse> listComments(Long userId, Long postId) {
-        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
+        Circle circle = communityMemberService.getDefaultCircle();
         communityPostService.requirePublishedPost(circle.getId(), postId);
         List<CommunityComment> comments = communityCommentMapper.selectList(new LambdaQueryWrapper<CommunityComment>()
                 .eq(CommunityComment::getCircleId, circle.getId())

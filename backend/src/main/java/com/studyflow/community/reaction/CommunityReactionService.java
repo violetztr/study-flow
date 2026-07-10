@@ -80,15 +80,18 @@ public class CommunityReactionService {
     }
 
     public boolean hasLikedPost(Long userId, Long postId) {
-        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
+        if (userId == null) {
+            return false;
+        }
+        Circle circle = communityMemberService.getDefaultCircle();
         return hasReaction(circle.getId(), userId, postId);
     }
 
     public Set<Long> likedPostIds(Long userId, Collection<Long> postIds) {
-        if (postIds.isEmpty()) {
+        if (userId == null || postIds.isEmpty()) {
             return Collections.emptySet();
         }
-        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
+        Circle circle = communityMemberService.getDefaultCircle();
         return communityReactionMapper.selectList(new LambdaQueryWrapper<CommunityReaction>()
                         .select(CommunityReaction::getTargetId)
                         .eq(CommunityReaction::getCircleId, circle.getId())

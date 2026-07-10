@@ -28,7 +28,7 @@ public class CommunityPostController {
 
     @GetMapping("/feed")
     public ApiResponse<List<CommunityPostResponse>> listFeed(@AuthenticationPrincipal UserPrincipal principal) {
-        return ApiResponse.success(communityPostService.listFeed(principal.userId()));
+        return ApiResponse.success(communityPostService.listFeed(currentUserId(principal)));
     }
 
     @PostMapping("/posts")
@@ -44,7 +44,7 @@ public class CommunityPostController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId
     ) {
-        return ApiResponse.success(communityPostService.getPost(principal.userId(), postId));
+        return ApiResponse.success(communityPostService.getPost(currentUserId(principal), postId));
     }
 
     @PutMapping("/posts/{postId}")
@@ -63,5 +63,9 @@ public class CommunityPostController {
     ) {
         communityPostService.deletePost(principal.userId(), postId);
         return ApiResponse.success();
+    }
+
+    private Long currentUserId(UserPrincipal principal) {
+        return principal == null ? null : principal.userId();
     }
 }

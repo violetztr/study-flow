@@ -90,6 +90,23 @@ class MediaControllerTest {
                 .andExpect(jsonPath("$.data.status").value("UPLOADED"));
     }
 
+    @Test
+    void uploadEndpointsRequireLogin() throws Exception {
+        mockMvc.perform(post("/api/media/uploads/presign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "guest.png",
+                                  "contentType": "image/png",
+                                  "fileSize": 2048
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/media/uploads/{mediaFileId}/complete", 1))
+                .andExpect(status().isForbidden());
+    }
+
     private Long prepareImageUpload(String token) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/media/uploads/presign")
                         .header("Authorization", "Bearer " + token)

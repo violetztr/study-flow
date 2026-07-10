@@ -140,18 +140,18 @@ class CommunityFoundationControllerTest {
     }
 
     @Test
-    void disabledCircleMemberCannotReadCommunityFoundationRoutes() throws Exception {
+    void disabledCircleMemberCanOnlyUsePublicReadRoutes() throws Exception {
         String token = registerAndLogin("circle_disabled_member", "circle_disabled_member@example.com");
         Long userId = extractUserId(token);
         setDefaultMembershipStatus(userId, "DISABLED");
 
         mockMvc.perform(get("/api/community/topics")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/community/feed")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/community/members")
                         .header("Authorization", "Bearer " + token))

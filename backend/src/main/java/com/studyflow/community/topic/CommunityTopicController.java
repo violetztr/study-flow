@@ -21,6 +21,10 @@ public class CommunityTopicController {
 
     @GetMapping
     public ApiResponse<List<CommunityTopicResponse>> listTopics(@AuthenticationPrincipal UserPrincipal principal) {
-        return ApiResponse.success(communityTopicService.listTopics(principal.userId()));
+        return ApiResponse.success(communityTopicService.listTopics(currentUserId(principal)));
+    }
+
+    private Long currentUserId(UserPrincipal principal) {
+        return principal == null ? null : principal.userId();
     }
 }

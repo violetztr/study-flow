@@ -2,7 +2,8 @@ import { ArrowLeftOutlined, HeartFilled, HeartOutlined, SendOutlined } from '@an
 import { Alert, Button, Card, Form, Input, Skeleton, Space, Typography } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
 import CommentList from '../components/community/CommentList'
 import TopicBadge from '../components/community/TopicBadge'
@@ -14,8 +15,10 @@ type CommentFormValues = {
 function PostDetailPage() {
   const { id } = useParams()
   const postId = Number(id)
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [form] = Form.useForm<CommentFormValues>()
+  const user = getStoredUser()
 
   const postQuery = useQuery({
     queryKey: ['community-post', postId],
@@ -32,6 +35,7 @@ function PostDetailPage() {
   const meQuery = useQuery({
     queryKey: ['community-me'],
     queryFn: communityApi.getMe,
+    enabled: Boolean(user),
   })
 
   const likeMutation = useMutation({
@@ -68,6 +72,10 @@ function PostDetailPage() {
         <Alert showIcon type="error" message="帖子地址无效" />
       </section>
     )
+  }
+
+  function requireLogin() {
+    navigate('/login', { state: { from: `/circle/posts/${postId}` } })
   }
 
   return (
@@ -125,7 +133,7 @@ function PostDetailPage() {
                   type={postQuery.data.likedByCurrentUser ? 'primary' : 'default'}
                   icon={postQuery.data.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
                   loading={likeMutation.isPending}
-                  onClick={() => likeMutation.mutate()}
+                  onClick={() => (user ? likeMutation.mutate() : requireLogin())}
                 >
                   {postQuery.data.likedByCurrentUser ? '已喜欢' : '喜欢'} · {postQuery.data.reactionCount}
                 </Button>
@@ -138,36 +146,46 @@ function PostDetailPage() {
         ) : null}
 
         <Card className="workspace-card" title="评论">
-          <Form<CommentFormValues>
-            form={form}
-            layout="vertical"
-            requiredMark={false}
-            onFinish={(values) => commentMutation.mutate(values)}
-          >
-            <Form.Item
-              name="content"
-              rules={[
-                { required: true, message: '请输入评论内容' },
-                { max: 2000, message: '评论不能超过 2000 个字符' },
-              ]}
+          {user ? (
+            <Form<CommentFormValues>
+              form={form}
+              layout="vertical"
+              requiredMark={false}
+              onFinish={(values) => commentMutation.mutate(values)}
             >
-              <Input.TextArea rows={4} placeholder="写下你的建议、追问或鼓励..." />
-            </Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SendOutlined />}
-              loading={commentMutation.isPending}
-            >
-              发表评论
-            </Button>
-          </Form>
+              <Form.Item
+                name="content"
+                rules={[
+                  { required: true, message: '请输入评论内容' },
+                  { max: 2000, message: '评论不能超过 2000 个字符' },
+                ]}
+              >
+                <Input.TextArea rows={4} placeholder="写下你的建议、追问或鼓励..." />
+              </Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<SendOutlined />}
+                loading={commentMutation.isPending}
+              >
+                发表评论
+              </Button>
+            </Form>
+          ) : (
+            <Alert
+              showIcon
+              type="info"
+              message="登录后可以评论和点赞"
+              action={<Button onClick={requireLogin}>去登录</Button>}
+              style={{ marginBottom: 18 }}
+            />
+          )}
 
           <CommentList
             comments={commentsQuery.data ?? []}
             currentUserId={meQuery.data?.userId}
             deletingId={deleteCommentMutation.variables ?? null}
-            onDelete={(commentId) => deleteCommentMutation.mutate(commentId)}
+            onDelete={user ? (commentId) => deleteCommentMutation.mutate(commentId) : undefined}
           />
         </Card>
       </div>

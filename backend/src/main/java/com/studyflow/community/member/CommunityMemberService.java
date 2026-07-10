@@ -141,7 +141,7 @@ public class CommunityMemberService {
         return CommunityMemberResponse.from(circle, member, profile, user.getUsername());
     }
 
-    private Circle getDefaultCircle() {
+    public Circle getDefaultCircle() {
         Circle circle = circleMapper.selectOne(new LambdaQueryWrapper<Circle>()
                 .eq(Circle::getSlug, DEFAULT_CIRCLE_SLUG));
         if (circle == null) {

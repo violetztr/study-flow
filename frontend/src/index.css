@@ -106,6 +106,13 @@ textarea {
   box-shadow: 0 16px 40px rgba(37, 111, 98, 0.28);
 }
 
+.brand-mark.small {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  font-size: 18px;
+}
+
 .auth-kicker,
 .dashboard-kicker {
   margin: 0 0 12px;
@@ -243,13 +250,36 @@ textarea {
   z-index: 9;
   top: 0;
   display: flex;
-  min-height: 78px;
+  min-height: 64px;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 28px;
+  padding: 10px 24px;
   border-bottom: 1px solid var(--sf-border);
   background: rgba(255, 252, 246, 0.8);
   backdrop-filter: blur(16px);
+}
+
+.compact-brand {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--sf-primary-dark);
+  text-decoration: none;
+}
+
+.compact-brand strong,
+.compact-brand small {
+  display: block;
+}
+
+.compact-brand small {
+  margin-top: 1px;
+  color: var(--sf-muted);
+  font-size: 12px;
+}
+
+.compact-actions {
+  justify-content: flex-end;
 }
 
 .app-user {
@@ -262,12 +292,12 @@ textarea {
 }
 
 .app-content {
-  min-height: calc(100vh - 78px);
+  min-height: calc(100vh - 64px);
 }
 
 .page-section {
-  min-height: 100vh;
-  padding: 32px;
+  min-height: calc(100vh - 64px);
+  padding: 22px;
 }
 
 .page-heading {
@@ -336,10 +366,28 @@ textarea {
   justify-content: flex-end;
 }
 
+.community-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 980px;
+  margin: 0 auto 16px;
+  padding: 12px 2px 4px;
+}
+
+.community-title {
+  margin: 0 0 2px !important;
+  color: var(--sf-primary-dark) !important;
+  font-size: clamp(26px, 4vw, 34px) !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.04em;
+}
+
 .dashboard-content {
   display: grid;
-  max-width: 1180px;
-  gap: 20px;
+  max-width: 980px;
+  gap: 16px;
   margin: 0 auto;
 }
 
@@ -518,7 +566,20 @@ textarea {
     padding: 14px 18px;
   }
 
+  .compact-header {
+    align-items: stretch;
+  }
+
+  .compact-actions {
+    justify-content: flex-start;
+  }
+
   .page-heading {
+    flex-direction: column;
+  }
+
+  .community-toolbar {
+    align-items: flex-start;
     flex-direction: column;
   }
 

@@ -64,7 +64,7 @@ public class CommunityPostService {
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
-        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
+        Circle circle = communityMemberService.getDefaultCircle();
         List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
                         .eq(CommunityPost::getCircleId, circle.getId())
                         .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
@@ -75,7 +75,7 @@ public class CommunityPostService {
     }
 
     public CommunityPostResponse getPost(Long userId, Long postId) {
-        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
+        Circle circle = communityMemberService.getDefaultCircle();
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
         return toResponse(post, userId);
     }
