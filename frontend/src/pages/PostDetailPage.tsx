@@ -1,15 +1,31 @@
-import { ArrowLeftOutlined, HeartFilled, HeartOutlined, SendOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Form, Input, Skeleton, Space, Typography } from 'antd'
+import { ArrowLeftOutlined, EyeOutlined, HeartFilled, HeartOutlined, SendOutlined } from '@ant-design/icons'
+import { Alert, Button, Form, Input, Skeleton } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
+import type { CommunityPostResponse } from '../api/community'
 import CommentList from '../components/community/CommentList'
 import TopicBadge from '../components/community/TopicBadge'
 
 type CommentFormValues = {
   content: string
+}
+
+type LikeMutationContext = {
+  previousPost?: CommunityPostResponse
+}
+
+function togglePostLike(post: CommunityPostResponse) {
+  const nextLiked = !post.likedByCurrentUser
+  const delta = nextLiked ? 1 : -1
+
+  return {
+    ...post,
+    likedByCurrentUser: nextLiked,
+    reactionCount: Math.max(0, post.reactionCount + delta),
+  }
 }
 
 function PostDetailPage() {
@@ -38,12 +54,27 @@ function PostDetailPage() {
     enabled: Boolean(user),
   })
 
-  const likeMutation = useMutation({
+  const likeMutation = useMutation<void, Error, void, LikeMutationContext>({
     mutationFn: () =>
       postQuery.data?.likedByCurrentUser
         ? communityApi.unlikePost(postId)
         : communityApi.likePost(postId),
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['community-post', postId] })
+      const previousPost = queryClient.getQueryData<CommunityPostResponse>(['community-post', postId])
+
+      queryClient.setQueryData<CommunityPostResponse>(['community-post', postId], (currentPost) =>
+        currentPost ? togglePostLike(currentPost) : currentPost,
+      )
+
+      return { previousPost }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(['community-post', postId], context.previousPost)
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
     },
@@ -78,50 +109,49 @@ function PostDetailPage() {
     navigate('/login', { state: { from: `/circle/posts/${postId}` } })
   }
 
+  const post = postQuery.data
+
   return (
-    <section className="page-section">
-      <div className="page-heading">
-        <div>
-          <p className="dashboard-kicker">Post detail</p>
-          <h1>动态详情</h1>
-        </div>
-        <Button icon={<ArrowLeftOutlined />}>
-          <Link to="/circle">返回社区</Link>
+    <section className="page-section detail-page">
+      <div className="detail-shell">
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          className="ghost-link-button"
+          onClick={() => navigate('/circle')}
+        >
+          返回
         </Button>
-      </div>
 
-      <div className="dashboard-content">
-        {postQuery.isError ? <Alert showIcon type="error" message={postQuery.error.message} /> : null}
-        {commentsQuery.isError ? (
-          <Alert showIcon type="error" message={commentsQuery.error.message} />
-        ) : null}
-        {commentMutation.isError ? (
-          <Alert showIcon type="error" message={commentMutation.error.message} />
-        ) : null}
+        <div className="notice-stack">
+          {postQuery.isError ? <Alert showIcon type="error" message={postQuery.error.message} /> : null}
+          {commentsQuery.isError ? (
+            <Alert showIcon type="error" message={commentsQuery.error.message} />
+          ) : null}
+          {commentMutation.isError ? (
+            <Alert showIcon type="error" message={commentMutation.error.message} />
+          ) : null}
+        </div>
 
-        {postQuery.isLoading ? (
-          <Skeleton active />
-        ) : postQuery.data ? (
-          <Card className="workspace-card">
-            <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Space wrap>
-                <TopicBadge name={postQuery.data.topicName} />
-                <Typography.Text type="secondary">
-                  {postQuery.data.authorName} · {dayjs(postQuery.data.createdAt).format('YYYY-MM-DD HH:mm')}
-                </Typography.Text>
-              </Space>
-              <Typography.Title level={2} style={{ margin: 0 }}>
-                {postQuery.data.title}
-              </Typography.Title>
-              <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', fontSize: 16 }}>
-                {postQuery.data.content}
-              </Typography.Paragraph>
-              {postQuery.data.media.length > 0 ? (
-                <div className="post-detail-media-grid">
-                  {postQuery.data.media.map((media) => (
-                    media.fileType === 'VIDEO' ? (
+        {postQuery.isLoading ? <Skeleton active /> : null}
+
+        {post ? (
+          <article className="post-detail-card">
+            <div className="post-detail-meta">
+              <TopicBadge name={post.topicName} />
+              <span>{post.authorName}</span>
+              <span>{dayjs(post.createdAt).format('YYYY-MM-DD HH:mm')}</span>
+            </div>
+
+            <h1>{post.title}</h1>
+            <p className="post-detail-content">{post.content}</p>
+
+            {post.media.length > 0 ? (
+              <div className="post-detail-media-grid">
+                {post.media.map((media) => (
+                  <div className="post-detail-media-item" key={media.id}>
+                    {media.fileType === 'VIDEO' ? (
                       <video
-                        key={media.id}
                         className="post-detail-media-video"
                         controls
                         preload="metadata"
@@ -129,35 +159,45 @@ function PostDetailPage() {
                       />
                     ) : (
                       <img
-                        key={media.id}
                         alt={media.originalFilename}
                         className="post-detail-media-image"
                         src={media.url}
                       />
-                    )
-                  ))}
-                </div>
-              ) : null}
-              <Space wrap>
-                <Button
-                  type={postQuery.data.likedByCurrentUser ? 'primary' : 'default'}
-                  icon={postQuery.data.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
-                  loading={likeMutation.isPending}
-                  onClick={() => (user ? likeMutation.mutate() : requireLogin())}
-                >
-                  {postQuery.data.likedByCurrentUser ? '已喜欢' : '喜欢'} · {postQuery.data.reactionCount}
-                </Button>
-                <Typography.Text type="secondary">
-                  {postQuery.data.commentCount} 条评论 · {postQuery.data.viewCount} 次浏览
-                </Typography.Text>
-              </Space>
-            </Space>
-          </Card>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="post-detail-actions">
+              <Button
+                type="text"
+                className={`post-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
+                icon={post.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
+                loading={likeMutation.isPending}
+                onClick={() => (user ? likeMutation.mutate() : requireLogin())}
+              >
+                {post.likedByCurrentUser ? '已喜欢' : '喜欢'} {post.reactionCount}
+              </Button>
+              <span>
+                {post.commentCount} 条评论
+              </span>
+              <span>
+                <EyeOutlined /> {post.viewCount}
+              </span>
+            </div>
+          </article>
         ) : null}
 
-        <Card className="workspace-card" title="评论">
+        <section className="comment-panel">
+          <div className="comment-panel-head">
+            <h2>评论</h2>
+            <span>{commentsQuery.data?.length ?? 0} 条</span>
+          </div>
+
           {user ? (
             <Form<CommentFormValues>
+              className="comment-composer"
               form={form}
               layout="vertical"
               requiredMark={false}
@@ -170,7 +210,12 @@ function PostDetailPage() {
                   { max: 2000, message: '评论不能超过 2000 个字符' },
                 ]}
               >
-                <Input.TextArea rows={4} placeholder="写下你的建议、追问或鼓励..." />
+                <Input.TextArea
+                  bordered={false}
+                  className="comment-input"
+                  autoSize={{ minRows: 3, maxRows: 8 }}
+                  placeholder="写一句回应..."
+                />
               </Form.Item>
               <Button
                 type="primary"
@@ -178,17 +223,16 @@ function PostDetailPage() {
                 icon={<SendOutlined />}
                 loading={commentMutation.isPending}
               >
-                发表评论
+                发送
               </Button>
             </Form>
           ) : (
-            <Alert
-              showIcon
-              type="info"
-              message="登录后可以评论和点赞"
-              action={<Button onClick={requireLogin}>去登录</Button>}
-              style={{ marginBottom: 18 }}
-            />
+            <div className="login-nudge">
+              <span>登录后可以评论和点赞。</span>
+              <Button type="primary" onClick={requireLogin}>
+                登录
+              </Button>
+            </div>
           )}
 
           <CommentList
@@ -197,7 +241,7 @@ function PostDetailPage() {
             deletingId={deleteCommentMutation.variables ?? null}
             onDelete={user ? (commentId) => deleteCommentMutation.mutate(commentId) : undefined}
           />
-        </Card>
+        </section>
       </div>
     </section>
   )

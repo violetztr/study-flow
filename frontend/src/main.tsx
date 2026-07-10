@@ -23,10 +23,10 @@ createRoot(document.getElementById('root')!).render(
       locale={zhCN}
       theme={{
         token: {
-          colorPrimary: '#256f62',
-          borderRadius: 14,
+          colorPrimary: '#1f5f50',
+          borderRadius: 12,
           fontFamily:
-            '"LXGW WenKai", "Noto Serif SC", "Source Han Serif SC", "Microsoft YaHei", serif',
+            '"MiSans", "HarmonyOS Sans SC", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif',
         },
       }}
     >

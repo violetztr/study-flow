@@ -1,12 +1,13 @@
 import { PlusOutlined } from '@ant-design/icons'
 import { Alert, Button, Empty, Skeleton } from 'antd'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
 import PostCard from '../components/community/PostCard'
 
 function CircleFeedPage() {
+  const navigate = useNavigate()
   const user = getStoredUser()
 
   const feedQuery = useQuery({
@@ -20,36 +21,44 @@ function CircleFeedPage() {
   })
 
   const posts = feedQuery.data ?? []
-  const publishTarget = user ? '/circle/posts/new' : '/login'
-  const publishState = user ? undefined : { from: '/circle/posts/new' }
+
+  function goPublish() {
+    if (user) {
+      navigate('/circle/posts/new')
+      return
+    }
+    navigate('/login', { state: { from: '/circle/posts/new' } })
+  }
 
   return (
-    <section className="page-section">
-      <section className="community-toolbar minimal">
-        <Button type="primary" icon={<PlusOutlined />}>
-          <Link to={publishTarget} state={publishState}>
+    <section className="page-section feed-page">
+      <div className="feed-shell">
+        <div className="feed-toolbar">
+          <span>{posts.length} 条动态</span>
+          <Button type="primary" icon={<PlusOutlined />} onClick={goPublish}>
             发布
-          </Link>
-        </Button>
-      </section>
+          </Button>
+        </div>
 
-      <div className="dashboard-content">
-        {feedQuery.isError ? <Alert showIcon type="error" message={feedQuery.error.message} /> : null}
+        <div className="notice-stack">
+          {feedQuery.isError ? <Alert showIcon type="error" message={feedQuery.error.message} /> : null}
+        </div>
+
         {feedQuery.isLoading ? <Skeleton active /> : null}
 
         {!feedQuery.isLoading && posts.length === 0 ? (
           <Empty description="还没有动态">
-            <Button type="primary">
-              <Link to={publishTarget} state={publishState}>
-                发布
-              </Link>
+            <Button type="primary" onClick={goPublish}>
+              发布第一条
             </Button>
           </Empty>
         ) : null}
 
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} topics={topicsQuery.data ?? []} />
-        ))}
+        <div className="feed-list">
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} topics={topicsQuery.data ?? []} />
+          ))}
+        </div>
       </div>
     </section>
   )

@@ -1,5 +1,5 @@
 import { DeleteOutlined } from '@ant-design/icons'
-import { Button, List, Popconfirm, Space, Typography } from 'antd'
+import { Button, Popconfirm } from 'antd'
 import dayjs from 'dayjs'
 import type { CommunityCommentResponse } from '../../api/community'
 
@@ -10,56 +10,47 @@ type CommentListProps = {
   onDelete?: (commentId: number) => void
 }
 
+function getInitial(name: string) {
+  return name.trim().slice(0, 1).toUpperCase() || 'R'
+}
+
 function CommentList({ comments, currentUserId, deletingId, onDelete }: CommentListProps) {
+  if (comments.length === 0) {
+    return <div className="comment-empty">还没有评论，来写第一条吧。</div>
+  }
+
   return (
-    <List
-      dataSource={comments}
-      locale={{ emptyText: '还没有评论，来写第一条吧。' }}
-      renderItem={(comment) => {
+    <div className="comment-list">
+      {comments.map((comment) => {
         const canDelete = Boolean(onDelete && currentUserId === comment.authorId)
 
         return (
-          <List.Item
-            actions={
-              canDelete
-                ? [
-                    <Popconfirm
-                      key="delete"
-                      title="删除这条评论？"
-                      onConfirm={() => onDelete?.(comment.id)}
-                    >
-                      <Button
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        loading={deletingId === comment.id}
-                      >
-                        删除
-                      </Button>
-                    </Popconfirm>,
-                  ]
-                : undefined
-            }
-          >
-            <List.Item.Meta
-              title={
-                <Space wrap>
-                  <Typography.Text strong>{comment.authorName}</Typography.Text>
-                  <Typography.Text type="secondary">
-                    {dayjs(comment.createdAt).format('YYYY-MM-DD HH:mm')}
-                  </Typography.Text>
-                </Space>
-              }
-              description={
-                <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
-                  {comment.content}
-                </Typography.Paragraph>
-              }
-            />
-          </List.Item>
+          <article className="comment-item" key={comment.id}>
+            <div className="comment-avatar">{getInitial(comment.authorName)}</div>
+            <div className="comment-body">
+              <div className="comment-meta">
+                <strong>{comment.authorName}</strong>
+                <span>{dayjs(comment.createdAt).format('MM-DD HH:mm')}</span>
+              </div>
+              <p>{comment.content}</p>
+            </div>
+
+            {canDelete ? (
+              <Popconfirm title="删除这条评论？" onConfirm={() => onDelete?.(comment.id)}>
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  loading={deletingId === comment.id}
+                  className="comment-delete-button"
+                />
+              </Popconfirm>
+            ) : null}
+          </article>
         )
-      }}
-    />
+      })}
+    </div>
   )
 }
 

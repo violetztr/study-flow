@@ -1,7 +1,7 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Skeleton, Space } from 'antd'
+import { Alert, Button, Skeleton } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { communityApi } from '../api/community'
 import { mediaApi } from '../api/media'
 import PostComposer, { type CommunityPostFormValues } from '../components/community/PostComposer'
@@ -47,15 +47,18 @@ function CreatePostPage() {
   }
 
   return (
-    <section className="page-section">
-      <div className="page-heading minimal">
-        <Button icon={<ArrowLeftOutlined />}>
-          <Link to="/circle">返回</Link>
+    <section className="page-section compose-page">
+      <div className="compose-shell">
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          className="ghost-link-button"
+          onClick={() => navigate('/circle')}
+        >
+          返回
         </Button>
-      </div>
 
-      <Card className="profile-card">
-        <Space direction="vertical" size={18} style={{ width: '100%' }}>
+        <div className="compose-panel">
           {topicsQuery.isError ? <Alert showIcon type="error" message={topicsQuery.error.message} /> : null}
           {createMutation.isError ? (
             <Alert showIcon type="error" message={createMutation.error.message} />
@@ -69,8 +72,8 @@ function CreatePostPage() {
               onSubmit={handleSubmit}
             />
           )}
-        </Space>
-      </Card>
+        </div>
+      </div>
     </section>
   )
 }

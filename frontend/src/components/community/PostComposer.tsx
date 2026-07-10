@@ -1,4 +1,4 @@
-import { InboxOutlined } from '@ant-design/icons'
+import { PaperClipOutlined, PictureOutlined } from '@ant-design/icons'
 import { Button, Form, Input, Select, Upload } from 'antd'
 import { useState } from 'react'
 import type { UploadFile } from 'antd'
@@ -35,6 +35,7 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
 
   return (
     <Form<CommunityPostRequest>
+      className="composer-form"
       layout="vertical"
       requiredMark={false}
       initialValues={initialValues}
@@ -49,61 +50,88 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
         })
       }}
     >
+      <div className="composer-head">
+        <p>发布动态</p>
+        <span>写给朋友看，不用太正式。</span>
+      </div>
+
       <Form.Item
-        label="标题"
         name="title"
         rules={[
           { required: true, message: '请输入标题' },
           { max: 160, message: '标题不能超过 160 个字符' },
         ]}
       >
-        <Input size="large" placeholder="分享一件事、一个问题或一个小发现" />
-      </Form.Item>
-
-      <Form.Item label="话题" name="topicId">
-        <Select
-          allowClear
-          placeholder="选择一个话题"
-          options={topics.map((topic) => ({
-            label: topic.name,
-            value: topic.id,
-          }))}
+        <Input
+          bordered={false}
+          className="composer-title-input"
+          placeholder="这一条想说什么？"
         />
       </Form.Item>
 
       <Form.Item
-        label="内容"
         name="content"
         rules={[
           { required: true, message: '请输入内容' },
           { max: 10000, message: '内容不能超过 10000 个字符' },
         ]}
       >
-        <Input.TextArea rows={10} placeholder="写下上下文、想法、问题或你想分享的东西..." />
+        <Input.TextArea
+          bordered={false}
+          className="composer-content-input"
+          placeholder="写下想法、问题、记录，或者今天的小发现..."
+          autoSize={{ minRows: 8, maxRows: 18 }}
+        />
       </Form.Item>
 
-      <Form.Item label="媒体">
-        <Upload.Dragger
+      <div className="composer-tools">
+        <Form.Item name="topicId" className="composer-topic-item">
+          <Select
+            allowClear
+            className="composer-topic-select"
+            placeholder="选择话题"
+            options={topics.map((topic) => ({
+              label: topic.name,
+              value: topic.id,
+            }))}
+          />
+        </Form.Item>
+
+        <Upload
           accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
           beforeUpload={() => false}
           disabled={loading}
           fileList={fileList}
-          listType="picture"
           maxCount={9}
           multiple
           onChange={({ fileList: nextFileList }) => setFileList(limitMediaFiles(nextFileList))}
         >
-          <p className="ant-upload-drag-icon">
-            <InboxOutlined />
-          </p>
-          <p className="ant-upload-text">选择图片或视频</p>
-          <p className="ant-upload-hint">图片最多 10MB，视频最多 50MB；视频发布后需要 ruru 审核。</p>
-        </Upload.Dragger>
-      </Form.Item>
+          <Button icon={<PaperClipOutlined />} className="composer-media-button">
+            添加图片/视频
+          </Button>
+        </Upload>
+      </div>
 
-      <Button type="primary" htmlType="submit" loading={loading}>
-        {loading ? '上传并发布中' : '发布动态'}
-      </Button>
+      {fileList.length > 0 ? (
+        <p className="composer-media-note">
+          <PictureOutlined /> 已选择 {fileList.length} 个文件。图片最大 10MB，视频最大 50MB，视频发布后需要 ruru 审核。
+        </p>
+      ) : (
+        <p className="composer-media-note muted">
+          可附加图片或 1 个视频。视频审核通过前，其他人暂时看不到。
+        </p>
+      )}
+
+      <div className="composer-actions">
+        <Button
+          type="primary"
+          htmlType="submit"
+          loading={loading}
+          className="composer-submit"
+        >
+          {loading ? '发布中' : '发布'}
+        </Button>
+      </div>
     </Form>
   )
 }
