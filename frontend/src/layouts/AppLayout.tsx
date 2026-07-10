@@ -46,9 +46,6 @@ function AppLayout() {
               <Button type="primary" icon={<UserAddOutlined />} onClick={() => navigate('/register')}>
                 注册
               </Button>
-              <Button icon={<PlusOutlined />} onClick={() => navigate('/login', { state: { from: '/circle/posts/new' } })}>
-                登录后发布
-              </Button>
             </>
           )}
         </Space>

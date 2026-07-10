@@ -19,33 +19,11 @@ function RegisterPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-visual" aria-label="Ruru 注册介绍">
-        <div className="auth-story">
-          <div>
-            <span className="brand-mark">R</span>
-            <h1 className="auth-title">先拥有一个社区身份。</h1>
-            <p className="auth-copy">
-              注册接口会创建用户，密码会在后端用 BCrypt 加密保存。注册完成后回到登录页，再进入 Ruru 社区。
-            </p>
-          </div>
-          <div className="auth-steps">
-            <div className="auth-step">
-              <span className="auth-step-number">1</span>
-              <span>提交用户名、邮箱和密码到 Spring Boot 后端。</span>
-            </div>
-            <div className="auth-step">
-              <span className="auth-step-number">2</span>
-              <span>后端会自动把新用户加入默认 Ruru 社区。</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="auth-form-panel">
         <Card className="auth-card">
           <p className="auth-kicker">Create account</p>
           <h2 className="auth-card-title">创建账号</h2>
-          <p className="auth-card-subtitle">用一个账号进入 Ruru 社区。</p>
+          <p className="auth-card-subtitle">加入 ruru 小圈子。</p>
 
           {registerMutation.isError ? (
             <Alert

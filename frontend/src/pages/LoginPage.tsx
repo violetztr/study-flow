@@ -25,32 +25,10 @@ function LoginPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-visual" aria-label="Ruru 社区介绍">
-        <div className="auth-story">
-          <div>
-            <span className="brand-mark">R</span>
-            <h1 className="auth-title">把朋友的小圈子认真做好。</h1>
-            <p className="auth-copy">
-              Ruru 社区先从最基础的发帖、评论、点赞和成员开始。功能不贪多，先让真实交流跑起来。
-            </p>
-          </div>
-          <div className="auth-steps">
-            <div className="auth-step">
-              <span className="auth-step-number">1</span>
-              <span>登录后保存 JWT，后续请求自动带上 Authorization。</span>
-            </div>
-            <div className="auth-step">
-              <span className="auth-step-number">2</span>
-              <span>进入 Ruru 社区，查看动态、成员和基础话题。</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="auth-form-panel">
         <Card className="auth-card">
           <p className="auth-kicker">Welcome back</p>
-          <h2 className="auth-card-title">登录 Ruru</h2>
+          <h2 className="auth-card-title">登录 ruru</h2>
           <p className="auth-card-subtitle">回到你和朋友的小圈子。</p>
 
           {registered ? (

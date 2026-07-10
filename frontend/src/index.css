@@ -45,10 +45,12 @@ textarea {
 
 .auth-page {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(380px, 0.95fr);
+  display: flex;
   min-height: 100vh;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  padding: 24px;
   background:
     radial-gradient(circle at 12% 16%, rgba(214, 154, 45, 0.24), transparent 28%),
     radial-gradient(circle at 78% 14%, rgba(37, 111, 98, 0.2), transparent 30%),
@@ -64,32 +66,14 @@ textarea {
   border-radius: 34px;
 }
 
-.auth-visual,
 .auth-form-panel {
   position: relative;
   z-index: 1;
   display: flex;
+  width: min(440px, 100%);
   align-items: center;
   justify-content: center;
-  padding: 56px;
-}
-
-.auth-visual {
-  align-items: stretch;
-  justify-content: flex-start;
-}
-
-.auth-story {
-  display: flex;
-  width: min(640px, 100%);
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 36px;
-  border: 1px solid rgba(38, 53, 47, 0.12);
-  border-radius: 32px;
-  background: rgba(255, 252, 246, 0.42);
-  box-shadow: var(--sf-shadow);
-  backdrop-filter: blur(18px);
+  padding: 0;
 }
 
 .brand-mark {
@@ -121,53 +105,6 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-}
-
-.auth-title {
-  max-width: 560px;
-  margin: 28px 0 18px;
-  color: var(--sf-primary-dark);
-  font-size: clamp(42px, 7vw, 80px);
-  font-weight: 800;
-  line-height: 0.96;
-  letter-spacing: -0.06em;
-}
-
-.auth-copy {
-  max-width: 520px;
-  margin: 0;
-  color: var(--sf-muted);
-  font-size: 18px;
-  line-height: 1.8;
-}
-
-.auth-steps {
-  display: grid;
-  gap: 14px;
-  margin-top: 48px;
-}
-
-.auth-step {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  padding: 14px 16px;
-  border: 1px solid rgba(38, 53, 47, 0.1);
-  border-radius: 18px;
-  background: rgba(255, 252, 246, 0.52);
-}
-
-.auth-step-number {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  color: #fffaf2;
-  font-weight: 800;
-  background: var(--sf-primary);
 }
 
 .auth-card {
@@ -548,33 +485,13 @@ textarea {
 }
 
 @media (max-width: 900px) {
-  .auth-page {
-    grid-template-columns: 1fr;
-  }
-
   .auth-page::before {
     inset: 14px;
     border-radius: 24px;
   }
 
-  .auth-visual {
-    padding: 30px 22px 0;
-  }
-
   .auth-form-panel {
-    padding: 22px;
-  }
-
-  .auth-story {
-    padding: 24px;
-  }
-
-  .auth-title {
-    margin-top: 20px;
-  }
-
-  .auth-steps {
-    margin-top: 28px;
+    padding: 0;
   }
 
   .page-section {
