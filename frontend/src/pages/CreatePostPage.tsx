@@ -48,14 +48,9 @@ function CreatePostPage() {
 
   return (
     <section className="page-section">
-      <div className="page-heading">
-        <div>
-          <p className="dashboard-kicker">New post</p>
-          <h1>发布社区动态</h1>
-          <p>写清楚你想说的事、想问的问题，或者今天想分享的小发现。基础社区先从真实交流开始。</p>
-        </div>
+      <div className="page-heading minimal">
         <Button icon={<ArrowLeftOutlined />}>
-          <Link to="/circle">返回社区</Link>
+          <Link to="/circle">返回</Link>
         </Button>
       </div>
 

@@ -309,6 +309,11 @@ textarea {
   margin: 0 auto 20px;
 }
 
+.page-heading.minimal {
+  max-width: 980px;
+  margin-bottom: 12px;
+}
+
 .page-heading h1 {
   margin: 0;
   color: var(--sf-primary-dark);
@@ -374,6 +379,11 @@ textarea {
   max-width: 980px;
   margin: 0 auto 16px;
   padding: 12px 2px 4px;
+}
+
+.community-toolbar.minimal {
+  justify-content: flex-end;
+  padding-top: 0;
 }
 
 .community-title {
@@ -581,6 +591,10 @@ textarea {
   .community-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .community-toolbar.minimal {
+    align-items: flex-end;
   }
 
   .dashboard-header {

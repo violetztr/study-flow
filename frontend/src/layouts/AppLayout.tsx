@@ -18,8 +18,7 @@ function AppLayout() {
         <Link className="compact-brand" to="/circle">
           <span className="brand-mark small">R</span>
           <span>
-            <strong>Ruru 社区</strong>
-            <small>朋友小圈子</small>
+            <strong>ruru</strong>
           </span>
         </Link>
 

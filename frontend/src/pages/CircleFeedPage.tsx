@@ -1,5 +1,5 @@
 import { PlusOutlined } from '@ant-design/icons'
-import { Alert, Button, Empty, Skeleton, Space, Typography } from 'antd'
+import { Alert, Button, Empty, Skeleton } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
@@ -25,22 +25,12 @@ function CircleFeedPage() {
 
   return (
     <section className="page-section">
-      <section className="community-toolbar">
-        <div>
-          <Typography.Title level={2} className="community-title">
-            最新动态
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            不登录也能浏览社区；发布、点赞和评论需要注册登录。
-          </Typography.Text>
-        </div>
-        <Space wrap>
-          <Button type="primary" icon={<PlusOutlined />}>
-            <Link to={publishTarget} state={publishState}>
-              发布动态
-            </Link>
-          </Button>
-        </Space>
+      <section className="community-toolbar minimal">
+        <Button type="primary" icon={<PlusOutlined />}>
+          <Link to={publishTarget} state={publishState}>
+            发布
+          </Link>
+        </Button>
       </section>
 
       <div className="dashboard-content">
@@ -48,10 +38,10 @@ function CircleFeedPage() {
         {feedQuery.isLoading ? <Skeleton active /> : null}
 
         {!feedQuery.isLoading && posts.length === 0 ? (
-          <Empty description="社区里还没有动态，来发第一条吧。">
+          <Empty description="还没有动态">
             <Button type="primary">
               <Link to={publishTarget} state={publishState}>
-                发布第一条动态
+                发布
               </Link>
             </Button>
           </Empty>
