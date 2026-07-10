@@ -16,6 +16,9 @@ import type { MenuProps } from 'antd'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { clearSession, getStoredUser } from '../api/auth'
 
+type MenuItem = NonNullable<MenuProps['items']>[number]
+type MenuGroupItem = Extract<MenuItem, { type: 'group' }>
+
 const selectableMenuKeys = [
   '/circle/members',
   '/circle',
@@ -29,7 +32,7 @@ const selectableMenuKeys = [
   '/settings/profile',
 ]
 
-const menuItems: MenuProps['items'] = [
+const baseMenuItems: NonNullable<MenuProps['items']> = [
   {
     key: 'circle',
     type: 'group',
@@ -37,7 +40,6 @@ const menuItems: MenuProps['items'] = [
     children: [
       { key: '/circle', icon: <TeamOutlined />, label: <Link to="/circle">圈子动态</Link> },
       { key: '/circle/members', icon: <UserOutlined />, label: <Link to="/circle/members">圈子成员</Link> },
-      { key: '/admin/community', icon: <SafetyOutlined />, label: <Link to="/admin/community">圈子管理</Link> },
     ],
   },
   { key: '/dashboard', icon: <BarChartOutlined />, label: <Link to="/dashboard">驾驶舱</Link> },
@@ -93,6 +95,20 @@ function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = getStoredUser()
+  const menuItems: MenuProps['items'] = baseMenuItems.map((item) => {
+    if (item && 'key' in item && item.key === 'circle' && user?.role === 'ADMIN') {
+      const circleGroup = item as MenuGroupItem
+      return {
+        ...circleGroup,
+        children: [
+          ...(circleGroup.children ?? []),
+          { key: '/admin/community', icon: <SafetyOutlined />, label: <Link to="/admin/community">圈子管理</Link> },
+        ],
+      }
+    }
+
+    return item
+  })
 
   function handleLogout() {
     clearSession()

@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class CommunityMemberService {
@@ -97,15 +100,28 @@ public class CommunityMemberService {
     public List<CommunityMemberResponse> listMembers(Long currentUserId) {
         Circle circle = getDefaultCircle();
         findRequiredMember(circle.getId(), currentUserId);
-        return circleMemberMapper.selectList(new LambdaQueryWrapper<CircleMember>()
-                        .eq(CircleMember::getCircleId, circle.getId())
-                        .orderByAsc(CircleMember::getId))
+
+        List<CircleMember> members = circleMemberMapper.selectList(new LambdaQueryWrapper<CircleMember>()
+                .eq(CircleMember::getCircleId, circle.getId())
+                .orderByAsc(CircleMember::getId));
+        List<Long> userIds = members.stream()
+                .map(CircleMember::getUserId)
+                .toList();
+        Map<Long, User> usersById = userMapper.selectBatchIds(userIds)
                 .stream()
-                .map(member -> {
-                    User user = findRequiredUser(member.getUserId());
-                    UserProfile profile = findOrCreateProfile(member.getUserId(), user.getUsername());
-                    return CommunityMemberResponse.from(circle, member, profile, user.getUsername());
-                })
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+        Map<Long, UserProfile> profilesByUserId = userProfileMapper.selectList(new LambdaQueryWrapper<UserProfile>()
+                        .in(UserProfile::getUserId, userIds))
+                .stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, Function.identity()));
+
+        return members.stream()
+                .map(member -> toMemberResponse(
+                        circle,
+                        member,
+                        usersById.get(member.getUserId()),
+                        profilesByUserId.get(member.getUserId())
+                ))
                 .toList();
     }
 
@@ -163,6 +179,35 @@ public class CommunityMemberService {
     private UserProfile findProfile(Long userId) {
         return userProfileMapper.selectOne(new LambdaQueryWrapper<UserProfile>()
                 .eq(UserProfile::getUserId, userId));
+    }
+
+    private CommunityMemberResponse toMemberResponse(
+            Circle circle,
+            CircleMember member,
+            User user,
+            UserProfile profile
+    ) {
+        if (user == null) {
+            throw new BusinessException(404, "User does not exist");
+        }
+        String displayName = profile != null && profile.getDisplayName() != null
+                ? profile.getDisplayName()
+                : user.getUsername();
+        return new CommunityMemberResponse(
+                member.getUserId(),
+                user.getUsername(),
+                member.getRole(),
+                member.getStatus(),
+                circle.getId(),
+                circle.getName(),
+                circle.getSlug(),
+                displayName,
+                profile != null ? profile.getBio() : null,
+                profile != null ? profile.getAvatarUrl() : null,
+                profile != null ? profile.getSkills() : null,
+                profile != null ? profile.getGithubUrl() : null,
+                profile != null ? profile.getWebsiteUrl() : null
+        );
     }
 
     private void ensureCircleMember(Long circleId, Long userId) {

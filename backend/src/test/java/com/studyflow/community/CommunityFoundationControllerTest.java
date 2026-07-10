@@ -1,6 +1,11 @@
 package com.studyflow.community;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.studyflow.community.member.UserProfile;
+import com.studyflow.community.member.UserProfileMapper;
+import com.studyflow.user.User;
+import com.studyflow.user.UserMapper;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
@@ -27,6 +32,12 @@ class CommunityFoundationControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private UserProfileMapper userProfileMapper;
 
     @Test
     void registerCreatesDefaultCommunityMembership() throws Exception {
@@ -96,6 +107,26 @@ class CommunityFoundationControllerTest {
                 .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].role").value("MEMBER"))
                 .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].memberStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.data[?(@.username == 'circle_list_bob')].username").value("circle_list_bob"));
+    }
+
+    @Test
+    void listMembersDoesNotCreateMissingProfiles() throws Exception {
+        String aliceToken = registerAndLogin("circle_list_read_alice", "circle_list_read_alice@example.com");
+        registerAndLogin("circle_list_read_bob", "circle_list_read_bob@example.com");
+        User bob = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, "circle_list_read_bob"));
+        userProfileMapper.delete(new LambdaQueryWrapper<UserProfile>()
+                .eq(UserProfile::getUserId, bob.getId()));
+
+        mockMvc.perform(get("/api/community/members")
+                        .header("Authorization", "Bearer " + aliceToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.username == 'circle_list_read_bob')].displayName")
+                        .value("circle_list_read_bob"));
+
+        Long profileCount = userProfileMapper.selectCount(new LambdaQueryWrapper<UserProfile>()
+                .eq(UserProfile::getUserId, bob.getId()));
+        org.assertj.core.api.Assertions.assertThat(profileCount).isZero();
     }
 
     @ParameterizedTest

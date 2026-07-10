@@ -1,6 +1,6 @@
 import { Alert, Button, Card, Form, Input } from 'antd'
 import { useMutation } from '@tanstack/react-query'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   type LoginRequest,
   type LoginResponse,
@@ -10,6 +10,7 @@ import {
 
 function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const registered = searchParams.get('registered') === '1'
 
@@ -17,7 +18,8 @@ function LoginPage() {
     mutationFn: login,
     onSuccess: (response) => {
       saveSession(response)
-      navigate('/circle', { replace: true })
+      const from = typeof location.state?.from === 'string' ? location.state.from : '/circle'
+      navigate(from, { replace: true })
     },
   })
 
