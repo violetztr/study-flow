@@ -13,7 +13,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getStoredUser } from '../api/auth'
+import { getStoredUser, getStoredWallet, saveStoredWallet } from '../api/auth'
 import { communityApi } from '../api/community'
 import type { CommunityPostResponse } from '../api/community'
 import CommentList from '../components/community/CommentList'
@@ -39,6 +39,18 @@ function togglePostLike(post: CommunityPostResponse) {
     ...post,
     likedByCurrentUser: nextLiked,
     reactionCount: Math.max(0, post.reactionCount + delta),
+  }
+}
+
+function togglePostPig(post: CommunityPostResponse) {
+  if (post.piggedByCurrentUser) {
+    return post
+  }
+
+  return {
+    ...post,
+    piggedByCurrentUser: true,
+    pigCount: post.pigCount + 1,
   }
 }
 
@@ -122,6 +134,35 @@ function PostDetailPage() {
     onError: (_error, _variables, context) => {
       if (context?.previousPost) {
         queryClient.setQueryData(['community-post', postId], context.previousPost)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+    },
+  })
+
+  const pigMutation = useMutation<void, Error, void, LikeMutationContext>({
+    mutationFn: () => communityApi.pigPost(postId),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['community-post', postId] })
+      const previousPost = queryClient.getQueryData<CommunityPostResponse>(['community-post', postId])
+
+      queryClient.setQueryData<CommunityPostResponse>(['community-post', postId], (currentPost) =>
+        currentPost ? togglePostPig(currentPost) : currentPost,
+      )
+
+      return { previousPost }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(['community-post', postId], context.previousPost)
+      }
+    },
+    onSuccess: () => {
+      const wallet = getStoredWallet()
+      if (wallet && !postQuery.data?.piggedByCurrentUser) {
+        saveStoredWallet({ ...wallet, pigBalance: Math.max(0, wallet.pigBalance - 1) })
       }
     },
     onSettled: () => {
@@ -328,6 +369,14 @@ function PostDetailPage() {
                 >
                   {post.likedByCurrentUser ? '已赞' : '点赞'} {post.reactionCount}
                 </Button>
+                <Button
+                  type="text"
+                  className={`post-action-button pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
+                  loading={pigMutation.isPending}
+                  onClick={() => (user ? pigMutation.mutate() : requireLogin())}
+                >
+                  🐖 {post.pigCount}
+                </Button>
                 <span>{post.commentCount} 条评论</span>
                 <span>{danmakuQuery.data?.length ?? 0} 条弹幕</span>
                 {canModerate ? (
@@ -463,6 +512,14 @@ function PostDetailPage() {
                 onClick={() => (user ? likeMutation.mutate() : requireLogin())}
               >
                 {post.likedByCurrentUser ? '已喜欢' : '喜欢'} {post.reactionCount}
+              </Button>
+              <Button
+                type="text"
+                className={`post-action-button pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
+                loading={pigMutation.isPending}
+                onClick={() => (user ? pigMutation.mutate() : requireLogin())}
+              >
+                🐖 {post.pigCount}
               </Button>
               <span>{post.commentCount} 条评论</span>
               <span>

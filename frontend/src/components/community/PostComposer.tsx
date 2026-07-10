@@ -56,8 +56,7 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
       }}
     >
       <div className="composer-head">
-        <p>发布动态</p>
-        <span>写给朋友看，不用太正式。</span>
+        <p>发布</p>
       </div>
 
       <Form.Item
@@ -67,7 +66,7 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
           { max: 160, message: '标题不能超过 160 个字符' },
         ]}
       >
-        <Input bordered={false} className="composer-title-input" placeholder="这一条想说什么？" />
+        <Input bordered={false} className="composer-title-input" placeholder="标题" />
       </Form.Item>
 
       <Form.Item
@@ -80,7 +79,7 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
         <Input.TextArea
           bordered={false}
           className="composer-content-input"
-          placeholder="写下想法、问题、记录，或者今天的小发现..."
+          placeholder="说点什么"
           autoSize={{ minRows: 8, maxRows: 18 }}
         />
       </Form.Item>
@@ -89,9 +88,9 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
         <Form.Item
           name="topicName"
           className="composer-topic-item manual-topic-item"
-          rules={[{ max: 80, message: '话题不能超过 80 个字符' }]}
+          rules={[{ max: 10, message: '话题最多 10 个字' }]}
         >
-          <Input allowClear className="composer-topic-input" placeholder="输入话题，比如 apex、日常、求助" />
+          <Input allowClear className="composer-topic-input" placeholder="输入话题" />
         </Form.Item>
 
         <Upload
@@ -104,20 +103,16 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
           onChange={({ fileList: nextFileList }) => setFileList(limitMediaFiles(nextFileList))}
         >
           <Button icon={<PaperClipOutlined />} className="composer-media-button">
-            添加图片/视频
+            图片 / 视频
           </Button>
         </Upload>
       </div>
 
       {fileList.length > 0 ? (
         <p className="composer-media-note">
-          <PictureOutlined /> 已选择 {fileList.length} 个文件。图片最大 10MB，视频最大 50MB，视频发布后需要 ruru 审核。
+          <PictureOutlined /> 已选 {fileList.length} 个文件。图片 10MB 内，视频 200MB 内。
         </p>
-      ) : (
-        <p className="composer-media-note muted">
-          可附加图片或 1 个视频。视频审核通过前，其他人暂时看不到。
-        </p>
-      )}
+      ) : null}
 
       <div className="composer-actions">
         <Button type="primary" htmlType="submit" loading={loading} className="composer-submit">

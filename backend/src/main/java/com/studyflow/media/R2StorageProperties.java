@@ -16,7 +16,7 @@ public class R2StorageProperties {
     private Duration uploadUrlTtl = Duration.ofMinutes(10);
     private Duration readUrlTtl = Duration.ofHours(1);
     private long maxImageBytes = 10 * 1024 * 1024;
-    private long maxVideoBytes = 50 * 1024 * 1024;
+    private long maxVideoBytes = 200 * 1024 * 1024;
 
     public boolean isConfigured() {
         return StringUtils.hasText(accountId)

@@ -39,8 +39,10 @@ export type CommunityPostResponse = {
   pinned: boolean
   commentCount: number
   reactionCount: number
+  pigCount: number
   viewCount: number
   likedByCurrentUser: boolean
+  piggedByCurrentUser: boolean
   media: MediaAttachmentResponse[]
   lastActivityAt?: string | null
   createdAt: string
@@ -145,6 +147,9 @@ export const communityApi = {
   },
   unlikePost(postId: number) {
     return http.delete<unknown, void>(`/community/posts/${postId}/reactions/like`)
+  },
+  pigPost(postId: number) {
+    return http.post<unknown, void>(`/community/posts/${postId}/reactions/pig`)
   },
   getMe() {
     return http.get<unknown, CommunityMemberResponse>('/community/members/me')

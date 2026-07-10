@@ -27,6 +27,15 @@ public class CommunityReactionController {
         return ApiResponse.success();
     }
 
+    @PostMapping("/posts/{postId}/reactions/pig")
+    public ApiResponse<Void> pigPost(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId
+    ) {
+        communityReactionService.pigPost(principal.userId(), postId);
+        return ApiResponse.success();
+    }
+
     @DeleteMapping("/posts/{postId}/reactions/like")
     public ApiResponse<Void> unlikePost(
             @AuthenticationPrincipal UserPrincipal principal,

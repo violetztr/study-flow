@@ -10,7 +10,7 @@ import { Button } from 'antd'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { Link, useNavigate } from 'react-router-dom'
-import { getStoredUser } from '../../api/auth'
+import { getStoredUser, getStoredWallet, saveStoredWallet } from '../../api/auth'
 import { communityApi } from '../../api/community'
 import type { CommunityPostResponse, MediaAttachmentResponse } from '../../api/community'
 import TopicBadge from './TopicBadge'
@@ -39,6 +39,18 @@ function togglePostLike(post: CommunityPostResponse) {
     ...post,
     likedByCurrentUser: nextLiked,
     reactionCount: Math.max(0, post.reactionCount + delta),
+  }
+}
+
+function togglePostPig(post: CommunityPostResponse) {
+  if (post.piggedByCurrentUser) {
+    return post
+  }
+
+  return {
+    ...post,
+    piggedByCurrentUser: true,
+    pigCount: post.pigCount + 1,
   }
 }
 
@@ -84,12 +96,49 @@ function PostCard({ post }: PostCardProps) {
     },
   })
 
+  const pigMutation = useMutation<void, Error, void, LikeMutationContext>({
+    mutationFn: () => communityApi.pigPost(post.id),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['community-feed'] })
+      const previousFeed = queryClient.getQueryData<CommunityPostResponse[]>(['community-feed'])
+
+      queryClient.setQueryData<CommunityPostResponse[]>(['community-feed'], (currentFeed) =>
+        currentFeed?.map((item) => (item.id === post.id ? togglePostPig(item) : item)),
+      )
+
+      return { previousFeed }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousFeed) {
+        queryClient.setQueryData(['community-feed'], context.previousFeed)
+      }
+    },
+    onSuccess: () => {
+      const wallet = getStoredWallet()
+      if (wallet && !post.piggedByCurrentUser) {
+        saveStoredWallet({ ...wallet, pigBalance: Math.max(0, wallet.pigBalance - 1) })
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+      queryClient.invalidateQueries({ queryKey: ['community-post', post.id] })
+    },
+  })
+
   function handleLike() {
     if (!user) {
       navigate('/login', { state: { from: '/circle' } })
       return
     }
     likeMutation.mutate()
+  }
+
+  function handlePig() {
+    if (!user) {
+      navigate('/login', { state: { from: '/circle' } })
+      return
+    }
+    pigMutation.mutate()
   }
 
   return (
@@ -145,6 +194,15 @@ function PostCard({ post }: PostCardProps) {
           <span>
             <CommentOutlined /> {post.commentCount}
           </span>
+          <Button
+            type="text"
+            size="small"
+            className={`post-action-button pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
+            loading={pigMutation.isPending}
+            onClick={handlePig}
+          >
+            🐖 {post.pigCount}
+          </Button>
           <span>
             <EyeOutlined /> {post.viewCount}
           </span>

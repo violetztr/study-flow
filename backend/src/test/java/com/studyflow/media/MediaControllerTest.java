@@ -141,6 +141,24 @@ class MediaControllerTest {
     }
 
     @Test
+    void prepareVideoUploadAllowsUpToTwoHundredMb() throws Exception {
+        String token = registerAndLogin("media_video_200mb", "media_video_200mb@example.com");
+
+        mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "long-walk.mp4",
+                                  "contentType": "video/mp4",
+                                  "fileSize": 209715200
+                                }
+                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.maxSizeBytes").value(209715200));
+    }
+
+    @Test
     void prepareVideoUploadRejectsUnsupportedAndOversizedVideos() throws Exception {
         String token = registerAndLogin("media_video_invalid", "media_video_invalid@example.com");
 
@@ -163,7 +181,7 @@ class MediaControllerTest {
                                 {
                                   "filename": "huge.mp4",
                                   "contentType": "video/mp4",
-                                  "fileSize": 52428801
+                                  "fileSize": 209715201
                                 }
                                 """))
                 .andExpect(status().isBadRequest());

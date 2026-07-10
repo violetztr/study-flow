@@ -506,7 +506,7 @@ textarea {
 }
 
 .composer-head {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .composer-head p {
@@ -548,14 +548,18 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  align-items: flex-start;
+  align-items: center;
   padding-top: 12px;
   border-top: 1px solid var(--sf-border);
 }
 
 .composer-topic-item {
-  min-width: 180px;
+  width: 148px;
   margin-bottom: 0 !important;
+}
+
+.composer-topic-input {
+  border-radius: 999px;
 }
 
 .composer-media-button {
@@ -755,6 +759,15 @@ textarea {
 .post-action-button.liked {
   color: #dc4c64;
   background: rgba(220, 76, 100, 0.08);
+}
+
+.post-action-button.pig-action {
+  border-radius: 999px;
+}
+
+.post-action-button.pigged {
+  color: #a86a24;
+  background: rgba(168, 106, 36, 0.1);
 }
 
 .post-detail-card {
@@ -1098,6 +1111,7 @@ textarea {
   width: 100%;
   height: 100%;
   background: #050606;
+  object-fit: cover;
 }
 
 .danmaku-layer {

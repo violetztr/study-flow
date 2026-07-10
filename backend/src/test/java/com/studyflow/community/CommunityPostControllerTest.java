@@ -382,6 +382,17 @@ class CommunityPostControllerTest {
                                 .toString()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
+
+        mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode()
+                                .put("topicName", "12345678901")
+                                .put("title", "Valid title")
+                                .put("content", "Valid content")
+                                .toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     @Test

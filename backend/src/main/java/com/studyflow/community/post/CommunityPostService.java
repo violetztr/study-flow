@@ -139,6 +139,7 @@ public class CommunityPostService {
         post.setPinned(false);
         post.setCommentCount(0);
         post.setReactionCount(0);
+        post.setPigCount(0);
         post.setViewCount(0);
         post.setLastActivityAt(now);
         post.setCreatedAt(now);
@@ -280,9 +281,10 @@ public class CommunityPostService {
         Map<Long, String> authorNames = authorNames(authorIds);
         Map<Long, CommunityTopic> topics = topics(topicIds);
         Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
+        Set<Long> piggedPostIds = communityReactionService.piggedPostIds(userId, postIds);
         Map<Long, List<MediaAttachmentResponse>> mediaByPostId = mediaService.attachmentsByPostIds(postIds);
         return posts.stream()
-                .map(post -> toResponse(post, authorNames, topics, likedPostIds, mediaByPostId))
+                .map(post -> toResponse(post, authorNames, topics, likedPostIds, piggedPostIds, mediaByPostId))
                 .toList();
     }
 
@@ -295,6 +297,7 @@ public class CommunityPostService {
             Map<Long, String> authorNames,
             Map<Long, CommunityTopic> topics,
             Set<Long> likedPostIds,
+            Set<Long> piggedPostIds,
             Map<Long, List<MediaAttachmentResponse>> mediaByPostId
     ) {
         CommunityTopic topic = post.getTopicId() == null ? null : topics.get(post.getTopicId());
@@ -312,8 +315,10 @@ public class CommunityPostService {
                 post.getPinned(),
                 post.getCommentCount(),
                 post.getReactionCount(),
+                post.getPigCount() == null ? 0 : post.getPigCount(),
                 post.getViewCount(),
                 likedPostIds.contains(post.getId()),
+                piggedPostIds.contains(post.getId()),
                 mediaByPostId.getOrDefault(post.getId(), Collections.emptyList()),
                 post.getLastActivityAt(),
                 post.getCreatedAt(),

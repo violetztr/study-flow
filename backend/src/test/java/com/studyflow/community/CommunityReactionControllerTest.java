@@ -103,6 +103,38 @@ class CommunityReactionControllerTest {
     }
 
     @Test
+    void pigPostSpendsOnePigAndUpdatesPostCountOnce() throws Exception {
+        String authorToken = registerAndLogin("reaction_pig_author", "reaction_pig_author@example.com");
+        String supporterToken = registerAndLogin("reaction_pig_supporter", "reaction_pig_supporter@example.com");
+        Long postId = createPost(authorToken, firstTopicId(authorToken), "Pig support", "A post can receive one pig from a user.");
+
+        mockMvc.perform(post("/api/community/posts/{postId}/reactions/pig", postId)
+                        .header("Authorization", "Bearer " + supporterToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/community/posts/{postId}/reactions/pig", postId)
+                        .header("Authorization", "Bearer " + supporterToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId)
+                        .header("Authorization", "Bearer " + supporterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pigCount").value(1))
+                .andExpect(jsonPath("$.data.piggedByCurrentUser").value(true));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "reaction_pig_supporter",
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.wallet.pigBalance").value(0));
+    }
+
+    @Test
     void likingDeletedPostFails() throws Exception {
         String token = registerAndLogin("reaction_deleted_alice", "reaction_deleted_alice@example.com");
         Long topicId = firstTopicId(token);

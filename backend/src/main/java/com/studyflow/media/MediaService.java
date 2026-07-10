@@ -354,7 +354,7 @@ public class MediaService {
             throw new BusinessException(400, "图片不能超过 10MB");
         }
         if (FILE_TYPE_VIDEO.equals(fileType) && fileSize > r2StorageProperties.getMaxVideoBytes()) {
-            throw new BusinessException(400, "视频不能超过 50MB");
+            throw new BusinessException(400, "视频不能超过 200MB");
         }
         if (FILE_TYPE_IMAGE.equals(fileType) && !SUPPORTED_IMAGE_TYPES.contains(contentType)) {
             throw new BusinessException(400, "目前只支持 JPG、PNG、WebP、GIF 图片");

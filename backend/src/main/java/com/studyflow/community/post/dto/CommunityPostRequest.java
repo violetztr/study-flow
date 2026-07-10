@@ -10,7 +10,7 @@ public record CommunityPostRequest(
         @NotBlank @Size(max = 160) String title,
         @NotBlank @Size(max = 10000) String content,
         Long topicId,
-        @Size(max = 80) String topicName,
+        @Size(max = 10) String topicName,
         @Size(max = 9) List<@NotNull Long> mediaFileIds
 ) {
 }

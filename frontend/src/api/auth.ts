@@ -49,8 +49,12 @@ export function saveSession(response: LoginResponse) {
   localStorage.setItem(AUTH_TOKEN_KEY, response.token)
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user))
   if (response.wallet) {
-    localStorage.setItem(AUTH_WALLET_KEY, JSON.stringify(response.wallet))
+    saveStoredWallet(response.wallet)
   }
+}
+
+export function saveStoredWallet(wallet: UserWalletResponse) {
+  localStorage.setItem(AUTH_WALLET_KEY, JSON.stringify(wallet))
 }
 
 export function clearSession() {

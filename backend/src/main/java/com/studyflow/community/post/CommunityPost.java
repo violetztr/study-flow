@@ -22,6 +22,7 @@ public class CommunityPost {
     private Boolean pinned;
     private Integer commentCount;
     private Integer reactionCount;
+    private Integer pigCount;
     private Integer viewCount;
     private LocalDateTime lastActivityAt;
     private LocalDateTime createdAt;
@@ -130,6 +131,14 @@ public class CommunityPost {
 
     public void setReactionCount(Integer reactionCount) {
         this.reactionCount = reactionCount;
+    }
+
+    public Integer getPigCount() {
+        return pigCount;
+    }
+
+    public void setPigCount(Integer pigCount) {
+        this.pigCount = pigCount;
     }
 
     public Integer getViewCount() {

@@ -2,6 +2,7 @@ package com.studyflow.wallet;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.studyflow.common.BusinessException;
 import com.studyflow.wallet.dto.UserWalletResponse;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -55,6 +56,19 @@ public class PigWalletService {
     public UserWalletResponse currentWallet(Long userId) {
         ensureWallet(userId);
         return new UserWalletResponse(currentPigBalance(userId), false);
+    }
+
+    @Transactional
+    public void spendPig(Long userId, int amount) {
+        ensureWallet(userId);
+        int updated = userWalletMapper.update(null, new LambdaUpdateWrapper<UserWallet>()
+                .eq(UserWallet::getUserId, userId)
+                .ge(UserWallet::getPigBalance, amount)
+                .setSql("pig_balance = pig_balance - " + amount)
+                .set(UserWallet::getUpdatedAt, LocalDateTime.now()));
+        if (updated != 1) {
+            throw new BusinessException(400, "猪猪币不够了，明天登录会再送 1 个");
+        }
     }
 
     private void ensureWallet(Long userId) {

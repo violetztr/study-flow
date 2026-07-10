@@ -51,7 +51,7 @@ export const mediaApi = {
   async uploadToSignedUrl(uploadUrl: string, file: File, headers: Record<string, string>) {
     await axios.put(uploadUrl, file, {
       headers,
-      timeout: 120000,
+      timeout: 300000,
     })
   },
 }

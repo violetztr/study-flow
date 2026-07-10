@@ -32,4 +32,4 @@ study-flow:
       upload-url-ttl: 10m
       read-url-ttl: 1h
       max-image-bytes: 10485760
-      max-video-bytes: 52428800
+      max-video-bytes: 209715200
