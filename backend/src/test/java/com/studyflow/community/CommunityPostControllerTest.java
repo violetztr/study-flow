@@ -161,6 +161,34 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void createPostAcceptsManualTopicNameWithoutTopicId() throws Exception {
+        String token = registerAndLogin("post_manual_topic_alice", "post_manual_topic_alice@example.com");
+
+        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicName": "apex",
+                                  "title": "Manual topic",
+                                  "content": "The topic is typed by the author."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.topicId").doesNotExist())
+                .andExpect(jsonPath("$.data.topicName").value("apex"))
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
+        Long postId = response.path("data").path("id").asLong();
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(postId))
+                .andExpect(jsonPath("$.data[0].topicName").value("apex"));
+    }
+
+    @Test
     void softDeletedPostDisappearsFromFeedAndDetail() throws Exception {
         String token = registerAndLogin("post_delete_alice", "post_delete_alice@example.com");
         Long topicId = firstTopicId(token);

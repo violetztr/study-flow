@@ -77,6 +77,8 @@ public class CommunityPostService {
     public CommunityPostResponse getPost(Long userId, Long postId) {
         Circle circle = communityMemberService.getDefaultCircle();
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
+        incrementViewCount(post.getId(), LocalDateTime.now());
+        post.setViewCount(post.getViewCount() == null ? 1 : post.getViewCount() + 1);
         return toResponse(post, userId);
     }
 
@@ -110,6 +112,14 @@ public class CommunityPostService {
                 .set(CommunityPost::getUpdatedAt, now));
     }
 
+    private void incrementViewCount(Long postId, LocalDateTime now) {
+        communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, postId)
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .setSql("view_count = view_count + 1")
+                .set(CommunityPost::getUpdatedAt, now));
+    }
+
     @Transactional
     public CommunityPostResponse createPost(Long userId, CommunityPostRequest request) {
         Circle circle = communityMemberService.requireActiveDefaultMember(userId);
@@ -120,6 +130,7 @@ public class CommunityPostService {
         post.setCircleId(circle.getId());
         post.setAuthorId(userId);
         post.setTopicId(topic == null ? null : topic.getId());
+        post.setTopicName(resolveTopicName(topic, request.topicName()));
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setContentFormat(CONTENT_FORMAT_TEXT);
@@ -147,6 +158,7 @@ public class CommunityPostService {
         CommunityTopic topic = findActiveTopic(circle.getId(), request.topicId());
         Long previousTopicId = post.getTopicId();
         Long nextTopicId = topic == null ? null : topic.getId();
+        String nextTopicName = resolveTopicName(topic, request.topicName());
         LocalDateTime now = LocalDateTime.now();
 
         int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
@@ -155,6 +167,7 @@ public class CommunityPostService {
                 .eq(CommunityPost::getAuthorId, userId)
                 .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
                 .set(CommunityPost::getTopicId, nextTopicId)
+                .set(CommunityPost::getTopicName, nextTopicName)
                 .set(CommunityPost::getTitle, request.title())
                 .set(CommunityPost::getContent, request.content())
                 .set(CommunityPost::getUpdatedAt, now));
@@ -163,6 +176,7 @@ public class CommunityPostService {
         }
         updateTopicCounts(previousTopicId, nextTopicId);
         post.setTopicId(nextTopicId);
+        post.setTopicName(nextTopicName);
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setUpdatedAt(now);
@@ -203,6 +217,22 @@ public class CommunityPostService {
             throw new BusinessException(404, "话题不存在");
         }
         return topic;
+    }
+
+    private String resolveTopicName(CommunityTopic topic, String manualTopicName) {
+        String normalizedManualTopicName = normalizeTopicName(manualTopicName);
+        if (normalizedManualTopicName != null) {
+            return normalizedManualTopicName;
+        }
+        return topic == null ? null : topic.getName();
+    }
+
+    private String normalizeTopicName(String topicName) {
+        if (topicName == null) {
+            return null;
+        }
+        String trimmedTopicName = topicName.trim();
+        return trimmedTopicName.isEmpty() ? null : trimmedTopicName;
     }
 
     private CommunityPost requireOwnedPost(Long circleId, Long userId, Long postId) {
@@ -268,13 +298,14 @@ public class CommunityPostService {
             Map<Long, List<MediaAttachmentResponse>> mediaByPostId
     ) {
         CommunityTopic topic = post.getTopicId() == null ? null : topics.get(post.getTopicId());
+        String topicName = post.getTopicName() != null ? post.getTopicName() : topic == null ? null : topic.getName();
         return new CommunityPostResponse(
                 post.getId(),
                 post.getCircleId(),
                 post.getAuthorId(),
                 authorNames.getOrDefault(post.getAuthorId(), ""),
                 post.getTopicId(),
-                topic == null ? null : topic.getName(),
+                topicName,
                 post.getTitle(),
                 post.getContent(),
                 post.getStatus(),

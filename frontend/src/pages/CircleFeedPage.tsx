@@ -46,11 +46,6 @@ function CircleFeedPage() {
     queryFn: communityApi.listFeed,
   })
 
-  const topicsQuery = useQuery({
-    queryKey: ['community-topics'],
-    queryFn: communityApi.listTopics,
-  })
-
   const posts = feedQuery.data ?? []
   const visiblePosts = getChannelPosts(activeChannel, posts)
 
@@ -113,7 +108,7 @@ function CircleFeedPage() {
         {activeChannel !== 'live' ? (
           <div className="discovery-grid">
             {visiblePosts.map((post) => (
-              <PostCard key={post.id} post={post} topics={topicsQuery.data ?? []} />
+              <PostCard key={post.id} post={post} />
             ))}
           </div>
         ) : null}

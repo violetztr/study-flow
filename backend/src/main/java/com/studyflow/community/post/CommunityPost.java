@@ -13,6 +13,7 @@ public class CommunityPost {
     private Long circleId;
     private Long authorId;
     private Long topicId;
+    private String topicName;
     private String title;
     private String content;
     private String contentFormat;
@@ -57,6 +58,14 @@ public class CommunityPost {
 
     public void setTopicId(Long topicId) {
         this.topicId = topicId;
+    }
+
+    public String getTopicName() {
+        return topicName;
+    }
+
+    public void setTopicName(String topicName) {
+        this.topicName = topicName;
     }
 
     public String getTitle() {

@@ -1309,6 +1309,28 @@ textarea {
   margin-top: 6px;
 }
 
+.danmaku-admin-list {
+  display: grid;
+  gap: 8px;
+}
+
+.danmaku-admin-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(29, 37, 34, 0.08);
+}
+
+.danmaku-admin-item span {
+  overflow: hidden;
+  color: #4c5652;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .watch-comment-panel {
   margin-top: 18px;
 }

@@ -1,5 +1,6 @@
 import {
   ArrowLeftOutlined,
+  DeleteOutlined,
   EyeOutlined,
   HeartFilled,
   HeartOutlined,
@@ -7,7 +8,7 @@ import {
   UserAddOutlined,
   UserDeleteOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, Form, Input, Skeleton, Tag } from 'antd'
+import { Alert, Button, Form, Input, Popconfirm, Skeleton, Tag } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -53,6 +54,10 @@ function firstImages(post?: CommunityPostResponse) {
   return post?.media.filter((media) => media.fileType !== 'VIDEO') ?? []
 }
 
+function canModerateCommunity(user: ReturnType<typeof getStoredUser>) {
+  return Boolean(user && (user.username === 'ruru' || user.role === 'ADMIN' || user.role === 'OWNER'))
+}
+
 function PostDetailPage() {
   const { id } = useParams()
   const postId = Number(id)
@@ -62,6 +67,7 @@ function PostDetailPage() {
   const [danmakuForm] = Form.useForm<DanmakuFormValues>()
   const [currentSecond, setCurrentSecond] = useState(0)
   const user = getStoredUser()
+  const canModerate = canModerateCommunity(user)
 
   const postQuery = useQuery({
     queryKey: ['community-post', postId],
@@ -158,10 +164,26 @@ function PostDetailPage() {
   })
 
   const deleteCommentMutation = useMutation({
-    mutationFn: communityApi.deleteComment,
+    mutationFn: (commentId: number) =>
+      canModerate ? communityApi.adminDeleteComment(commentId) : communityApi.deleteComment(commentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
       queryClient.invalidateQueries({ queryKey: ['community-comments', postId] })
+    },
+  })
+
+  const deleteDanmakuMutation = useMutation({
+    mutationFn: communityApi.adminDeleteDanmaku,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-danmaku', postId] })
+    },
+  })
+
+  const deletePostMutation = useMutation({
+    mutationFn: () => (canModerate ? communityApi.adminDeletePost(postId) : communityApi.deletePost(postId)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+      navigate('/circle', { replace: true })
     },
   })
 
@@ -207,6 +229,10 @@ function PostDetailPage() {
           {commentMutation.isError ? <Alert showIcon type="error" message={commentMutation.error.message} /> : null}
           {danmakuMutation.isError ? <Alert showIcon type="error" message={danmakuMutation.error.message} /> : null}
           {followMutation.isError ? <Alert showIcon type="error" message={followMutation.error.message} /> : null}
+          {deletePostMutation.isError ? <Alert showIcon type="error" message={deletePostMutation.error.message} /> : null}
+          {deleteDanmakuMutation.isError ? (
+            <Alert showIcon type="error" message={deleteDanmakuMutation.error.message} />
+          ) : null}
         </div>
 
         {postQuery.isLoading ? <Skeleton active /> : null}
@@ -304,6 +330,18 @@ function PostDetailPage() {
                 </Button>
                 <span>{post.commentCount} 条评论</span>
                 <span>{danmakuQuery.data?.length ?? 0} 条弹幕</span>
+                {canModerate ? (
+                  <Popconfirm title="确认删除这个帖子/视频？" onConfirm={() => deletePostMutation.mutate()}>
+                    <Button
+                      danger
+                      type="text"
+                      icon={<DeleteOutlined />}
+                      loading={deletePostMutation.isPending}
+                    >
+                      删除
+                    </Button>
+                  </Popconfirm>
+                ) : null}
               </div>
 
               <p className="watch-description">{post.content}</p>
@@ -360,6 +398,34 @@ function PostDetailPage() {
                   )}
                 </div>
               </section>
+
+              {canModerate ? (
+                <section className="side-card">
+                  <div className="side-card-title">弹幕管理</div>
+                  <div className="danmaku-admin-list">
+                    {(danmakuQuery.data ?? []).length > 0 ? (
+                      (danmakuQuery.data ?? []).map((item) => (
+                        <div className="danmaku-admin-item" key={item.id}>
+                          <span>
+                            {item.timeSeconds}s · {item.content}
+                          </span>
+                          <Popconfirm title="删除这条弹幕？" onConfirm={() => deleteDanmakuMutation.mutate(item.id)}>
+                            <Button
+                              danger
+                              type="text"
+                              size="small"
+                              icon={<DeleteOutlined />}
+                              loading={deleteDanmakuMutation.variables === item.id && deleteDanmakuMutation.isPending}
+                            />
+                          </Popconfirm>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="muted-text">还没有弹幕。</p>
+                    )}
+                  </div>
+                </section>
+              ) : null}
             </aside>
           </div>
         ) : null}
@@ -402,6 +468,13 @@ function PostDetailPage() {
               <span>
                 <EyeOutlined /> {post.viewCount}
               </span>
+              {canModerate ? (
+                <Popconfirm title="确认删除这个帖子？" onConfirm={() => deletePostMutation.mutate()}>
+                  <Button danger type="text" icon={<DeleteOutlined />} loading={deletePostMutation.isPending}>
+                    删除
+                  </Button>
+                </Popconfirm>
+              ) : null}
             </div>
           </article>
         ) : null}
@@ -456,6 +529,7 @@ function PostDetailPage() {
             <CommentList
               comments={commentsQuery.data ?? []}
               currentUserId={meQuery.data?.userId}
+              canModerate={canModerate}
               deletingId={deleteCommentMutation.variables ?? null}
               onDelete={user ? (commentId) => deleteCommentMutation.mutate(commentId) : undefined}
             />

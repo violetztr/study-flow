@@ -12,12 +12,11 @@ import dayjs from 'dayjs'
 import { Link, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../../api/auth'
 import { communityApi } from '../../api/community'
-import type { CommunityPostResponse, CommunityTopicResponse, MediaAttachmentResponse } from '../../api/community'
+import type { CommunityPostResponse, MediaAttachmentResponse } from '../../api/community'
 import TopicBadge from './TopicBadge'
 
 type PostCardProps = {
   post: CommunityPostResponse
-  topics?: CommunityTopicResponse[]
 }
 
 type LikeMutationContext = {
@@ -51,11 +50,10 @@ function hasVideo(post: CommunityPostResponse) {
   return post.media.some((media) => media.fileType === 'VIDEO')
 }
 
-function PostCard({ post, topics = [] }: PostCardProps) {
+function PostCard({ post }: PostCardProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = getStoredUser()
-  const topic = topics.find((item) => item.id === post.topicId)
   const primaryMedia = getPrimaryMedia(post)
   const videoPost = hasVideo(post)
   const cardType = videoPost ? '视频' : '图文'
@@ -130,7 +128,7 @@ function PostCard({ post, topics = [] }: PostCardProps) {
         </div>
 
         <div className="discovery-topic-row">
-          <TopicBadge name={post.topicName} color={topic?.color} />
+          <TopicBadge name={post.topicName} />
         </div>
 
         <footer className="discovery-card-footer">

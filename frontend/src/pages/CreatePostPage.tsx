@@ -1,6 +1,6 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
-import { Alert, Button, Skeleton } from 'antd'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Alert, Button } from 'antd'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { communityApi } from '../api/community'
 import { mediaApi } from '../api/media'
@@ -9,11 +9,6 @@ import PostComposer, { type CommunityPostFormValues } from '../components/commun
 function CreatePostPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-
-  const topicsQuery = useQuery({
-    queryKey: ['community-topics'],
-    queryFn: communityApi.listTopics,
-  })
 
   const createMutation = useMutation({
     mutationFn: async (values: CommunityPostFormValues) => {
@@ -32,7 +27,8 @@ function CreatePostPage() {
       return communityApi.createPost({
         title: values.title,
         content: values.content,
-        topicId: values.topicId ?? null,
+        topicId: null,
+        topicName: values.topicName ?? null,
         mediaFileIds,
       })
     },
@@ -59,19 +55,10 @@ function CreatePostPage() {
         </Button>
 
         <div className="compose-panel">
-          {topicsQuery.isError ? <Alert showIcon type="error" message={topicsQuery.error.message} /> : null}
           {createMutation.isError ? (
             <Alert showIcon type="error" message={createMutation.error.message} />
           ) : null}
-          {topicsQuery.isLoading ? (
-            <Skeleton active />
-          ) : (
-            <PostComposer
-              topics={topicsQuery.data ?? []}
-              loading={createMutation.isPending}
-              onSubmit={handleSubmit}
-            />
-          )}
+          <PostComposer loading={createMutation.isPending} onSubmit={handleSubmit} />
         </div>
       </div>
     </section>

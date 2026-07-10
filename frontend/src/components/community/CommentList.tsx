@@ -6,6 +6,7 @@ import type { CommunityCommentResponse } from '../../api/community'
 type CommentListProps = {
   comments: CommunityCommentResponse[]
   currentUserId?: number
+  canModerate?: boolean
   deletingId?: number | null
   onDelete?: (commentId: number) => void
 }
@@ -14,7 +15,7 @@ function getInitial(name: string) {
   return name.trim().slice(0, 1).toUpperCase() || 'R'
 }
 
-function CommentList({ comments, currentUserId, deletingId, onDelete }: CommentListProps) {
+function CommentList({ comments, currentUserId, canModerate = false, deletingId, onDelete }: CommentListProps) {
   if (comments.length === 0) {
     return <div className="comment-empty">还没有评论，来写第一条吧。</div>
   }
@@ -22,7 +23,7 @@ function CommentList({ comments, currentUserId, deletingId, onDelete }: CommentL
   return (
     <div className="comment-list">
       {comments.map((comment) => {
-        const canDelete = Boolean(onDelete && currentUserId === comment.authorId)
+        const canDelete = Boolean(onDelete && (canModerate || currentUserId === comment.authorId))
 
         return (
           <article className="comment-item" key={comment.id}>

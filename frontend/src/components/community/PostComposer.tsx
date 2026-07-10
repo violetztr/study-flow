@@ -1,15 +1,14 @@
 import { PaperClipOutlined, PictureOutlined } from '@ant-design/icons'
-import { Button, Form, Input, Select, Upload } from 'antd'
+import { Button, Form, Input, Upload } from 'antd'
 import { useState } from 'react'
 import type { UploadFile } from 'antd'
-import type { CommunityPostRequest, CommunityTopicResponse } from '../../api/community'
+import type { CommunityPostRequest } from '../../api/community'
 
 export type CommunityPostFormValues = CommunityPostRequest & {
   mediaFiles?: File[]
 }
 
 type PostComposerProps = {
-  topics: CommunityTopicResponse[]
   loading?: boolean
   initialValues?: Partial<CommunityPostRequest>
   onSubmit: (values: CommunityPostFormValues) => void
@@ -30,7 +29,12 @@ function limitMediaFiles(nextFileList: UploadFile[]) {
     .slice(0, 9)
 }
 
-function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposerProps) {
+function normalizeTopicName(topicName?: string | null) {
+  const trimmedTopicName = topicName?.trim()
+  return trimmedTopicName ? trimmedTopicName : null
+}
+
+function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
   const [fileList, setFileList] = useState<UploadFile[]>([])
 
   return (
@@ -45,7 +49,8 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
           .filter((file): file is NonNullable<UploadFile['originFileObj']> => Boolean(file))
         onSubmit({
           ...values,
-          topicId: values.topicId ?? null,
+          topicId: null,
+          topicName: normalizeTopicName(values.topicName),
           mediaFiles,
         })
       }}
@@ -62,11 +67,7 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
           { max: 160, message: '标题不能超过 160 个字符' },
         ]}
       >
-        <Input
-          bordered={false}
-          className="composer-title-input"
-          placeholder="这一条想说什么？"
-        />
+        <Input bordered={false} className="composer-title-input" placeholder="这一条想说什么？" />
       </Form.Item>
 
       <Form.Item
@@ -85,16 +86,12 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
       </Form.Item>
 
       <div className="composer-tools">
-        <Form.Item name="topicId" className="composer-topic-item">
-          <Select
-            allowClear
-            className="composer-topic-select"
-            placeholder="选择话题"
-            options={topics.map((topic) => ({
-              label: topic.name,
-              value: topic.id,
-            }))}
-          />
+        <Form.Item
+          name="topicName"
+          className="composer-topic-item manual-topic-item"
+          rules={[{ max: 80, message: '话题不能超过 80 个字符' }]}
+        >
+          <Input allowClear className="composer-topic-input" placeholder="输入话题，比如 apex、日常、求助" />
         </Form.Item>
 
         <Upload
@@ -123,12 +120,7 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
       )}
 
       <div className="composer-actions">
-        <Button
-          type="primary"
-          htmlType="submit"
-          loading={loading}
-          className="composer-submit"
-        >
+        <Button type="primary" htmlType="submit" loading={loading} className="composer-submit">
           {loading ? '发布中' : '发布'}
         </Button>
       </div>

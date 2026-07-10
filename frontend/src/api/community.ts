@@ -13,6 +13,7 @@ export type CommunityPostRequest = {
   title: string
   content: string
   topicId?: number | null
+  topicName?: string | null
   mediaFileIds?: number[]
 }
 
@@ -171,6 +172,15 @@ export const communityApi = {
   },
   restoreComment(commentId: number, request: ModerationRequest) {
     return http.post<unknown, void>(`/admin/community/comments/${commentId}/restore`, request)
+  },
+  adminDeletePost(postId: number) {
+    return http.delete<unknown, void>(`/admin/community/posts/${postId}`)
+  },
+  adminDeleteComment(commentId: number) {
+    return http.delete<unknown, void>(`/admin/community/comments/${commentId}`)
+  },
+  adminDeleteDanmaku(danmakuId: number) {
+    return http.delete<unknown, void>(`/admin/community/danmaku/${danmakuId}`)
   },
   muteMember(userId: number, request: ModerationRequest) {
     return http.post<unknown, void>(`/admin/community/members/${userId}/mute`, request)

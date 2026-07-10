@@ -6,6 +6,8 @@ import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
 import com.studyflow.community.comment.CommunityComment;
 import com.studyflow.community.comment.CommunityCommentMapper;
+import com.studyflow.community.danmaku.CommunityDanmaku;
+import com.studyflow.community.danmaku.CommunityDanmakuMapper;
 import com.studyflow.community.member.CircleMember;
 import com.studyflow.community.member.CircleMemberMapper;
 import com.studyflow.community.member.CommunityMemberService;
@@ -28,17 +30,21 @@ public class CommunityModerationService {
     private static final String STATUS_MUTED = "MUTED";
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String STATUS_HIDDEN = "HIDDEN";
+    private static final String STATUS_DELETED = "DELETED";
     private static final String TARGET_POST = "POST";
     private static final String TARGET_COMMENT = "COMMENT";
+    private static final String TARGET_DANMAKU = "DANMAKU";
     private static final String TARGET_MEMBER = "MEMBER";
     private static final String ACTION_HIDE = "HIDE";
     private static final String ACTION_RESTORE = "RESTORE";
+    private static final String ACTION_DELETE = "DELETE";
     private static final String ACTION_MUTE = "MUTE";
     private static final String ACTION_UNMUTE = "UNMUTE";
 
     private final CommunityMemberService communityMemberService;
     private final CommunityPostMapper communityPostMapper;
     private final CommunityCommentMapper communityCommentMapper;
+    private final CommunityDanmakuMapper communityDanmakuMapper;
     private final CircleMemberMapper circleMemberMapper;
     private final CommunityTopicMapper communityTopicMapper;
     private final CommunityModerationActionMapper moderationActionMapper;
@@ -48,6 +54,7 @@ public class CommunityModerationService {
             CommunityMemberService communityMemberService,
             CommunityPostMapper communityPostMapper,
             CommunityCommentMapper communityCommentMapper,
+            CommunityDanmakuMapper communityDanmakuMapper,
             CircleMemberMapper circleMemberMapper,
             CommunityTopicMapper communityTopicMapper,
             CommunityModerationActionMapper moderationActionMapper,
@@ -56,6 +63,7 @@ public class CommunityModerationService {
         this.communityMemberService = communityMemberService;
         this.communityPostMapper = communityPostMapper;
         this.communityCommentMapper = communityCommentMapper;
+        this.communityDanmakuMapper = communityDanmakuMapper;
         this.circleMemberMapper = circleMemberMapper;
         this.communityTopicMapper = communityTopicMapper;
         this.moderationActionMapper = moderationActionMapper;
@@ -87,6 +95,27 @@ public class CommunityModerationService {
     }
 
     @Transactional
+    public void deletePost(Long adminUserId, Long postId) {
+        Circle circle = requireAdmin(adminUserId);
+        CommunityPost post = requirePostNotDeleted(circle.getId(), postId);
+        LocalDateTime now = LocalDateTime.now();
+        int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, post.getId())
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .ne(CommunityPost::getStatus, STATUS_DELETED)
+                .set(CommunityPost::getStatus, STATUS_DELETED)
+                .set(CommunityPost::getDeletedAt, now)
+                .set(CommunityPost::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(409, "Post status changed");
+        }
+        if (STATUS_PUBLISHED.equals(post.getStatus()) && post.getTopicId() != null) {
+            communityTopicMapper.decrementPostCount(post.getTopicId());
+        }
+        recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_DELETE, null, now);
+    }
+
+    @Transactional
     public void hideComment(Long adminUserId, Long commentId, ModerationRequest request) {
         Circle circle = requireAdmin(adminUserId);
         CommunityComment comment = requireComment(circle.getId(), commentId, STATUS_PUBLISHED);
@@ -104,6 +133,42 @@ public class CommunityModerationService {
         updateCommentStatus(comment.getId(), STATUS_HIDDEN, STATUS_PUBLISHED, now);
         incrementCommentCount(comment.getPostId(), now);
         recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_RESTORE, reason(request), now);
+    }
+
+    @Transactional
+    public void deleteComment(Long adminUserId, Long commentId) {
+        Circle circle = requireAdmin(adminUserId);
+        CommunityComment comment = requireCommentNotDeleted(circle.getId(), commentId);
+        LocalDateTime now = LocalDateTime.now();
+        int updated = communityCommentMapper.update(null, new LambdaUpdateWrapper<CommunityComment>()
+                .eq(CommunityComment::getId, comment.getId())
+                .eq(CommunityComment::getCircleId, circle.getId())
+                .ne(CommunityComment::getStatus, STATUS_DELETED)
+                .set(CommunityComment::getStatus, STATUS_DELETED)
+                .set(CommunityComment::getDeletedAt, now)
+                .set(CommunityComment::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(409, "Comment status changed");
+        }
+        if (STATUS_PUBLISHED.equals(comment.getStatus())) {
+            decrementCommentCount(comment.getPostId(), now);
+        }
+        recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_DELETE, null, now);
+    }
+
+    @Transactional
+    public void deleteDanmaku(Long adminUserId, Long danmakuId) {
+        Circle circle = requireAdmin(adminUserId);
+        CommunityDanmaku danmaku = requireDanmakuNotDeleted(circle.getId(), danmakuId);
+        LocalDateTime now = LocalDateTime.now();
+        int updated = communityDanmakuMapper.update(null, new LambdaUpdateWrapper<CommunityDanmaku>()
+                .eq(CommunityDanmaku::getId, danmaku.getId())
+                .ne(CommunityDanmaku::getStatus, STATUS_DELETED)
+                .set(CommunityDanmaku::getStatus, STATUS_DELETED));
+        if (updated != 1) {
+            throw new BusinessException(409, "Danmaku status changed");
+        }
+        recordAction(circle.getId(), adminUserId, TARGET_DANMAKU, danmakuId, ACTION_DELETE, null, now);
     }
 
     @Transactional
@@ -143,6 +208,17 @@ public class CommunityModerationService {
         return post;
     }
 
+    private CommunityPost requirePostNotDeleted(Long circleId, Long postId) {
+        CommunityPost post = communityPostMapper.selectOne(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, postId)
+                .eq(CommunityPost::getCircleId, circleId)
+                .ne(CommunityPost::getStatus, STATUS_DELETED));
+        if (post == null) {
+            throw new BusinessException(404, "Post does not exist");
+        }
+        return post;
+    }
+
     private CommunityComment requireComment(Long circleId, Long commentId, String status) {
         CommunityComment comment = communityCommentMapper.selectOne(new LambdaQueryWrapper<CommunityComment>()
                 .eq(CommunityComment::getId, commentId)
@@ -152,6 +228,31 @@ public class CommunityModerationService {
             throw new BusinessException(404, "Comment does not exist");
         }
         return comment;
+    }
+
+    private CommunityComment requireCommentNotDeleted(Long circleId, Long commentId) {
+        CommunityComment comment = communityCommentMapper.selectOne(new LambdaQueryWrapper<CommunityComment>()
+                .eq(CommunityComment::getId, commentId)
+                .eq(CommunityComment::getCircleId, circleId)
+                .ne(CommunityComment::getStatus, STATUS_DELETED));
+        if (comment == null) {
+            throw new BusinessException(404, "Comment does not exist");
+        }
+        return comment;
+    }
+
+    private CommunityDanmaku requireDanmakuNotDeleted(Long circleId, Long danmakuId) {
+        CommunityDanmaku danmaku = communityDanmakuMapper.selectOne(new LambdaQueryWrapper<CommunityDanmaku>()
+                .eq(CommunityDanmaku::getId, danmakuId)
+                .ne(CommunityDanmaku::getStatus, STATUS_DELETED));
+        if (danmaku == null) {
+            throw new BusinessException(404, "Danmaku does not exist");
+        }
+        CommunityPost post = communityPostMapper.selectById(danmaku.getPostId());
+        if (post == null || !circleId.equals(post.getCircleId())) {
+            throw new BusinessException(404, "Danmaku does not exist");
+        }
+        return danmaku;
     }
 
     private CircleMember requireCircleMember(Long circleId, Long userId) {

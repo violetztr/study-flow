@@ -4,6 +4,7 @@ import com.studyflow.common.ApiResponse;
 import com.studyflow.community.moderation.dto.ModerationRequest;
 import com.studyflow.security.UserPrincipal;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,6 +41,15 @@ public class CommunityModerationController {
         return ApiResponse.success();
     }
 
+    @DeleteMapping("/posts/{postId}")
+    public ApiResponse<Void> deletePost(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId
+    ) {
+        communityModerationService.deletePost(principal.userId(), postId);
+        return ApiResponse.success();
+    }
+
     @PostMapping("/comments/{commentId}/hide")
     public ApiResponse<Void> hideComment(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -47,6 +57,24 @@ public class CommunityModerationController {
             @Valid @RequestBody(required = false) ModerationRequest request
     ) {
         communityModerationService.hideComment(principal.userId(), commentId, request);
+        return ApiResponse.success();
+    }
+
+    @DeleteMapping("/comments/{commentId}")
+    public ApiResponse<Void> deleteComment(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long commentId
+    ) {
+        communityModerationService.deleteComment(principal.userId(), commentId);
+        return ApiResponse.success();
+    }
+
+    @DeleteMapping("/danmaku/{danmakuId}")
+    public ApiResponse<Void> deleteDanmaku(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long danmakuId
+    ) {
+        communityModerationService.deleteDanmaku(principal.userId(), danmakuId);
         return ApiResponse.success();
     }
 

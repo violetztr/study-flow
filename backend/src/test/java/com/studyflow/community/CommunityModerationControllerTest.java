@@ -21,6 +21,9 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -161,6 +164,58 @@ class CommunityModerationControllerTest {
                         .header("Authorization", "Bearer " + memberToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(1)));
+    }
+
+    @Test
+    void adminCanDeleteAnyPostCommentAndDanmaku() throws Exception {
+        String adminToken = registerAdminAndLogin("moderation_delete_admin", "moderation_delete_admin@example.com");
+        String memberToken = registerAndLogin("moderation_delete_author", "moderation_delete_author@example.com");
+        Long postId = createPost(memberToken, firstTopicId(memberToken), "Admin delete", "Admin can delete this post.");
+        Long commentId = createComment(memberToken, postId, "Admin can delete this comment.");
+        Long danmakuId = createDanmaku(memberToken, postId, "Admin can delete this danmaku.");
+
+        mockMvc.perform(delete("/api/admin/community/comments/{commentId}", commentId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/posts/{postId}/comments", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", not(hasItem(commentId.intValue()))));
+
+        mockMvc.perform(delete("/api/admin/community/danmaku/{danmakuId}", danmakuId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/posts/{postId}/danmaku", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", not(hasItem(danmakuId.intValue()))));
+
+        mockMvc.perform(delete("/api/admin/community/posts/{postId}", postId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void memberCannotUseAdminDeleteEndpoints() throws Exception {
+        String aliceToken = registerAndLogin("moderation_delete_member_alice", "moderation_delete_member_alice@example.com");
+        Long postId = createPost(aliceToken, firstTopicId(aliceToken), "Member delete forbidden", "Only admins can delete any content.");
+        Long commentId = createComment(aliceToken, postId, "Protected comment.");
+        Long danmakuId = createDanmaku(aliceToken, postId, "Protected danmaku.");
+
+        mockMvc.perform(delete("/api/admin/community/posts/{postId}", postId)
+                        .header("Authorization", "Bearer " + aliceToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/admin/community/comments/{commentId}", commentId)
+                        .header("Authorization", "Bearer " + aliceToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/admin/community/danmaku/{danmakuId}", danmakuId)
+                        .header("Authorization", "Bearer " + aliceToken))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -499,6 +554,23 @@ class CommunityModerationControllerTest {
                 .andReturn();
 
         JsonNode response = objectMapper.readTree(commentResult.getResponse().getContentAsByteArray());
+        return response.path("data").path("id").asLong();
+    }
+
+    private Long createDanmaku(String token, Long postId, String content) throws Exception {
+        MvcResult danmakuResult = mockMvc.perform(post("/api/community/posts/{postId}/danmaku", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "%s",
+                                  "timeSeconds": 2
+                                }
+                                """.formatted(content)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(danmakuResult.getResponse().getContentAsByteArray());
         return response.path("data").path("id").asLong();
     }
 
