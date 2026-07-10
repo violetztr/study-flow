@@ -9,11 +9,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ApiResponseTest {
     @Test
     void successWrapsDataWithZeroCode() {
-        ApiResponse<Map<String, String>> response = ApiResponse.success(Map.of("name", "StudyFlow"));
+        ApiResponse<Map<String, String>> response = ApiResponse.success(Map.of("name", "Ruru"));
 
         assertThat(response.code()).isEqualTo(0);
         assertThat(response.message()).isEqualTo("success");
-        assertThat(response.data()).containsEntry("name", "StudyFlow");
+        assertThat(response.data()).containsEntry("name", "Ruru");
     }
 
     @Test

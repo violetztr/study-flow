@@ -25,14 +25,13 @@ function LoginPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-visual" aria-label="StudyFlow 项目介绍">
+      <section className="auth-visual" aria-label="Ruru 社区介绍">
         <div className="auth-story">
           <div>
-            <span className="brand-mark">S</span>
-            <h1 className="auth-title">把学习拆成每天能完成的进度。</h1>
+            <span className="brand-mark">R</span>
+            <h1 className="auth-title">把朋友的小圈子认真做好。</h1>
             <p className="auth-copy">
-              StudyFlow 用项目、任务、标签和统计把全栈学习变成可追踪的路线图。
-              你现在看到的登录页，是前后端联调的入口。
+              Ruru 社区先从最基础的发帖、评论、点赞和成员开始。功能不贪多，先让真实交流跑起来。
             </p>
           </div>
           <div className="auth-steps">
@@ -42,7 +41,7 @@ function LoginPage() {
             </div>
             <div className="auth-step">
               <span className="auth-step-number">2</span>
-              <span>进入 Dashboard，读取当前用户和任务统计。</span>
+              <span>进入 Ruru 社区，查看动态、成员和基础话题。</span>
             </div>
           </div>
         </div>
@@ -51,8 +50,8 @@ function LoginPage() {
       <section className="auth-form-panel">
         <Card className="auth-card">
           <p className="auth-kicker">Welcome back</p>
-          <h2 className="auth-card-title">登录 StudyFlow</h2>
-          <p className="auth-card-subtitle">继续管理你的学习项目和任务。</p>
+          <h2 className="auth-card-title">登录 Ruru</h2>
+          <p className="auth-card-subtitle">回到你和朋友的小圈子。</p>
 
           {registered ? (
             <Alert

@@ -87,9 +87,9 @@ function CommunityAdminPage() {
       <section className="dashboard-header">
         <div>
           <p className="dashboard-kicker">Moderation</p>
-          <h1 className="dashboard-title">圈子管理</h1>
+          <h1 className="dashboard-title">社区管理</h1>
           <p className="dashboard-subtitle">
-            这里是真实的 Violet Circle 治理入口。输入帖子、评论或成员 ID 后，系统会直接调用后端管理接口并记录原因。
+            这里是 Ruru 社区的基础治理入口。输入帖子、评论或成员 ID 后，系统会直接调用后端管理接口并记录原因。
           </p>
         </div>
         <SafetyOutlined style={{ color: 'var(--sf-primary)', fontSize: 44 }} />
@@ -151,7 +151,7 @@ function CommunityAdminPage() {
           </Form>
 
           <Typography.Text type="secondary">
-            当前后端会阻止普通成员操作，也会阻止管理员静音自己、静音 owner 或静音同级管理员。
+            后端会阻止普通成员操作，也会阻止管理员禁言自己、禁言 owner 或禁言同级管理员。
           </Typography.Text>
         </Space>
       </Card>

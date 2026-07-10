@@ -57,8 +57,8 @@ function MembersPage() {
       <div className="page-heading">
         <div>
           <p className="dashboard-kicker">Members</p>
-          <h1>圈子成员</h1>
-          <p>认识 Violet Circle 里的学习伙伴，看看大家的方向、技能和当前状态。</p>
+          <h1>社区成员</h1>
+          <p>这里展示 Ruru 社区里的成员。现在先保留基础资料，后面再慢慢加关注、私信、好友关系这些能力。</p>
         </div>
       </div>
 
@@ -66,7 +66,7 @@ function MembersPage() {
         {membersQuery.isError ? <Alert showIcon type="error" message={membersQuery.error.message} /> : null}
         {membersQuery.isLoading ? <Skeleton active /> : null}
         {!membersQuery.isLoading && (membersQuery.data ?? []).length === 0 ? (
-          <Empty description="还没有圈子成员。" />
+          <Empty description="还没有社区成员。" />
         ) : null}
         <div className="quick-grid">{(membersQuery.data ?? []).map(renderMemberCard)}</div>
       </div>

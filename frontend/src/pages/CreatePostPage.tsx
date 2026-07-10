@@ -31,19 +31,17 @@ function CreatePostPage() {
       <div className="page-heading">
         <div>
           <p className="dashboard-kicker">New post</p>
-          <h1>发布 Violet Circle 动态</h1>
-          <p>把问题背景、当前进展和下一步想法写清楚，圈子成员更容易给到有效反馈。</p>
+          <h1>发布社区动态</h1>
+          <p>写清楚你想说的事、想问的问题，或者今天想分享的小发现。基础社区先从真实交流开始。</p>
         </div>
         <Button icon={<ArrowLeftOutlined />}>
-          <Link to="/circle">返回圈子</Link>
+          <Link to="/circle">返回社区</Link>
         </Button>
       </div>
 
       <Card className="profile-card">
         <Space direction="vertical" size={18} style={{ width: '100%' }}>
-          {topicsQuery.isError ? (
-            <Alert showIcon type="error" message={topicsQuery.error.message} />
-          ) : null}
+          {topicsQuery.isError ? <Alert showIcon type="error" message={topicsQuery.error.message} /> : null}
           {createMutation.isError ? (
             <Alert showIcon type="error" message={createMutation.error.message} />
           ) : null}

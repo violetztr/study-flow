@@ -30,7 +30,7 @@ class ApiDocumentationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody())
-                .contains("\"title\":\"StudyFlow API\"")
-                .contains("StudyFlow \u5b66\u4e60\u4efb\u52a1\u7ba1\u7406\u7cfb\u7edf\u63a5\u53e3\u6587\u6863");
+                .contains("\"title\":\"Ruru Community API\"")
+                .contains("Ruru \u793e\u533a\u63a5\u53e3\u6587\u6863");
     }
 }

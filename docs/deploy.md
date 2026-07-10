@@ -1,12 +1,12 @@
 # 部署说明
 
-本文档记录 DevFlow Studio 在 Linux 云服务器上使用 GitHub、Docker Compose 和 Nginx 部署的流程。
+本文档记录 Ruru 社区在 Linux 云服务器上使用 GitHub、Docker Compose 和 Nginx 部署的流程。
 
 ## 当前线上信息
 
 - 服务器 IP：`45.56.91.109`
 - 访问地址：https://www.violet-surf.com/login
-- 公开作品集：https://www.violet-surf.com/portfolio
+- 社区首页：https://www.violet-surf.com/circle
 - 接口文档：https://www.violet-surf.com/doc.html
 - GitHub 仓库：https://github.com/violetztr/study-flow
 
@@ -38,7 +38,7 @@
 Docker Compose 服务：
 
 ```text
-study-flow-frontend   前端 Nginx，宿主机端口 8088
+study-flow-frontend   前端 Nginx，暴露主机端口 8088
 study-flow-backend    后端 Spring Boot
 study-flow-mysql      MySQL
 study-flow-redis      Redis
@@ -103,12 +103,6 @@ MYSQL_ROOT_PASSWORD=change-this-mysql-root-password
 STUDY_FLOW_JWT_SECRET=change-this-to-a-long-random-secret-at-least-32-characters
 STUDY_FLOW_JWT_EXPIRATION_MINUTES=1440
 FRONTEND_PORT=8088
-```
-
-如果 GitHub API 频率限制不够，可以额外配置：
-
-```env
-GITHUB_TOKEN=your_github_token
 ```
 
 不要把 `.env` 提交到 GitHub。
@@ -238,19 +232,20 @@ sudo docker compose ps
 
 Flyway 会在后端启动时自动迁移数据库。
 
-### Violet Circle 社区上线检查
+## 本次 Ruru 化迁移说明
 
-本版本包含 `V6__add_violet_circle_community.sql`，后端启动时会自动创建社区相关表，并初始化默认圈子 `violet-circle` 和基础话题。`V7__backfill_violet_circle_members.sql` 会把缺少社区身份的 `ACTIVE` 用户补进默认圈子并创建默认社区资料，所以老用户升级后也能直接访问 `/circle`。
+当前版本新增 `V8__remove_legacy_modules.sql`：
 
-更新后建议检查：
+- 删除旧学习、任务、笔记、日常、项目中台、GitHub 仓库、公开作品集相关表。
+- 把默认社区从 `violet-circle` 升级为 `ruru-community`。
+- 把默认话题改为 `公告`、`闲聊`、`求助`、`分享`。
 
-```bash
-sudo docker compose logs -f backend
-```
+注意：
 
-日志中应能看到 Flyway 成功迁移到最新版本，并且后端启动成功。
+- 已经在线上执行过的 Flyway 历史迁移不要修改或删除。
+- 如果以后还要调整数据库，继续新增 `V9__xxx.sql`、`V10__xxx.sql` 这种新迁移。
 
-如果 `/api/community/topics`、`/api/community/feed`、`/api/community/members` 返回 `403`，优先检查后端日志里 Flyway 是否已经执行到 `version "7 - backfill violet circle members"`。线上数据库如果之前已经执行过旧版 V6，必须通过 V7 补数据，不能指望修改过的 V6 自动重跑。
+## 上线检查
 
 浏览器检查：
 
@@ -263,18 +258,12 @@ https://www.violet-surf.com/circle/members
 
 功能检查：
 
-- 新用户注册后自动加入默认圈子。
+- 新用户注册后自动加入 Ruru 社区。
 - 登录后默认进入 `/circle`。
 - 可以发帖、评论、点赞、取消点赞。
 - 成员列表可以看到正常注册用户，`DISABLED` 圈内成员不会展示。
 - 普通用户看不到管理菜单。
 - `ADMIN` 或 `OWNER` 用户可以访问 `/admin/community`，并执行隐藏、恢复、禁言、解禁等真实管理操作。
-- 管理员不能禁言自己、圈主或同级管理员；圈主可以处理管理员和普通成员。
-
-注意：
-
-- 生产环境如果已经执行过某个 Flyway 迁移，不要直接修改已上线迁移文件。
-- 如果线上迁移后还需要修库，新增下一个版本迁移文件，例如 `V7__fix_xxx.sql`。
 
 ## 常见排查
 

@@ -57,7 +57,8 @@ class CommunityFoundationControllerTest {
                 .andExpect(jsonPath("$.data.username").value("circle_foundation_alice"))
                 .andExpect(jsonPath("$.data.role").value("MEMBER"))
                 .andExpect(jsonPath("$.data.memberStatus").value("ACTIVE"))
-                .andExpect(jsonPath("$.data.circleSlug").value("violet-circle"));
+                .andExpect(jsonPath("$.data.circleName").value("Ruru 社区"))
+                .andExpect(jsonPath("$.data.circleSlug").value("ruru-community"));
     }
 
     @Test

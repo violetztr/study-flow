@@ -11,8 +11,8 @@ public class OpenApiConfig {
     public OpenAPI studyFlowOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("StudyFlow API")
-                        .description("StudyFlow \u5b66\u4e60\u4efb\u52a1\u7ba1\u7406\u7cfb\u7edf\u63a5\u53e3\u6587\u6863")
+                        .title("Ruru Community API")
+                        .description("Ruru \u793e\u533a\u63a5\u53e3\u6587\u6863")
                         .version("v1.0.0"));
     }
 }

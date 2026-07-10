@@ -83,6 +83,44 @@ class CommunityMigrationTest {
         }
     }
 
+    @Test
+    void latestMigrationRemovesLegacyModuleTablesButKeepsCommunityTables() throws Exception {
+        JdbcDataSource dataSource = newDataSource();
+
+        Flyway.configure()
+                .dataSource(dataSource)
+                .locations("classpath:db/migration")
+                .load()
+                .migrate();
+
+        try (Connection connection = dataSource.getConnection()) {
+            assertThat(tableExists(connection, "users")).isTrue();
+            assertThat(tableExists(connection, "circles")).isTrue();
+            assertThat(tableExists(connection, "circle_members")).isTrue();
+            assertThat(tableExists(connection, "user_profiles")).isTrue();
+            assertThat(tableExists(connection, "community_topics")).isTrue();
+            assertThat(tableExists(connection, "community_posts")).isTrue();
+            assertThat(tableExists(connection, "community_comments")).isTrue();
+            assertThat(tableExists(connection, "community_reactions")).isTrue();
+            assertThat(tableExists(connection, "community_moderation_actions")).isTrue();
+
+            assertThat(tableExists(connection, "portfolio_projects")).isFalse();
+            assertThat(tableExists(connection, "github_repositories")).isFalse();
+            assertThat(tableExists(connection, "project_tech_stacks")).isFalse();
+            assertThat(tableExists(connection, "project_profiles")).isFalse();
+            assertThat(tableExists(connection, "habit_records")).isFalse();
+            assertThat(tableExists(connection, "habits")).isFalse();
+            assertThat(tableExists(connection, "journals")).isFalse();
+            assertThat(tableExists(connection, "daily_plans")).isFalse();
+            assertThat(tableExists(connection, "note_blocks")).isFalse();
+            assertThat(tableExists(connection, "notes")).isFalse();
+            assertThat(tableExists(connection, "task_tags")).isFalse();
+            assertThat(tableExists(connection, "tags")).isFalse();
+            assertThat(tableExists(connection, "tasks")).isFalse();
+            assertThat(tableExists(connection, "projects")).isFalse();
+        }
+    }
+
     private JdbcDataSource newDataSource() {
         JdbcDataSource dataSource = new JdbcDataSource();
         dataSource.setURL("jdbc:h2:mem:community_migration_" + UUID.randomUUID()
@@ -98,7 +136,7 @@ class CommunityMigrationTest {
                 FROM circle_members cm
                 JOIN circles c ON c.id = cm.circle_id
                 JOIN users u ON u.id = cm.user_id
-                WHERE c.slug = 'violet-circle'
+                WHERE c.slug = 'ruru-community'
                   AND u.username = '%s'
                 """.formatted(username));
         assertThat(membership.next()).isTrue();
@@ -113,5 +151,11 @@ class CommunityMigrationTest {
                 """.formatted(username));
         assertThat(profile.next()).isTrue();
         assertThat(profile.getString("display_name")).isEqualTo(username);
+    }
+
+    private boolean tableExists(Connection connection, String tableName) throws Exception {
+        try (ResultSet tables = connection.getMetaData().getTables(null, null, tableName, new String[]{"TABLE"})) {
+            return tables.next();
+        }
     }
 }

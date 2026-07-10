@@ -19,14 +19,13 @@ function RegisterPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-visual" aria-label="StudyFlow 注册介绍">
+      <section className="auth-visual" aria-label="Ruru 注册介绍">
         <div className="auth-story">
           <div>
-            <span className="brand-mark">S</span>
-            <h1 className="auth-title">先建账号，再建你的全栈训练场。</h1>
+            <span className="brand-mark">R</span>
+            <h1 className="auth-title">先拥有一个社区身份。</h1>
             <p className="auth-copy">
-              注册接口会创建用户，密码会在后端用 BCrypt 加密保存。前端只负责收集表单，
-              不直接处理密码加密。
+              注册接口会创建用户，密码会在后端用 BCrypt 加密保存。注册完成后回到登录页，再进入 Ruru 社区。
             </p>
           </div>
           <div className="auth-steps">
@@ -36,7 +35,7 @@ function RegisterPage() {
             </div>
             <div className="auth-step">
               <span className="auth-step-number">2</span>
-              <span>注册成功后回到登录页，再换取 JWT。</span>
+              <span>后端会自动把新用户加入默认 Ruru 社区。</span>
             </div>
           </div>
         </div>
@@ -46,7 +45,7 @@ function RegisterPage() {
         <Card className="auth-card">
           <p className="auth-kicker">Create account</p>
           <h2 className="auth-card-title">创建账号</h2>
-          <p className="auth-card-subtitle">用一个账号记录你的学习项目。</p>
+          <p className="auth-card-subtitle">用一个账号进入 Ruru 社区。</p>
 
           {registerMutation.isError ? (
             <Alert

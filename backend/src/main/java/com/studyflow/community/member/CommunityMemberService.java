@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class CommunityMemberService {
-    public static final String DEFAULT_CIRCLE_SLUG = "violet-circle";
+    public static final String DEFAULT_CIRCLE_SLUG = "ruru-community";
     public static final String ROLE_MEMBER = "MEMBER";
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final String STATUS_MUTED = "MUTED";

@@ -24,7 +24,7 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
           { max: 160, message: '标题不能超过 160 个字符' },
         ]}
       >
-        <Input size="large" placeholder="分享一个问题、进展或复盘" />
+        <Input size="large" placeholder="分享一件事、一个问题或一个小发现" />
       </Form.Item>
 
       <Form.Item label="话题" name="topicId">
@@ -46,7 +46,7 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
           { max: 10000, message: '内容不能超过 10000 个字符' },
         ]}
       >
-        <Input.TextArea rows={10} placeholder="写下你的上下文、尝试过的方法、下一步计划..." />
+        <Input.TextArea rows={10} placeholder="写下上下文、想法、问题或你想分享的东西..." />
       </Form.Item>
 
       <Button type="primary" htmlType="submit" loading={loading}>

@@ -53,7 +53,7 @@ class CommunityPostControllerTest {
         String token = registerAndLogin("post_author_alice", "post_author_alice@example.com");
         Long topicId = firstTopicId(token);
 
-        Long postId = createPost(token, topicId, "第一条社区帖子", "今天开始把学习记录发到 Violet Circle。");
+        Long postId = createPost(token, topicId, "第一条社区帖子", "今天开始把想法发到 Ruru 社区。");
 
         mockMvc.perform(get("/api/community/feed")
                         .header("Authorization", "Bearer " + token))
@@ -258,10 +258,10 @@ class CommunityPostControllerTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(4)))
-                .andExpect(jsonPath("$.data[0].slug").value("learning"))
-                .andExpect(jsonPath("$.data[1].slug").value("notes"))
-                .andExpect(jsonPath("$.data[2].slug").value("daily"))
-                .andExpect(jsonPath("$.data[3].slug").value("projects"));
+                .andExpect(jsonPath("$.data[0].slug").value("announcements"))
+                .andExpect(jsonPath("$.data[1].slug").value("chat"))
+                .andExpect(jsonPath("$.data[2].slug").value("help"))
+                .andExpect(jsonPath("$.data[3].slug").value("share"));
 
         Long postId = createPost(token, firstTopicId, "Counted post", "This should increment the topic count.");
         mockMvc.perform(get("/api/community/topics")

@@ -22,15 +22,15 @@ function CircleFeedPage() {
     <section className="page-section">
       <section className="dashboard-header">
         <div>
-          <p className="dashboard-kicker">Community</p>
-          <h1 className="dashboard-title">Violet Circle</h1>
+          <p className="dashboard-kicker">Ruru Community</p>
+          <h1 className="dashboard-title">Ruru 社区</h1>
           <p className="dashboard-subtitle">
-            在这里分享学习进展、提问、复盘和项目卡点，让每一次推进都能被看见。
+            一个先从朋友小圈子开始的社区。先把发帖、评论、点赞、成员和管理这些基础能力做好，后面再一点点长出更强的模块。
           </p>
         </div>
         <Space wrap>
           <Button icon={<TeamOutlined />}>
-            <Link to="/circle/members">圈子成员</Link>
+            <Link to="/circle/members">成员</Link>
           </Button>
           <Button type="primary" icon={<PlusOutlined />}>
             <Link to="/circle/posts/new">发布动态</Link>
@@ -39,14 +39,11 @@ function CircleFeedPage() {
       </section>
 
       <div className="dashboard-content">
-        {feedQuery.isError ? (
-          <Alert showIcon type="error" message={feedQuery.error.message} />
-        ) : null}
-
+        {feedQuery.isError ? <Alert showIcon type="error" message={feedQuery.error.message} /> : null}
         {feedQuery.isLoading ? <Skeleton active /> : null}
 
         {!feedQuery.isLoading && posts.length === 0 ? (
-          <Empty description="圈子里还没有动态，发第一条吧。">
+          <Empty description="社区里还没有动态，来发第一条吧。">
             <Button type="primary">
               <Link to="/circle/posts/new">发布第一条动态</Link>
             </Button>

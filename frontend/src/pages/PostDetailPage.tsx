@@ -78,7 +78,7 @@ function PostDetailPage() {
           <h1>动态详情</h1>
         </div>
         <Button icon={<ArrowLeftOutlined />}>
-          <Link to="/circle">返回圈子</Link>
+          <Link to="/circle">返回社区</Link>
         </Button>
       </div>
 
