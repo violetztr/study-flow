@@ -12,18 +12,30 @@ import TasksPage from './pages/TasksPage'
 import NotesPage from './pages/NotesPage'
 import DailyPage from './pages/DailyPage'
 import ProfilePage from './pages/ProfilePage'
+import CircleFeedPage from './pages/CircleFeedPage'
+import CreatePostPage from './pages/CreatePostPage'
+import PostDetailPage from './pages/PostDetailPage'
+import MembersPage from './pages/MembersPage'
+import MemberProfilePage from './pages/MemberProfilePage'
+import CommunityAdminPage from './pages/CommunityAdminPage'
 import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to="/circle" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/portfolio" element={<PublicPortfolioPage />} />
       <Route path="/portfolio/:slug" element={<PublicProjectDetailPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
+          <Route path="/circle" element={<CircleFeedPage />} />
+          <Route path="/circle/posts/new" element={<CreatePostPage />} />
+          <Route path="/circle/posts/:id" element={<PostDetailPage />} />
+          <Route path="/circle/members" element={<MembersPage />} />
+          <Route path="/circle/members/:id" element={<MemberProfilePage />} />
+          <Route path="/admin/community" element={<CommunityAdminPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/project-hub" element={<ProjectHubPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
@@ -34,7 +46,7 @@ function App() {
           <Route path="/settings/profile" element={<ProfilePage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/circle" replace />} />
     </Routes>
   )
 }

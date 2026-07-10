@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/community/members")
 public class CommunityMemberController {
@@ -25,6 +27,11 @@ public class CommunityMemberController {
     @GetMapping("/me")
     public ApiResponse<CommunityMemberResponse> me(@AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.success(communityMemberService.getCurrentMember(principal.userId()));
+    }
+
+    @GetMapping
+    public ApiResponse<List<CommunityMemberResponse>> listMembers(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.success(communityMemberService.listMembers(principal.userId()));
     }
 
     @GetMapping("/{userId}")

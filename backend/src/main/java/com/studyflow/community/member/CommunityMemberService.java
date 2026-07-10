@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class CommunityMemberService {
     public static final String DEFAULT_CIRCLE_SLUG = "violet-circle";
@@ -89,6 +91,22 @@ public class CommunityMemberService {
         User targetUser = findRequiredUser(targetUserId);
         UserProfile profile = findOrCreateProfile(targetUserId, targetUser.getUsername());
         return CommunityMemberResponse.from(circle, targetMember, profile, targetUser.getUsername());
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public List<CommunityMemberResponse> listMembers(Long currentUserId) {
+        Circle circle = getDefaultCircle();
+        findRequiredMember(circle.getId(), currentUserId);
+        return circleMemberMapper.selectList(new LambdaQueryWrapper<CircleMember>()
+                        .eq(CircleMember::getCircleId, circle.getId())
+                        .orderByAsc(CircleMember::getId))
+                .stream()
+                .map(member -> {
+                    User user = findRequiredUser(member.getUserId());
+                    UserProfile profile = findOrCreateProfile(member.getUserId(), user.getUsername());
+                    return CommunityMemberResponse.from(circle, member, profile, user.getUsername());
+                })
+                .toList();
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)

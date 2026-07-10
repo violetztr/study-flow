@@ -7,6 +7,8 @@ import {
   GlobalOutlined,
   LogoutOutlined,
   RocketOutlined,
+  SafetyOutlined,
+  TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import { Button, Layout, Menu, Space, Typography } from 'antd'
@@ -15,6 +17,9 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { clearSession, getStoredUser } from '../api/auth'
 
 const selectableMenuKeys = [
+  '/circle/members',
+  '/circle',
+  '/admin/community',
   '/dashboard',
   '/project-hub',
   '/projects',
@@ -25,6 +30,16 @@ const selectableMenuKeys = [
 ]
 
 const menuItems: MenuProps['items'] = [
+  {
+    key: 'circle',
+    type: 'group',
+    label: 'Violet Circle',
+    children: [
+      { key: '/circle', icon: <TeamOutlined />, label: <Link to="/circle">圈子动态</Link> },
+      { key: '/circle/members', icon: <UserOutlined />, label: <Link to="/circle/members">圈子成员</Link> },
+      { key: '/admin/community', icon: <SafetyOutlined />, label: <Link to="/admin/community">圈子管理</Link> },
+    ],
+  },
   { key: '/dashboard', icon: <BarChartOutlined />, label: <Link to="/dashboard">驾驶舱</Link> },
   {
     key: 'devflow',
@@ -85,12 +100,14 @@ function AppLayout() {
   }
 
   const selectedKey =
-    selectableMenuKeys.find((key) => location.pathname.startsWith(key)) ?? '/dashboard'
+    selectableMenuKeys
+      .filter((key) => location.pathname === key || location.pathname.startsWith(`${key}/`))
+      .sort((first, second) => second.length - first.length)[0] ?? '/circle'
 
   return (
     <Layout className="app-layout">
       <Layout.Sider className="app-sider" width={248} breakpoint="lg" collapsedWidth={0}>
-        <Link className="app-logo" to="/dashboard">
+        <Link className="app-logo" to="/circle">
           <span className="brand-mark">D</span>
           <span>
             <strong>DevFlow Studio</strong>

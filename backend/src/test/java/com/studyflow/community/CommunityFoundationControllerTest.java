@@ -63,6 +63,41 @@ class CommunityFoundationControllerTest {
                 .andExpect(jsonPath("$.data.bio").value("Learning full stack step by step"));
     }
 
+    @Test
+    void listMembersRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/community/members"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listMembersReturnsDefaultCircleMembers() throws Exception {
+        String aliceToken = registerAndLogin("circle_list_alice", "circle_list_alice@example.com");
+        registerAndLogin("circle_list_bob", "circle_list_bob@example.com");
+
+        mockMvc.perform(put("/api/community/members/me/profile")
+                        .header("Authorization", "Bearer " + aliceToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "displayName": "Alice List",
+                                  "bio": "Community builder",
+                                  "skills": "Java,React"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/members")
+                        .header("Authorization", "Bearer " + aliceToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].displayName").value("Alice List"))
+                .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].bio").value("Community builder"))
+                .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].skills").value("Java,React"))
+                .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].role").value("MEMBER"))
+                .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].memberStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.data[?(@.username == 'circle_list_bob')].username").value("circle_list_bob"));
+    }
+
     @ParameterizedTest
     @CsvSource({
             "displayName,81",

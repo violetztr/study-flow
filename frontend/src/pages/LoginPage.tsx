@@ -17,7 +17,7 @@ function LoginPage() {
     mutationFn: login,
     onSuccess: (response) => {
       saveSession(response)
-      navigate('/dashboard', { replace: true })
+      navigate('/circle', { replace: true })
     },
   })
 
