@@ -20,6 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -174,6 +175,58 @@ class CommunityFoundationControllerTest {
         Long profileCount = userProfileMapper.selectCount(new LambdaQueryWrapper<UserProfile>()
                 .eq(UserProfile::getUserId, bob.getId()));
         org.assertj.core.api.Assertions.assertThat(profileCount).isZero();
+    }
+
+    @Test
+    void getCurrentMemberDoesNotCreateMissingProfile() throws Exception {
+        String token = registerAndLogin("circle_me_read_only", "circle_me_read_only@example.com");
+        Long userId = extractUserId(token);
+        userProfileMapper.delete(new LambdaQueryWrapper<UserProfile>()
+                .eq(UserProfile::getUserId, userId));
+
+        mockMvc.perform(get("/api/community/members/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.displayName").value("circle_me_read_only"));
+
+        Long profileCount = userProfileMapper.selectCount(new LambdaQueryWrapper<UserProfile>()
+                .eq(UserProfile::getUserId, userId));
+        assertThat(profileCount).isZero();
+    }
+
+    @Test
+    void getMemberDoesNotCreateMissingProfile() throws Exception {
+        String aliceToken = registerAndLogin("circle_get_read_alice", "circle_get_read_alice@example.com");
+        String bobToken = registerAndLogin("circle_get_read_bob", "circle_get_read_bob@example.com");
+        Long bobUserId = extractUserId(bobToken);
+        userProfileMapper.delete(new LambdaQueryWrapper<UserProfile>()
+                .eq(UserProfile::getUserId, bobUserId));
+
+        mockMvc.perform(get("/api/community/members/{userId}", bobUserId)
+                        .header("Authorization", "Bearer " + aliceToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.displayName").value("circle_get_read_bob"));
+
+        Long profileCount = userProfileMapper.selectCount(new LambdaQueryWrapper<UserProfile>()
+                .eq(UserProfile::getUserId, bobUserId));
+        assertThat(profileCount).isZero();
+    }
+
+    @Test
+    void listMembersHidesDisabledCircleMembers() throws Exception {
+        String aliceToken = registerAndLogin("circle_visible_member", "circle_visible_member@example.com");
+        String disabledToken = registerAndLogin("circle_hidden_disabled", "circle_hidden_disabled@example.com");
+        setDefaultMembershipStatus(extractUserId(disabledToken), "DISABLED");
+
+        MvcResult result = mockMvc.perform(get("/api/community/members")
+                        .header("Authorization", "Bearer " + aliceToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode members = objectMapper.readTree(result.getResponse().getContentAsByteArray()).path("data");
+        assertThat(members)
+                .anyMatch(member -> "circle_visible_member".equals(member.path("username").asText()))
+                .noneMatch(member -> "circle_hidden_disabled".equals(member.path("username").asText()));
     }
 
     @ParameterizedTest

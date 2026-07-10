@@ -109,23 +109,25 @@ public class CommunityModerationService {
     @Transactional
     public void muteMember(Long adminUserId, Long userId, ModerationRequest request) {
         Circle circle = requireAdmin(adminUserId);
+        requireMemberModerationAllowed(circle.getId(), adminUserId, userId, STATUS_ACTIVE);
         LocalDateTime now = LocalDateTime.now();
-        updateMemberStatus(circle.getId(), userId, STATUS_MUTED, now);
+        updateMemberStatus(circle.getId(), userId, STATUS_ACTIVE, STATUS_MUTED, now);
         recordAction(circle.getId(), adminUserId, TARGET_MEMBER, userId, ACTION_MUTE, reason(request), now);
     }
 
     @Transactional
     public void unmuteMember(Long adminUserId, Long userId, ModerationRequest request) {
         Circle circle = requireAdmin(adminUserId);
+        requireMemberModerationAllowed(circle.getId(), adminUserId, userId, STATUS_MUTED);
         LocalDateTime now = LocalDateTime.now();
-        updateMemberStatus(circle.getId(), userId, STATUS_ACTIVE, now);
+        updateMemberStatus(circle.getId(), userId, STATUS_MUTED, STATUS_ACTIVE, now);
         recordAction(circle.getId(), adminUserId, TARGET_MEMBER, userId, ACTION_UNMUTE, reason(request), now);
     }
 
     private Circle requireAdmin(Long userId) {
         User user = userMapper.selectById(userId);
         if (user == null || !(ROLE_ADMIN.equals(user.getRole()) || ROLE_OWNER.equals(user.getRole()))) {
-            throw new BusinessException(403, "需要管理员权限");
+            throw new BusinessException(403, "Admin permission required");
         }
         return communityMemberService.requireActiveDefaultMember(userId);
     }
@@ -136,7 +138,7 @@ public class CommunityModerationService {
                 .eq(CommunityPost::getCircleId, circleId)
                 .eq(CommunityPost::getStatus, status));
         if (post == null) {
-            throw new BusinessException(404, "帖子不存在");
+            throw new BusinessException(404, "Post does not exist");
         }
         return post;
     }
@@ -147,7 +149,7 @@ public class CommunityModerationService {
                 .eq(CommunityComment::getCircleId, circleId)
                 .eq(CommunityComment::getStatus, status));
         if (comment == null) {
-            throw new BusinessException(404, "评论不存在");
+            throw new BusinessException(404, "Comment does not exist");
         }
         return comment;
     }
@@ -157,9 +159,29 @@ public class CommunityModerationService {
                 .eq(CircleMember::getCircleId, circleId)
                 .eq(CircleMember::getUserId, userId));
         if (member == null) {
-            throw new BusinessException(404, "圈子成员不存在");
+            throw new BusinessException(404, "Circle member does not exist");
         }
         return member;
+    }
+
+    private void requireMemberModerationAllowed(Long circleId, Long adminUserId, Long targetUserId, String expectedStatus) {
+        if (adminUserId.equals(targetUserId)) {
+            throw new BusinessException(403, "Cannot moderate yourself");
+        }
+
+        CircleMember targetMember = requireCircleMember(circleId, targetUserId);
+        if (!expectedStatus.equals(targetMember.getStatus())) {
+            throw new BusinessException(409, "Member status changed");
+        }
+
+        User adminUser = userMapper.selectById(adminUserId);
+        User targetUser = userMapper.selectById(targetUserId);
+        if (targetUser == null) {
+            throw new BusinessException(404, "User does not exist");
+        }
+        if (ROLE_ADMIN.equals(adminUser.getRole()) && (ROLE_ADMIN.equals(targetUser.getRole()) || ROLE_OWNER.equals(targetUser.getRole()))) {
+            throw new BusinessException(403, "Admin cannot moderate peer or owner accounts");
+        }
     }
 
     private void updatePostStatus(Long postId, String expectedStatus, String status, LocalDateTime now) {
@@ -184,14 +206,15 @@ public class CommunityModerationService {
         }
     }
 
-    private void updateMemberStatus(Long circleId, Long userId, String status, LocalDateTime now) {
+    private void updateMemberStatus(Long circleId, Long userId, String expectedStatus, String status, LocalDateTime now) {
         int updated = circleMemberMapper.update(null, new LambdaUpdateWrapper<CircleMember>()
                 .eq(CircleMember::getCircleId, circleId)
                 .eq(CircleMember::getUserId, userId)
+                .eq(CircleMember::getStatus, expectedStatus)
                 .set(CircleMember::getStatus, status)
                 .set(CircleMember::getUpdatedAt, now));
         if (updated != 1) {
-            throw new BusinessException(404, "圈子成员不存在");
+            throw new BusinessException(409, "Member status changed");
         }
     }
 

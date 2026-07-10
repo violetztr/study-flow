@@ -312,8 +312,105 @@ class CommunityModerationControllerTest {
                                 {
                                   "reason": "disabled circle member should fail"
                                 }
+                        """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCannotMuteSelfOrOwner() throws Exception {
+        String adminToken = registerAdminAndLogin("moderation_hierarchy_admin", "moderation_hierarchy_admin@example.com");
+        String ownerToken = registerOwnerAndLogin("moderation_hierarchy_owner", "moderation_hierarchy_owner@example.com");
+        Long adminUserId = userIdByUsername("moderation_hierarchy_admin");
+        Long ownerUserId = userIdByUsername("moderation_hierarchy_owner");
+
+        mockMvc.perform(post("/api/admin/community/members/{userId}/mute", adminUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "self mute should fail"
+                                }
                                 """))
                 .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/admin/community/members/{userId}/mute", ownerUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "admin cannot mute owner"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        assertThat(memberStatus(adminUserId)).isEqualTo("ACTIVE");
+        assertThat(memberStatus(ownerUserId)).isEqualTo("ACTIVE");
+        assertThat(moderationActionCount("MEMBER", adminUserId, "MUTE")).isZero();
+        assertThat(moderationActionCount("MEMBER", ownerUserId, "MUTE")).isZero();
+
+        mockMvc.perform(post("/api/admin/community/members/{userId}/mute", adminUserId)
+                        .header("Authorization", "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "owner can mute admin"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        assertThat(memberStatus(adminUserId)).isEqualTo("MUTED");
+    }
+
+    @Test
+    void duplicateMuteAndUnmuteTransitionsDoNotCreateExtraAuditRows() throws Exception {
+        String adminToken = registerAdminAndLogin("moderation_member_cas_admin", "moderation_member_cas_admin@example.com");
+        registerAndLogin("moderation_member_cas_target", "moderation_member_cas_target@example.com");
+        Long targetUserId = userIdByUsername("moderation_member_cas_target");
+
+        mockMvc.perform(post("/api/admin/community/members/{userId}/mute", targetUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "first mute"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/community/members/{userId}/mute", targetUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "duplicate mute"
+                                }
+                                """))
+                .andExpect(status().is4xxClientError());
+
+        assertThat(moderationActionCount("MEMBER", targetUserId, "MUTE")).isEqualTo(1);
+
+        mockMvc.perform(post("/api/admin/community/members/{userId}/unmute", targetUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "first unmute"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/community/members/{userId}/unmute", targetUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "duplicate unmute"
+                                }
+                                """))
+                .andExpect(status().is4xxClientError());
+
+        assertThat(memberStatus(targetUserId)).isEqualTo("ACTIVE");
+        assertThat(moderationActionCount("MEMBER", targetUserId, "UNMUTE")).isEqualTo(1);
     }
 
     private String registerAdminAndLogin(String username, String email) throws Exception {
@@ -321,6 +418,15 @@ class CommunityModerationControllerTest {
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
                 .eq(User::getUsername, username));
         user.setRole("ADMIN");
+        userMapper.updateById(user);
+        return token;
+    }
+
+    private String registerOwnerAndLogin(String username, String email) throws Exception {
+        String token = registerAndLogin(username, email);
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, username));
+        user.setRole("OWNER");
         userMapper.updateById(user);
         return token;
     }
@@ -407,5 +513,11 @@ class CommunityModerationControllerTest {
                 .eq(CommunityModerationAction::getTargetType, targetType)
                 .eq(CommunityModerationAction::getTargetId, targetId)
                 .eq(CommunityModerationAction::getActionType, actionType));
+    }
+
+    private String memberStatus(Long userId) {
+        return circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
+                        .eq(CircleMember::getUserId, userId))
+                .getStatus();
     }
 }

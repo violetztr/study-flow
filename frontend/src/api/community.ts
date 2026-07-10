@@ -67,6 +67,10 @@ export type CommunityMemberResponse = {
   websiteUrl?: string | null
 }
 
+export type ModerationRequest = {
+  reason?: string
+}
+
 export const communityApi = {
   listFeed() {
     return http.get<unknown, CommunityPostResponse[]>('/community/feed')
@@ -112,5 +116,23 @@ export const communityApi = {
   },
   getMember(userId: number) {
     return http.get<unknown, CommunityMemberResponse>(`/community/members/${userId}`)
+  },
+  hidePost(postId: number, request: ModerationRequest) {
+    return http.post<unknown, void>(`/admin/community/posts/${postId}/hide`, request)
+  },
+  restorePost(postId: number, request: ModerationRequest) {
+    return http.post<unknown, void>(`/admin/community/posts/${postId}/restore`, request)
+  },
+  hideComment(commentId: number, request: ModerationRequest) {
+    return http.post<unknown, void>(`/admin/community/comments/${commentId}/hide`, request)
+  },
+  restoreComment(commentId: number, request: ModerationRequest) {
+    return http.post<unknown, void>(`/admin/community/comments/${commentId}/restore`, request)
+  },
+  muteMember(userId: number, request: ModerationRequest) {
+    return http.post<unknown, void>(`/admin/community/members/${userId}/mute`, request)
+  },
+  unmuteMember(userId: number, request: ModerationRequest) {
+    return http.post<unknown, void>(`/admin/community/members/${userId}/unmute`, request)
   },
 }

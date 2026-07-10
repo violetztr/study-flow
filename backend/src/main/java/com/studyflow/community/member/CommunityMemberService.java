@@ -55,8 +55,8 @@ public class CommunityMemberService {
         Circle circle = requireReadableDefaultMember(userId);
         CircleMember member = findRequiredMember(circle.getId(), userId);
         User user = findRequiredUser(userId);
-        UserProfile profile = findOrCreateProfile(userId, user.getUsername());
-        return CommunityMemberResponse.from(circle, member, profile, user.getUsername());
+        UserProfile profile = findProfile(userId);
+        return toMemberResponse(circle, member, user, profile);
     }
 
     public Circle requireDefaultMember(Long userId) {
@@ -90,10 +90,10 @@ public class CommunityMemberService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public CommunityMemberResponse getMember(Long currentUserId, Long targetUserId) {
         Circle circle = requireReadableDefaultMember(currentUserId);
-        CircleMember targetMember = findRequiredMember(circle.getId(), targetUserId);
+        CircleMember targetMember = findRequiredVisibleMember(circle.getId(), targetUserId);
         User targetUser = findRequiredUser(targetUserId);
-        UserProfile profile = findOrCreateProfile(targetUserId, targetUser.getUsername());
-        return CommunityMemberResponse.from(circle, targetMember, profile, targetUser.getUsername());
+        UserProfile profile = findProfile(targetUserId);
+        return toMemberResponse(circle, targetMember, targetUser, profile);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -102,6 +102,7 @@ public class CommunityMemberService {
 
         List<CircleMember> members = circleMemberMapper.selectList(new LambdaQueryWrapper<CircleMember>()
                 .eq(CircleMember::getCircleId, circle.getId())
+                .ne(CircleMember::getStatus, STATUS_DISABLED)
                 .orderByAsc(CircleMember::getId));
         List<Long> userIds = members.stream()
                 .map(CircleMember::getUserId)
@@ -226,6 +227,14 @@ public class CommunityMemberService {
     private CircleMember findRequiredMember(Long circleId, Long userId) {
         CircleMember member = findMembership(circleId, userId);
         if (member == null) {
+            throw new BusinessException(404, "Circle member does not exist");
+        }
+        return member;
+    }
+
+    private CircleMember findRequiredVisibleMember(Long circleId, Long userId) {
+        CircleMember member = findRequiredMember(circleId, userId);
+        if (STATUS_DISABLED.equals(member.getStatus())) {
             throw new BusinessException(404, "Circle member does not exist");
         }
         return member;

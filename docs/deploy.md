@@ -240,7 +240,7 @@ Flyway 会在后端启动时自动迁移数据库。
 
 ### Violet Circle 社区上线检查
 
-本版本包含 `V6__add_violet_circle_community.sql`，后端启动时会自动创建社区相关表，并初始化默认圈子 `violet-circle` 和基础话题。
+本版本包含 `V6__add_violet_circle_community.sql`，后端启动时会自动创建社区相关表，并初始化默认圈子 `violet-circle` 和基础话题。V6 还会把已有 `ACTIVE` 用户回填进默认圈子并创建默认社区资料，所以老用户升级后也能直接访问 `/circle`。
 
 更新后建议检查：
 
@@ -264,9 +264,10 @@ https://www.violet-surf.com/circle/members
 - 新用户注册后自动加入默认圈子。
 - 登录后默认进入 `/circle`。
 - 可以发帖、评论、点赞、取消点赞。
-- 成员列表可以看到注册用户。
+- 成员列表可以看到正常注册用户，`DISABLED` 圈内成员不会展示。
 - 普通用户看不到管理菜单。
-- `ADMIN` 或 `OWNER` 用户可以访问 `/admin/community`。
+- `ADMIN` 或 `OWNER` 用户可以访问 `/admin/community`，并执行隐藏、恢复、禁言、解禁等真实管理操作。
+- 管理员不能禁言自己、圈主或同级管理员；圈主可以处理管理员和普通成员。
 
 注意：
 

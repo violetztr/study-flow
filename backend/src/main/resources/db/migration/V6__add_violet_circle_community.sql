@@ -25,6 +25,8 @@ CREATE TABLE circle_members (
     joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_circle_members_circle FOREIGN KEY (circle_id) REFERENCES circles(id),
+    CONSTRAINT fk_circle_members_user FOREIGN KEY (user_id) REFERENCES users(id),
     UNIQUE KEY uk_circle_members_circle_user (circle_id, user_id),
     INDEX idx_circle_members_user_id (user_id),
     INDEX idx_circle_members_circle_id (circle_id)
@@ -41,6 +43,7 @@ CREATE TABLE user_profiles (
     website_url VARCHAR(300),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id),
     UNIQUE KEY uk_user_profiles_user_id (user_id)
 );
 
@@ -56,6 +59,7 @@ CREATE TABLE community_topics (
     status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_community_topics_circle FOREIGN KEY (circle_id) REFERENCES circles(id),
     UNIQUE KEY uk_community_topics_circle_slug (circle_id, slug),
     INDEX idx_community_topics_circle_id (circle_id)
 );
@@ -78,6 +82,9 @@ CREATE TABLE community_posts (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at DATETIME,
+    CONSTRAINT fk_community_posts_circle FOREIGN KEY (circle_id) REFERENCES circles(id),
+    CONSTRAINT fk_community_posts_author FOREIGN KEY (author_id) REFERENCES users(id),
+    CONSTRAINT fk_community_posts_topic FOREIGN KEY (topic_id) REFERENCES community_topics(id),
     INDEX idx_community_posts_circle_activity (circle_id, pinned, last_activity_at),
     INDEX idx_community_posts_author_id (author_id),
     INDEX idx_community_posts_topic_id (topic_id)
@@ -95,6 +102,10 @@ CREATE TABLE community_comments (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at DATETIME,
+    CONSTRAINT fk_community_comments_circle FOREIGN KEY (circle_id) REFERENCES circles(id),
+    CONSTRAINT fk_community_comments_post FOREIGN KEY (post_id) REFERENCES community_posts(id),
+    CONSTRAINT fk_community_comments_author FOREIGN KEY (author_id) REFERENCES users(id),
+    CONSTRAINT fk_community_comments_parent FOREIGN KEY (parent_id) REFERENCES community_comments(id),
     INDEX idx_community_comments_post_id (post_id),
     INDEX idx_community_comments_author_id (author_id)
 );
@@ -107,6 +118,8 @@ CREATE TABLE community_reactions (
     user_id BIGINT NOT NULL,
     reaction_type VARCHAR(30) NOT NULL DEFAULT 'LIKE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_community_reactions_circle FOREIGN KEY (circle_id) REFERENCES circles(id),
+    CONSTRAINT fk_community_reactions_user FOREIGN KEY (user_id) REFERENCES users(id),
     UNIQUE KEY uk_community_reactions_target_user (circle_id, target_type, target_id, user_id, reaction_type),
     INDEX idx_community_reactions_user_id (user_id)
 );
@@ -120,12 +133,36 @@ CREATE TABLE community_moderation_actions (
     action_type VARCHAR(40) NOT NULL,
     reason VARCHAR(500),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_community_moderation_actions_circle FOREIGN KEY (circle_id) REFERENCES circles(id),
+    CONSTRAINT fk_community_moderation_actions_admin FOREIGN KEY (admin_user_id) REFERENCES users(id),
     INDEX idx_community_moderation_actions_target (target_type, target_id),
     INDEX idx_community_moderation_actions_admin (admin_user_id)
 );
 
 INSERT INTO circles (name, slug, description)
 VALUES ('Violet Circle', 'violet-circle', 'A small community for friends to learn, share, and grow together');
+
+INSERT INTO circle_members (circle_id, user_id, role, status)
+SELECT c.id, u.id, 'MEMBER', 'ACTIVE'
+FROM circles c
+JOIN users u ON u.status = 'ACTIVE'
+WHERE c.slug = 'violet-circle'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM circle_members existing_member
+      WHERE existing_member.circle_id = c.id
+        AND existing_member.user_id = u.id
+  );
+
+INSERT INTO user_profiles (user_id, display_name)
+SELECT u.id, u.username
+FROM users u
+WHERE u.status = 'ACTIVE'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM user_profiles existing_profile
+      WHERE existing_profile.user_id = u.id
+  );
 
 INSERT INTO community_topics (circle_id, name, slug, description, color, sort_order)
 SELECT id, '学习', 'learning', '学习进度、技术问题、读书记录', '#2f6f60', 10 FROM circles WHERE slug = 'violet-circle';
