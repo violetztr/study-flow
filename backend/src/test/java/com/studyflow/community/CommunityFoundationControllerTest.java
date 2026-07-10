@@ -2,6 +2,9 @@ package com.studyflow.community;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.studyflow.community.member.CircleMember;
+import com.studyflow.community.member.CircleMemberMapper;
 import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
 import com.studyflow.user.User;
@@ -39,6 +42,9 @@ class CommunityFoundationControllerTest {
     @Autowired
     private UserProfileMapper userProfileMapper;
 
+    @Autowired
+    private CircleMemberMapper circleMemberMapper;
+
     @Test
     void registerCreatesDefaultCommunityMembership() throws Exception {
         String token = registerAndLogin("circle_foundation_alice", "circle_foundation_alice@example.com");
@@ -75,6 +81,28 @@ class CommunityFoundationControllerTest {
     }
 
     @Test
+    void mutedMemberCannotUpdateProfile() throws Exception {
+        String token = registerAndLogin("circle_muted_profile", "circle_muted_profile@example.com");
+        Long userId = extractUserId(token);
+        setDefaultMembershipStatus(userId, "MUTED");
+
+        mockMvc.perform(put("/api/community/members/me/profile")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "displayName": "Muted Profile",
+                                  "bio": "Muted members are read only"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        UserProfile profile = userProfileMapper.selectOne(new LambdaQueryWrapper<UserProfile>()
+                .eq(UserProfile::getUserId, userId));
+        org.assertj.core.api.Assertions.assertThat(profile.getDisplayName()).isEqualTo("circle_muted_profile");
+    }
+
+    @Test
     void listMembersRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/community/members"))
                 .andExpect(status().isForbidden());
@@ -107,6 +135,25 @@ class CommunityFoundationControllerTest {
                 .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].role").value("MEMBER"))
                 .andExpect(jsonPath("$.data[?(@.username == 'circle_list_alice')].memberStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.data[?(@.username == 'circle_list_bob')].username").value("circle_list_bob"));
+    }
+
+    @Test
+    void disabledCircleMemberCannotReadCommunityFoundationRoutes() throws Exception {
+        String token = registerAndLogin("circle_disabled_member", "circle_disabled_member@example.com");
+        Long userId = extractUserId(token);
+        setDefaultMembershipStatus(userId, "DISABLED");
+
+        mockMvc.perform(get("/api/community/topics")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/community/feed")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/community/members")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -190,5 +237,18 @@ class CommunityFoundationControllerTest {
 
         String response = loginResult.getResponse().getContentAsString();
         return objectMapper.readTree(response).path("data").path("token").asText();
+    }
+
+    private Long extractUserId(String token) throws Exception {
+        String[] parts = token.split("\\.");
+        JsonNode payload = objectMapper.readTree(java.util.Base64.getUrlDecoder().decode(parts[1]));
+        return payload.path("userId").asLong();
+    }
+
+    private void setDefaultMembershipStatus(Long userId, String status) {
+        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
+                .eq(CircleMember::getUserId, userId));
+        member.setStatus(status);
+        circleMemberMapper.updateById(member);
     }
 }

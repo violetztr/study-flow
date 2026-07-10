@@ -1,8 +1,12 @@
 package com.studyflow.community;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.common.BusinessException;
+import com.studyflow.community.comment.CommunityCommentMapper;
+import com.studyflow.community.member.CircleMember;
+import com.studyflow.community.member.CircleMemberMapper;
 import com.studyflow.community.post.CommunityPostMapper;
 import com.studyflow.community.post.CommunityPostService;
 import org.junit.jupiter.api.Test;
@@ -38,6 +42,12 @@ class CommunityCommentControllerTest {
 
     @Autowired
     private CommunityPostMapper communityPostMapper;
+
+    @Autowired
+    private CommunityCommentMapper communityCommentMapper;
+
+    @Autowired
+    private CircleMemberMapper circleMemberMapper;
 
     @Autowired
     private CommunityPostService communityPostService;
@@ -76,6 +86,22 @@ class CommunityCommentControllerTest {
         mockMvc.perform(delete("/api/community/comments/{commentId}", commentId)
                         .header("Authorization", "Bearer " + bobToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void mutedOwnerCannotDeleteComment() throws Exception {
+        String token = registerAndLogin("comment_muted_delete_owner", "comment_muted_delete_owner@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Muted comment delete", "Muted users should keep read-only access.");
+        Long commentId = createComment(token, postId, "Cannot delete after mute.");
+        setDefaultMembershipStatus(extractUserId(token), "MUTED");
+
+        mockMvc.perform(delete("/api/community/comments/{commentId}", commentId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        assertThat(communityCommentMapper.selectById(commentId).getStatus()).isEqualTo("PUBLISHED");
+        assertThat(communityPostMapper.selectById(postId).getCommentCount()).isEqualTo(1);
     }
 
     @Test
@@ -271,5 +297,18 @@ class CommunityCommentControllerTest {
 
         JsonNode response = objectMapper.readTree(commentResult.getResponse().getContentAsByteArray());
         return response.path("data").path("id").asLong();
+    }
+
+    private Long extractUserId(String token) throws Exception {
+        String[] parts = token.split("\\.");
+        JsonNode payload = objectMapper.readTree(java.util.Base64.getUrlDecoder().decode(parts[1]));
+        return payload.path("userId").asLong();
+    }
+
+    private void setDefaultMembershipStatus(Long userId, String status) {
+        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
+                .eq(CircleMember::getUserId, userId));
+        member.setStatus(status);
+        circleMemberMapper.updateById(member);
     }
 }

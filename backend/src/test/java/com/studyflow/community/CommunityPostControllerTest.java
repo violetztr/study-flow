@@ -2,8 +2,11 @@ package com.studyflow.community;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyflow.community.post.CommunityPost;
+import com.studyflow.community.post.CommunityPostMapper;
 import com.studyflow.community.member.CircleMember;
 import com.studyflow.community.member.CircleMemberMapper;
+import com.studyflow.community.topic.CommunityTopicMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -15,6 +18,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -37,6 +41,12 @@ class CommunityPostControllerTest {
 
     @Autowired
     private CircleMemberMapper circleMemberMapper;
+
+    @Autowired
+    private CommunityPostMapper communityPostMapper;
+
+    @Autowired
+    private CommunityTopicMapper communityTopicMapper;
 
     @Test
     void createPostReturnsPostAndFeedShowsIt() throws Exception {
@@ -72,6 +82,30 @@ class CommunityPostControllerTest {
                                 }
                                 """.formatted(topicId)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void mutedOwnerCannotUpdatePost() throws Exception {
+        String token = registerAndLogin("post_muted_update_owner", "post_muted_update_owner@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Before mute", "Owner can write before mute.");
+        setDefaultMembershipStatus(extractUserId(token), "MUTED");
+
+        mockMvc.perform(put("/api/community/posts/{id}", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "Muted update",
+                                  "content": "Muted owners should be read only."
+                                }
+                                """.formatted(topicId)))
+                .andExpect(status().isForbidden());
+
+        CommunityPost post = communityPostMapper.selectById(postId);
+        assertThat(post.getTitle()).isEqualTo("Before mute");
+        assertThat(post.getContent()).isEqualTo("Owner can write before mute.");
     }
 
     @Test
@@ -151,6 +185,66 @@ class CommunityPostControllerTest {
         mockMvc.perform(delete("/api/community/posts/{id}", postId)
                         .header("Authorization", "Bearer " + bobToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void mutedOwnerCannotDeletePost() throws Exception {
+        String token = registerAndLogin("post_muted_delete_owner", "post_muted_delete_owner@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Delete protected by mute", "Muted owner cannot delete.");
+        int beforeCount = communityTopicMapper.selectById(topicId).getPostCount();
+        setDefaultMembershipStatus(extractUserId(token), "MUTED");
+
+        mockMvc.perform(delete("/api/community/posts/{id}", postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        assertThat(communityPostMapper.selectById(postId).getStatus()).isEqualTo("PUBLISHED");
+        assertThat(communityTopicMapper.selectById(topicId).getPostCount()).isEqualTo(beforeCount);
+    }
+
+    @Test
+    void hiddenPostCannotBeUpdatedByOwnerBackToPublished() throws Exception {
+        String token = registerAndLogin("post_hidden_update_owner", "post_hidden_update_owner@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Hidden title", "Hidden content.");
+        CommunityPost post = communityPostMapper.selectById(postId);
+        post.setStatus("HIDDEN");
+        communityPostMapper.updateById(post);
+
+        mockMvc.perform(put("/api/community/posts/{id}", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "Should not publish",
+                                  "content": "Owner edit must not restore hidden post."
+                                }
+                                """.formatted(topicId)))
+                .andExpect(status().isNotFound());
+
+        CommunityPost after = communityPostMapper.selectById(postId);
+        assertThat(after.getStatus()).isEqualTo("HIDDEN");
+        assertThat(after.getTitle()).isEqualTo("Hidden title");
+    }
+
+    @Test
+    void duplicatePostDeleteDoesNotDecrementTopicPostCountTwice() throws Exception {
+        String token = registerAndLogin("post_duplicate_delete_owner", "post_duplicate_delete_owner@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Delete once", "Topic count should only decrement once.");
+        int afterCreateCount = communityTopicMapper.selectById(topicId).getPostCount();
+
+        mockMvc.perform(delete("/api/community/posts/{id}", postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/community/posts/{id}", postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+
+        assertThat(communityTopicMapper.selectById(topicId).getPostCount()).isEqualTo(afterCreateCount - 1);
     }
 
     @Test
@@ -327,5 +421,12 @@ class CommunityPostControllerTest {
     private void removeDefaultMembership(Long userId) {
         circleMemberMapper.delete(new LambdaQueryWrapper<CircleMember>()
                 .eq(CircleMember::getUserId, userId));
+    }
+
+    private void setDefaultMembershipStatus(Long userId, String status) {
+        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
+                .eq(CircleMember::getUserId, userId));
+        member.setStatus(status);
+        circleMemberMapper.updateById(member);
     }
 }

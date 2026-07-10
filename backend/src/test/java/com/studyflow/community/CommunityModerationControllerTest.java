@@ -294,6 +294,28 @@ class CommunityModerationControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void disabledCircleAdminCannotModerate() throws Exception {
+        String adminToken = registerAdminAndLogin("moderation_disabled_circle_admin", "moderation_disabled_circle_admin@example.com");
+        String memberToken = registerAndLogin("moderation_disabled_circle_author", "moderation_disabled_circle_author@example.com");
+        Long postId = createPost(memberToken, firstTopicId(memberToken), "Disabled circle admin", "Disabled circle members cannot moderate.");
+        Long adminUserId = userIdByUsername("moderation_disabled_circle_admin");
+        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
+                .eq(CircleMember::getUserId, adminUserId));
+        member.setStatus("DISABLED");
+        circleMemberMapper.updateById(member);
+
+        mockMvc.perform(post("/api/admin/community/posts/{postId}/hide", postId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "disabled circle member should fail"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
     private String registerAdminAndLogin(String username, String email) throws Exception {
         String token = registerAndLogin(username, email);
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>()

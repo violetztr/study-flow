@@ -24,6 +24,7 @@ public class CommunityMemberService {
     public static final String ROLE_MEMBER = "MEMBER";
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final String STATUS_MUTED = "MUTED";
+    public static final String STATUS_DISABLED = "DISABLED";
 
     private final CircleMapper circleMapper;
     private final CircleMemberMapper circleMemberMapper;
@@ -51,7 +52,7 @@ public class CommunityMemberService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public CommunityMemberResponse getCurrentMember(Long userId) {
-        Circle circle = getDefaultCircle();
+        Circle circle = requireReadableDefaultMember(userId);
         CircleMember member = findRequiredMember(circle.getId(), userId);
         User user = findRequiredUser(userId);
         UserProfile profile = findOrCreateProfile(userId, user.getUsername());
@@ -59,37 +60,36 @@ public class CommunityMemberService {
     }
 
     public Circle requireDefaultMember(Long userId) {
+        return requireReadableDefaultMember(userId);
+    }
+
+    public Circle requireReadableDefaultMember(Long userId) {
         Circle circle = getDefaultCircle();
-        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
-                .eq(CircleMember::getCircleId, circle.getId())
-                .eq(CircleMember::getUserId, userId));
-        if (member == null) {
-            throw new BusinessException(403, "没有权限访问圈子内容");
+        CircleMember member = findMembership(circle.getId(), userId);
+        if (member == null || !(STATUS_ACTIVE.equals(member.getStatus()) || STATUS_MUTED.equals(member.getStatus()))) {
+            throw new BusinessException(403, "No permission to access circle content");
         }
         return circle;
     }
 
     public Circle requireActiveDefaultMember(Long userId) {
         Circle circle = getDefaultCircle();
-        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
-                .eq(CircleMember::getCircleId, circle.getId())
-                .eq(CircleMember::getUserId, userId));
+        CircleMember member = findMembership(circle.getId(), userId);
         if (member == null) {
-            throw new BusinessException(403, "没有权限访问圈子内容");
+            throw new BusinessException(403, "No permission to access circle content");
         }
         if (STATUS_MUTED.equals(member.getStatus())) {
-            throw new BusinessException(403, "当前账号已被禁言");
+            throw new BusinessException(403, "Current account is muted");
         }
         if (!STATUS_ACTIVE.equals(member.getStatus())) {
-            throw new BusinessException(403, "没有权限访问圈子内容");
+            throw new BusinessException(403, "No permission to access circle content");
         }
         return circle;
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public CommunityMemberResponse getMember(Long currentUserId, Long targetUserId) {
-        Circle circle = getDefaultCircle();
-        findRequiredMember(circle.getId(), currentUserId);
+        Circle circle = requireReadableDefaultMember(currentUserId);
         CircleMember targetMember = findRequiredMember(circle.getId(), targetUserId);
         User targetUser = findRequiredUser(targetUserId);
         UserProfile profile = findOrCreateProfile(targetUserId, targetUser.getUsername());
@@ -98,8 +98,7 @@ public class CommunityMemberService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public List<CommunityMemberResponse> listMembers(Long currentUserId) {
-        Circle circle = getDefaultCircle();
-        findRequiredMember(circle.getId(), currentUserId);
+        Circle circle = requireReadableDefaultMember(currentUserId);
 
         List<CircleMember> members = circleMemberMapper.selectList(new LambdaQueryWrapper<CircleMember>()
                 .eq(CircleMember::getCircleId, circle.getId())
@@ -127,7 +126,7 @@ public class CommunityMemberService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public CommunityMemberResponse updateCurrentProfile(Long userId, UserProfileRequest request) {
-        Circle circle = getDefaultCircle();
+        Circle circle = requireActiveDefaultMember(userId);
         CircleMember member = findRequiredMember(circle.getId(), userId);
         User user = findRequiredUser(userId);
         UserProfile profile = findOrCreateProfile(userId, user.getUsername());
@@ -145,7 +144,7 @@ public class CommunityMemberService {
         Circle circle = circleMapper.selectOne(new LambdaQueryWrapper<Circle>()
                 .eq(Circle::getSlug, DEFAULT_CIRCLE_SLUG));
         if (circle == null) {
-            throw new BusinessException(500, "默认圈子不存在");
+            throw new BusinessException(500, "Default circle does not exist");
         }
         return circle;
     }
@@ -211,9 +210,7 @@ public class CommunityMemberService {
     }
 
     private void ensureCircleMember(Long circleId, Long userId) {
-        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
-                .eq(CircleMember::getCircleId, circleId)
-                .eq(CircleMember::getUserId, userId));
+        CircleMember member = findMembership(circleId, userId);
         if (member != null) {
             return;
         }
@@ -227,19 +224,23 @@ public class CommunityMemberService {
     }
 
     private CircleMember findRequiredMember(Long circleId, Long userId) {
-        CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
-                .eq(CircleMember::getCircleId, circleId)
-                .eq(CircleMember::getUserId, userId));
+        CircleMember member = findMembership(circleId, userId);
         if (member == null) {
-            throw new BusinessException(404, "圈子成员不存在");
+            throw new BusinessException(404, "Circle member does not exist");
         }
         return member;
+    }
+
+    private CircleMember findMembership(Long circleId, Long userId) {
+        return circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
+                .eq(CircleMember::getCircleId, circleId)
+                .eq(CircleMember::getUserId, userId));
     }
 
     private User findRequiredUser(Long userId) {
         User user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(404, "用户不存在");
+            throw new BusinessException(404, "User does not exist");
         }
         return user;
     }

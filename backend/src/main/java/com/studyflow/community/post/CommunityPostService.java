@@ -59,7 +59,7 @@ public class CommunityPostService {
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
         List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
                         .eq(CommunityPost::getCircleId, circle.getId())
                         .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
@@ -70,7 +70,7 @@ public class CommunityPostService {
     }
 
     public CommunityPostResponse getPost(Long userId, Long postId) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
         return toResponse(post, userId);
     }
@@ -136,30 +136,49 @@ public class CommunityPostService {
 
     @Transactional
     public CommunityPostResponse updatePost(Long userId, Long postId, CommunityPostRequest request) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityPost post = requireOwnedPost(circle.getId(), userId, postId);
         CommunityTopic topic = findActiveTopic(circle.getId(), request.topicId());
         Long previousTopicId = post.getTopicId();
         Long nextTopicId = topic == null ? null : topic.getId();
+        LocalDateTime now = LocalDateTime.now();
 
+        int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, post.getId())
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getAuthorId, userId)
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .set(CommunityPost::getTopicId, nextTopicId)
+                .set(CommunityPost::getTitle, request.title())
+                .set(CommunityPost::getContent, request.content())
+                .set(CommunityPost::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(409, "Post status changed");
+        }
+        updateTopicCounts(previousTopicId, nextTopicId);
         post.setTopicId(nextTopicId);
         post.setTitle(request.title());
         post.setContent(request.content());
-        post.setUpdatedAt(LocalDateTime.now());
-        communityPostMapper.updateById(post);
-        updateTopicCounts(previousTopicId, nextTopicId);
+        post.setUpdatedAt(now);
         return toResponse(post, userId);
     }
 
     @Transactional
     public void deletePost(Long userId, Long postId) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityPost post = requireOwnedPost(circle.getId(), userId, postId);
         LocalDateTime now = LocalDateTime.now();
-        post.setStatus(STATUS_DELETED);
-        post.setDeletedAt(now);
-        post.setUpdatedAt(now);
-        communityPostMapper.updateById(post);
+        int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, post.getId())
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getAuthorId, userId)
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .set(CommunityPost::getStatus, STATUS_DELETED)
+                .set(CommunityPost::getDeletedAt, now)
+                .set(CommunityPost::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(409, "Post status changed");
+        }
         if (post.getTopicId() != null) {
             communityTopicMapper.decrementPostCount(post.getTopicId());
         }

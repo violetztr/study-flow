@@ -127,7 +127,7 @@ public class CommunityModerationService {
         if (user == null || !(ROLE_ADMIN.equals(user.getRole()) || ROLE_OWNER.equals(user.getRole()))) {
             throw new BusinessException(403, "需要管理员权限");
         }
-        return communityMemberService.requireDefaultMember(userId);
+        return communityMemberService.requireActiveDefaultMember(userId);
     }
 
     private CommunityPost requirePost(Long circleId, Long postId, String status) {

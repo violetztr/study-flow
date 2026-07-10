@@ -49,7 +49,7 @@ public class CommunityCommentService {
     }
 
     public List<CommunityCommentResponse> listComments(Long userId, Long postId) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireReadableDefaultMember(userId);
         communityPostService.requirePublishedPost(circle.getId(), postId);
         List<CommunityComment> comments = communityCommentMapper.selectList(new LambdaQueryWrapper<CommunityComment>()
                 .eq(CommunityComment::getCircleId, circle.getId())
@@ -83,7 +83,7 @@ public class CommunityCommentService {
 
     @Transactional
     public void deleteComment(Long userId, Long commentId) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityComment comment = communityCommentMapper.selectOne(new LambdaQueryWrapper<CommunityComment>()
                 .eq(CommunityComment::getId, commentId)
                 .eq(CommunityComment::getCircleId, circle.getId())
@@ -99,6 +99,8 @@ public class CommunityCommentService {
         LocalDateTime now = LocalDateTime.now();
         int updated = communityCommentMapper.update(null, new LambdaUpdateWrapper<CommunityComment>()
                 .eq(CommunityComment::getId, comment.getId())
+                .eq(CommunityComment::getCircleId, circle.getId())
+                .eq(CommunityComment::getAuthorId, userId)
                 .eq(CommunityComment::getStatus, STATUS_PUBLISHED)
                 .set(CommunityComment::getStatus, STATUS_DELETED)
                 .set(CommunityComment::getDeletedAt, now)
