@@ -240,7 +240,7 @@ Flyway 会在后端启动时自动迁移数据库。
 
 ### Violet Circle 社区上线检查
 
-本版本包含 `V6__add_violet_circle_community.sql`，后端启动时会自动创建社区相关表，并初始化默认圈子 `violet-circle` 和基础话题。V6 还会把已有 `ACTIVE` 用户回填进默认圈子并创建默认社区资料，所以老用户升级后也能直接访问 `/circle`。
+本版本包含 `V6__add_violet_circle_community.sql`，后端启动时会自动创建社区相关表，并初始化默认圈子 `violet-circle` 和基础话题。`V7__backfill_violet_circle_members.sql` 会把缺少社区身份的 `ACTIVE` 用户补进默认圈子并创建默认社区资料，所以老用户升级后也能直接访问 `/circle`。
 
 更新后建议检查：
 
@@ -249,6 +249,8 @@ sudo docker compose logs -f backend
 ```
 
 日志中应能看到 Flyway 成功迁移到最新版本，并且后端启动成功。
+
+如果 `/api/community/topics`、`/api/community/feed`、`/api/community/members` 返回 `403`，优先检查后端日志里 Flyway 是否已经执行到 `version "7 - backfill violet circle members"`。线上数据库如果之前已经执行过旧版 V6，必须通过 V7 补数据，不能指望修改过的 V6 自动重跑。
 
 浏览器检查：
 

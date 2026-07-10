@@ -17,11 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CommunityMigrationTest {
     @Test
     void v6BackfillsExistingUsersIntoDefaultCircle() throws Exception {
-        JdbcDataSource dataSource = new JdbcDataSource();
-        dataSource.setURL("jdbc:h2:mem:community_migration_" + UUID.randomUUID()
-                + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1");
-        dataSource.setUser("sa");
-        dataSource.setPassword("");
+        JdbcDataSource dataSource = newDataSource();
 
         Flyway.configure()
                 .dataSource(dataSource)
@@ -46,26 +42,7 @@ class CommunityMigrationTest {
 
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
-            ResultSet membership = statement.executeQuery("""
-                    SELECT cm.role, cm.status
-                    FROM circle_members cm
-                    JOIN circles c ON c.id = cm.circle_id
-                    JOIN users u ON u.id = cm.user_id
-                    WHERE c.slug = 'violet-circle'
-                      AND u.username = 'legacy_circle_user'
-                    """);
-            assertThat(membership.next()).isTrue();
-            assertThat(membership.getString("role")).isEqualTo("MEMBER");
-            assertThat(membership.getString("status")).isEqualTo("ACTIVE");
-
-            ResultSet profile = statement.executeQuery("""
-                    SELECT up.display_name
-                    FROM user_profiles up
-                    JOIN users u ON u.id = up.user_id
-                    WHERE u.username = 'legacy_circle_user'
-                    """);
-            assertThat(profile.next()).isTrue();
-            assertThat(profile.getString("display_name")).isEqualTo("legacy_circle_user");
+            assertDefaultMembershipAndProfile(statement, "legacy_circle_user");
 
             assertThatThrownBy(() -> statement.executeUpdate("""
                     INSERT INTO circle_members (circle_id, user_id, role, status)
@@ -73,5 +50,68 @@ class CommunityMigrationTest {
                     """))
                     .isInstanceOf(SQLException.class);
         }
+    }
+
+    @Test
+    void latestMigrationRepairsActiveUsersMissingDefaultCircleDataAfterV6() throws Exception {
+        JdbcDataSource dataSource = newDataSource();
+
+        Flyway.configure()
+                .dataSource(dataSource)
+                .locations("classpath:db/migration")
+                .target(MigrationVersion.fromVersion("6"))
+                .load()
+                .migrate();
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO users (username, email, password_hash, role, status)
+                    VALUES ('post_v6_missing_member', 'post_v6_missing_member@example.com', 'hash', 'MEMBER', 'ACTIVE')
+                    """);
+        }
+
+        Flyway.configure()
+                .dataSource(dataSource)
+                .locations("classpath:db/migration")
+                .load()
+                .migrate();
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            assertDefaultMembershipAndProfile(statement, "post_v6_missing_member");
+        }
+    }
+
+    private JdbcDataSource newDataSource() {
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:community_migration_" + UUID.randomUUID()
+                + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1");
+        dataSource.setUser("sa");
+        dataSource.setPassword("");
+        return dataSource;
+    }
+
+    private void assertDefaultMembershipAndProfile(Statement statement, String username) throws Exception {
+        ResultSet membership = statement.executeQuery("""
+                SELECT cm.role, cm.status
+                FROM circle_members cm
+                JOIN circles c ON c.id = cm.circle_id
+                JOIN users u ON u.id = cm.user_id
+                WHERE c.slug = 'violet-circle'
+                  AND u.username = '%s'
+                """.formatted(username));
+        assertThat(membership.next()).isTrue();
+        assertThat(membership.getString("role")).isEqualTo("MEMBER");
+        assertThat(membership.getString("status")).isEqualTo("ACTIVE");
+
+        ResultSet profile = statement.executeQuery("""
+                SELECT up.display_name
+                FROM user_profiles up
+                JOIN users u ON u.id = up.user_id
+                WHERE u.username = '%s'
+                """.formatted(username));
+        assertThat(profile.next()).isTrue();
+        assertThat(profile.getString("display_name")).isEqualTo(username);
     }
 }
