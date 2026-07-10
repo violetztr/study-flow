@@ -238,6 +238,41 @@ sudo docker compose ps
 
 Flyway 会在后端启动时自动迁移数据库。
 
+### Violet Circle 社区上线检查
+
+本版本包含 `V6__add_violet_circle_community.sql`，后端启动时会自动创建社区相关表，并初始化默认圈子 `violet-circle` 和基础话题。
+
+更新后建议检查：
+
+```bash
+sudo docker compose logs -f backend
+```
+
+日志中应能看到 Flyway 成功迁移到最新版本，并且后端启动成功。
+
+浏览器检查：
+
+```text
+https://www.violet-surf.com/login
+https://www.violet-surf.com/circle
+https://www.violet-surf.com/circle/posts/new
+https://www.violet-surf.com/circle/members
+```
+
+功能检查：
+
+- 新用户注册后自动加入默认圈子。
+- 登录后默认进入 `/circle`。
+- 可以发帖、评论、点赞、取消点赞。
+- 成员列表可以看到注册用户。
+- 普通用户看不到管理菜单。
+- `ADMIN` 或 `OWNER` 用户可以访问 `/admin/community`。
+
+注意：
+
+- 生产环境如果已经执行过某个 Flyway 迁移，不要直接修改已上线迁移文件。
+- 如果线上迁移后还需要修库，新增下一个版本迁移文件，例如 `V7__fix_xxx.sql`。
+
 ## 常见排查
 
 查看容器：

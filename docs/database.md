@@ -165,3 +165,144 @@
 ## 设计说明
 
 当前版本暂时不使用数据库外键。业务层负责校验数据归属，例如任务必须属于当前用户自己的项目，项目档案、技术栈、GitHub 仓库和作品集设置也必须通过项目所有权校验。
+
+## Violet Circle 社区表
+
+社区模块通过 `V6__add_violet_circle_community.sql` 新增。第一阶段只有一个默认圈子 `violet-circle`，但表结构保留 `circle_id`，以后可以扩展多个圈子。
+
+### users 新增字段
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| role | VARCHAR(30) | 用户全局角色，默认 `MEMBER`，管理员可用 `ADMIN`，圈主可用 `OWNER` |
+| status | VARCHAR(30) | 用户状态，默认 `ACTIVE`，禁用为 `DISABLED` |
+
+### circles
+
+保存圈子空间。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| name | VARCHAR(100) | 圈子名称 |
+| slug | VARCHAR(120) | 访问标识，默认圈子为 `violet-circle` |
+| description | VARCHAR(500) | 圈子说明 |
+| visibility | VARCHAR(40) | 可见范围，第一阶段为 `PUBLIC_REGISTERED` |
+| status | VARCHAR(30) | 圈子状态 |
+
+### circle_members
+
+保存用户和圈子的成员关系。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| circle_id | BIGINT | 圈子 ID |
+| user_id | BIGINT | 用户 ID |
+| role | VARCHAR(30) | 圈内角色：`OWNER`、`ADMIN`、`MEMBER` |
+| status | VARCHAR(30) | 圈内状态：`ACTIVE`、`MUTED`、`DISABLED` |
+| joined_at | DATETIME | 加入时间 |
+
+注册用户会自动加入默认圈子。被禁言成员可以浏览内容，但不能发帖、评论、点赞或取消点赞。
+
+### user_profiles
+
+保存社区展示资料。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| user_id | BIGINT | 用户 ID，唯一 |
+| display_name | VARCHAR(80) | 展示昵称 |
+| bio | VARCHAR(500) | 简介 |
+| avatar_url | VARCHAR(500) | 头像地址 |
+| skills | VARCHAR(500) | 技能标签字符串 |
+| github_url | VARCHAR(300) | GitHub 地址 |
+| website_url | VARCHAR(300) | 个人网站 |
+
+### community_topics
+
+保存社区话题。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| circle_id | BIGINT | 圈子 ID |
+| name | VARCHAR(80) | 话题名称 |
+| slug | VARCHAR(120) | 话题标识 |
+| color | VARCHAR(30) | 话题颜色 |
+| sort_order | INT | 排序 |
+| post_count | INT | 已发布帖子数量 |
+| status | VARCHAR(30) | 话题状态 |
+
+默认初始化学习、笔记、日常、项目四个话题。
+
+### community_posts
+
+保存社区帖子。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| circle_id | BIGINT | 圈子 ID |
+| author_id | BIGINT | 作者用户 ID |
+| topic_id | BIGINT | 话题 ID，可为空 |
+| title | VARCHAR(160) | 标题 |
+| content | TEXT | 正文 |
+| content_format | VARCHAR(30) | 内容格式，第一阶段为 `TEXT` |
+| visibility | VARCHAR(30) | 可见范围，第一阶段为 `CIRCLE` |
+| status | VARCHAR(30) | `PUBLISHED`、`HIDDEN`、`DELETED` |
+| pinned | BOOLEAN | 是否置顶 |
+| comment_count | INT | 评论数 |
+| reaction_count | INT | 点赞数 |
+| view_count | INT | 浏览数 |
+| last_activity_at | DATETIME | 最近活跃时间 |
+| deleted_at | DATETIME | 软删除时间 |
+
+### community_comments
+
+保存帖子评论。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| circle_id | BIGINT | 圈子 ID |
+| post_id | BIGINT | 帖子 ID |
+| author_id | BIGINT | 评论作者 |
+| parent_id | BIGINT | 父评论 ID，第一阶段为空 |
+| content | TEXT | 评论内容 |
+| status | VARCHAR(30) | `PUBLISHED`、`HIDDEN`、`DELETED` |
+| reaction_count | INT | 评论互动数，第一阶段保留 |
+| deleted_at | DATETIME | 软删除时间 |
+
+### community_reactions
+
+保存通用互动。第一阶段只使用帖子点赞。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| circle_id | BIGINT | 圈子 ID |
+| target_type | VARCHAR(30) | 目标类型，第一阶段为 `POST` |
+| target_id | BIGINT | 目标 ID |
+| user_id | BIGINT | 操作用户 |
+| reaction_type | VARCHAR(30) | 互动类型，第一阶段为 `LIKE` |
+
+唯一约束：`circle_id + target_type + target_id + user_id + reaction_type`，保证同一用户不能重复点赞同一目标。
+
+### community_moderation_actions
+
+保存管理员审核操作记录。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| circle_id | BIGINT | 圈子 ID |
+| admin_user_id | BIGINT | 管理员用户 ID |
+| target_type | VARCHAR(30) | 目标类型：`POST`、`COMMENT`、`MEMBER` |
+| target_id | BIGINT | 目标 ID |
+| action_type | VARCHAR(40) | 操作类型：`HIDE`、`RESTORE`、`MUTE`、`UNMUTE` |
+| reason | VARCHAR(500) | 操作原因 |
+| created_at | DATETIME | 操作时间 |
+
+审核状态变更使用条件更新，避免并发重复隐藏、重复恢复导致计数或审计记录不一致。
