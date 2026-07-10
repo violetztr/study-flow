@@ -3,7 +3,6 @@ import {
   EyeOutlined,
   HeartFilled,
   HeartOutlined,
-  PlayCircleFilled,
   PushpinFilled,
 } from '@ant-design/icons'
 import { Button } from 'antd'
@@ -19,7 +18,7 @@ type PostCardProps = {
   post: CommunityPostResponse
 }
 
-type LikeMutationContext = {
+type PostMutationContext = {
   previousFeed?: CommunityPostResponse[]
 }
 
@@ -58,19 +57,13 @@ function getPrimaryMedia(post: CommunityPostResponse): MediaAttachmentResponse |
   return post.media.find((media) => media.fileType === 'VIDEO') ?? post.media[0]
 }
 
-function hasVideo(post: CommunityPostResponse) {
-  return post.media.some((media) => media.fileType === 'VIDEO')
-}
-
 function PostCard({ post }: PostCardProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = getStoredUser()
   const primaryMedia = getPrimaryMedia(post)
-  const videoPost = hasVideo(post)
-  const cardType = videoPost ? '视频' : '图文'
 
-  const likeMutation = useMutation<void, Error, void, LikeMutationContext>({
+  const likeMutation = useMutation<void, Error, void, PostMutationContext>({
     mutationFn: () =>
       post.likedByCurrentUser
         ? communityApi.unlikePost(post.id)
@@ -96,7 +89,7 @@ function PostCard({ post }: PostCardProps) {
     },
   })
 
-  const pigMutation = useMutation<void, Error, void, LikeMutationContext>({
+  const pigMutation = useMutation<void, Error, void, PostMutationContext>({
     mutationFn: () => communityApi.pigPost(post.id),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['community-feed'] })
@@ -125,9 +118,13 @@ function PostCard({ post }: PostCardProps) {
     },
   })
 
+  function requireLogin() {
+    navigate('/login', { state: { from: '/circle' } })
+  }
+
   function handleLike() {
     if (!user) {
-      navigate('/login', { state: { from: '/circle' } })
+      requireLogin()
       return
     }
     likeMutation.mutate()
@@ -135,7 +132,7 @@ function PostCard({ post }: PostCardProps) {
 
   function handlePig() {
     if (!user) {
-      navigate('/login', { state: { from: '/circle' } })
+      requireLogin()
       return
     }
     pigMutation.mutate()
@@ -155,10 +152,6 @@ function PostCard({ post }: PostCardProps) {
           </div>
         )}
 
-        <span className={`content-type-badge ${videoPost ? 'video' : 'article'}`}>
-          {videoPost ? <PlayCircleFilled /> : null}
-          {cardType}
-        </span>
         {post.pinned ? (
           <span className="pin-badge">
             <PushpinFilled /> 置顶
