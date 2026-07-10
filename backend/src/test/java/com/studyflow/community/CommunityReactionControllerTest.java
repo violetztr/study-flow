@@ -1,7 +1,10 @@
 package com.studyflow.community;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyflow.user.User;
+import com.studyflow.user.UserMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,6 +29,9 @@ class CommunityReactionControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private UserMapper userMapper;
 
     @Test
     void likePostIsIdempotentAndUpdatesCount() throws Exception {
@@ -111,6 +117,49 @@ class CommunityReactionControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void mutedMemberCannotLikeOrUnlikePost() throws Exception {
+        String adminToken = registerAdminAndLogin("reaction_mute_admin", "reaction_mute_admin@example.com");
+        String authorToken = registerAndLogin("reaction_mute_author", "reaction_mute_author@example.com");
+        String memberToken = registerAndLogin("reaction_muted_member", "reaction_muted_member@example.com");
+        Long memberUserId = userIdByUsername("reaction_muted_member");
+        Long postId = createPost(authorToken, firstTopicId(authorToken), "Muted reactions", "Muted users are read only.");
+
+        likePost(memberToken, postId);
+
+        mockMvc.perform(post("/api/admin/community/members/{userId}/mute", memberUserId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "reaction muted"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/community/posts/{postId}/reactions/like", postId)
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/community/posts/{postId}/reactions/like", postId)
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId)
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.reactionCount").value(1));
+    }
+
+    private String registerAdminAndLogin(String username, String email) throws Exception {
+        String token = registerAndLogin(username, email);
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, username));
+        user.setRole("ADMIN");
+        userMapper.updateById(user);
+        return token;
+    }
+
     private String registerAndLogin(String username, String email) throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -170,5 +219,11 @@ class CommunityReactionControllerTest {
         mockMvc.perform(post("/api/community/posts/{postId}/reactions/like", postId)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
+    }
+
+    private Long userIdByUsername(String username) {
+        return userMapper.selectOne(new LambdaQueryWrapper<User>()
+                        .eq(User::getUsername, username))
+                .getId();
     }
 }

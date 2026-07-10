@@ -67,11 +67,11 @@ public class CommunityModerationService {
         Circle circle = requireAdmin(adminUserId);
         CommunityPost post = requirePost(circle.getId(), postId, STATUS_PUBLISHED);
         LocalDateTime now = LocalDateTime.now();
-        updatePostStatus(post.getId(), STATUS_HIDDEN, now);
+        updatePostStatus(post.getId(), STATUS_PUBLISHED, STATUS_HIDDEN, now);
         if (post.getTopicId() != null) {
             communityTopicMapper.decrementPostCount(post.getTopicId());
         }
-        recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_HIDE, request.reason(), now);
+        recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_HIDE, reason(request), now);
     }
 
     @Transactional
@@ -79,11 +79,11 @@ public class CommunityModerationService {
         Circle circle = requireAdmin(adminUserId);
         CommunityPost post = requirePost(circle.getId(), postId, STATUS_HIDDEN);
         LocalDateTime now = LocalDateTime.now();
-        updatePostStatus(post.getId(), STATUS_PUBLISHED, now);
+        updatePostStatus(post.getId(), STATUS_HIDDEN, STATUS_PUBLISHED, now);
         if (post.getTopicId() != null) {
             communityTopicMapper.incrementPostCount(post.getTopicId());
         }
-        recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_RESTORE, request.reason(), now);
+        recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_RESTORE, reason(request), now);
     }
 
     @Transactional
@@ -91,9 +91,9 @@ public class CommunityModerationService {
         Circle circle = requireAdmin(adminUserId);
         CommunityComment comment = requireComment(circle.getId(), commentId, STATUS_PUBLISHED);
         LocalDateTime now = LocalDateTime.now();
-        updateCommentStatus(comment.getId(), STATUS_HIDDEN, now);
+        updateCommentStatus(comment.getId(), STATUS_PUBLISHED, STATUS_HIDDEN, now);
         decrementCommentCount(comment.getPostId(), now);
-        recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_HIDE, request.reason(), now);
+        recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_HIDE, reason(request), now);
     }
 
     @Transactional
@@ -101,9 +101,9 @@ public class CommunityModerationService {
         Circle circle = requireAdmin(adminUserId);
         CommunityComment comment = requireComment(circle.getId(), commentId, STATUS_HIDDEN);
         LocalDateTime now = LocalDateTime.now();
-        updateCommentStatus(comment.getId(), STATUS_PUBLISHED, now);
+        updateCommentStatus(comment.getId(), STATUS_HIDDEN, STATUS_PUBLISHED, now);
         incrementCommentCount(comment.getPostId(), now);
-        recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_RESTORE, request.reason(), now);
+        recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_RESTORE, reason(request), now);
     }
 
     @Transactional
@@ -111,7 +111,7 @@ public class CommunityModerationService {
         Circle circle = requireAdmin(adminUserId);
         LocalDateTime now = LocalDateTime.now();
         updateMemberStatus(circle.getId(), userId, STATUS_MUTED, now);
-        recordAction(circle.getId(), adminUserId, TARGET_MEMBER, userId, ACTION_MUTE, request.reason(), now);
+        recordAction(circle.getId(), adminUserId, TARGET_MEMBER, userId, ACTION_MUTE, reason(request), now);
     }
 
     @Transactional
@@ -119,7 +119,7 @@ public class CommunityModerationService {
         Circle circle = requireAdmin(adminUserId);
         LocalDateTime now = LocalDateTime.now();
         updateMemberStatus(circle.getId(), userId, STATUS_ACTIVE, now);
-        recordAction(circle.getId(), adminUserId, TARGET_MEMBER, userId, ACTION_UNMUTE, request.reason(), now);
+        recordAction(circle.getId(), adminUserId, TARGET_MEMBER, userId, ACTION_UNMUTE, reason(request), now);
     }
 
     private Circle requireAdmin(Long userId) {
@@ -162,18 +162,26 @@ public class CommunityModerationService {
         return member;
     }
 
-    private void updatePostStatus(Long postId, String status, LocalDateTime now) {
-        communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+    private void updatePostStatus(Long postId, String expectedStatus, String status, LocalDateTime now) {
+        int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, postId)
+                .eq(CommunityPost::getStatus, expectedStatus)
                 .set(CommunityPost::getStatus, status)
                 .set(CommunityPost::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(409, "Post status changed");
+        }
     }
 
-    private void updateCommentStatus(Long commentId, String status, LocalDateTime now) {
-        communityCommentMapper.update(null, new LambdaUpdateWrapper<CommunityComment>()
+    private void updateCommentStatus(Long commentId, String expectedStatus, String status, LocalDateTime now) {
+        int updated = communityCommentMapper.update(null, new LambdaUpdateWrapper<CommunityComment>()
                 .eq(CommunityComment::getId, commentId)
+                .eq(CommunityComment::getStatus, expectedStatus)
                 .set(CommunityComment::getStatus, status)
                 .set(CommunityComment::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(409, "Comment status changed");
+        }
     }
 
     private void updateMemberStatus(Long circleId, Long userId, String status, LocalDateTime now) {
@@ -219,5 +227,9 @@ public class CommunityModerationService {
         action.setReason(reason);
         action.setCreatedAt(now);
         moderationActionMapper.insert(action);
+    }
+
+    private String reason(ModerationRequest request) {
+        return request == null ? null : request.reason();
     }
 }

@@ -1,5 +1,7 @@
 package com.studyflow.security;
 
+import com.studyflow.user.User;
+import com.studyflow.user.UserMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,10 +17,14 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    private final JwtService jwtService;
+    private static final String STATUS_ACTIVE = "ACTIVE";
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    private final JwtService jwtService;
+    private final UserMapper userMapper;
+
+    public JwtAuthenticationFilter(JwtService jwtService, UserMapper userMapper) {
         this.jwtService = jwtService;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -36,6 +42,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = authorization.substring("Bearer ".length());
             UserPrincipal principal = jwtService.parseToken(token);
+            User user = userMapper.selectById(principal.userId());
+            if (user == null || !STATUS_ACTIVE.equals(user.getStatus())) {
+                SecurityContextHolder.clearContext();
+                response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(principal, null, List.of());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

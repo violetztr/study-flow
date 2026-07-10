@@ -164,6 +164,47 @@ class CommunityModerationControllerTest {
     }
 
     @Test
+    void duplicatePostModerationTransitionDoesNotCreateExtraAuditRow() throws Exception {
+        String adminToken = registerAdminAndLogin("moderation_cas_admin", "moderation_cas_admin@example.com");
+        String memberToken = registerAndLogin("moderation_cas_author", "moderation_cas_author@example.com");
+        Long postId = createPost(memberToken, firstTopicId(memberToken), "重复审核", "重复隐藏不应该重复记录。");
+
+        mockMvc.perform(post("/api/admin/community/posts/{postId}/hide", postId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "first hide"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/community/posts/{postId}/hide", postId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "duplicate hide"
+                                }
+                                """))
+                .andExpect(status().is4xxClientError());
+
+        assertThat(moderationActionCount("POST", postId, "HIDE")).isEqualTo(1);
+
+        mockMvc.perform(post("/api/admin/community/posts/{postId}/restore", postId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "restore"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        assertThat(moderationActionCount("POST", postId, "RESTORE")).isEqualTo(1);
+    }
+
+    @Test
     void mutedMemberCannotCreatePostOrCommentThenCanAfterUnmute() throws Exception {
         String adminToken = registerAdminAndLogin("moderation_mute_admin", "moderation_mute_admin@example.com");
         String memberToken = registerAndLogin("moderation_muted_member", "moderation_muted_member@example.com");
@@ -216,6 +257,8 @@ class CommunityModerationControllerTest {
         CircleMember member = circleMemberMapper.selectOne(new LambdaQueryWrapper<CircleMember>()
                 .eq(CircleMember::getUserId, memberUserId));
         assertThat(member.getStatus()).isEqualTo("ACTIVE");
+        assertThat(moderationActionCount("MEMBER", memberUserId, "MUTE")).isEqualTo(1);
+        assertThat(moderationActionCount("MEMBER", memberUserId, "UNMUTE")).isEqualTo(1);
         createComment(memberToken, existingPostId, "解除禁言后可以评论。");
     }
 
@@ -235,6 +278,19 @@ class CommunityModerationControllerTest {
                                   "password": "password123"
                                 }
                                 """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void disabledUserCannotUseExistingToken() throws Exception {
+        String token = registerAndLogin("moderation_disabled_token", "moderation_disabled_token@example.com");
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, "moderation_disabled_token"));
+        user.setStatus("DISABLED");
+        userMapper.updateById(user);
+
+        mockMvc.perform(get("/api/community/topics")
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
 
@@ -322,5 +378,12 @@ class CommunityModerationControllerTest {
         return userMapper.selectOne(new LambdaQueryWrapper<User>()
                         .eq(User::getUsername, username))
                 .getId();
+    }
+
+    private Long moderationActionCount(String targetType, Long targetId, String actionType) {
+        return moderationActionMapper.selectCount(new LambdaQueryWrapper<CommunityModerationAction>()
+                .eq(CommunityModerationAction::getTargetType, targetType)
+                .eq(CommunityModerationAction::getTargetId, targetId)
+                .eq(CommunityModerationAction::getActionType, actionType));
     }
 }

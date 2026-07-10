@@ -24,7 +24,7 @@ public class CommunityModerationController {
     public ApiResponse<Void> hidePost(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId,
-            @Valid @RequestBody ModerationRequest request
+            @Valid @RequestBody(required = false) ModerationRequest request
     ) {
         communityModerationService.hidePost(principal.userId(), postId, request);
         return ApiResponse.success();
@@ -34,7 +34,7 @@ public class CommunityModerationController {
     public ApiResponse<Void> restorePost(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId,
-            @Valid @RequestBody ModerationRequest request
+            @Valid @RequestBody(required = false) ModerationRequest request
     ) {
         communityModerationService.restorePost(principal.userId(), postId, request);
         return ApiResponse.success();
@@ -44,7 +44,7 @@ public class CommunityModerationController {
     public ApiResponse<Void> hideComment(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long commentId,
-            @Valid @RequestBody ModerationRequest request
+            @Valid @RequestBody(required = false) ModerationRequest request
     ) {
         communityModerationService.hideComment(principal.userId(), commentId, request);
         return ApiResponse.success();
@@ -54,7 +54,7 @@ public class CommunityModerationController {
     public ApiResponse<Void> restoreComment(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long commentId,
-            @Valid @RequestBody ModerationRequest request
+            @Valid @RequestBody(required = false) ModerationRequest request
     ) {
         communityModerationService.restoreComment(principal.userId(), commentId, request);
         return ApiResponse.success();
@@ -64,7 +64,7 @@ public class CommunityModerationController {
     public ApiResponse<Void> muteMember(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long userId,
-            @Valid @RequestBody ModerationRequest request
+            @Valid @RequestBody(required = false) ModerationRequest request
     ) {
         communityModerationService.muteMember(principal.userId(), userId, request);
         return ApiResponse.success();
@@ -74,7 +74,7 @@ public class CommunityModerationController {
     public ApiResponse<Void> unmuteMember(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long userId,
-            @Valid @RequestBody ModerationRequest request
+            @Valid @RequestBody(required = false) ModerationRequest request
     ) {
         communityModerationService.unmuteMember(principal.userId(), userId, request);
         return ApiResponse.success();

@@ -39,7 +39,7 @@ public class CommunityReactionService {
 
     @Transactional
     public void likePost(Long userId, Long postId) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
         if (hasReaction(circle.getId(), userId, post.getId())) {
             return;
@@ -64,7 +64,7 @@ public class CommunityReactionService {
 
     @Transactional
     public void unlikePost(Long userId, Long postId) {
-        Circle circle = communityMemberService.requireDefaultMember(userId);
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
 
         int deleted = communityReactionMapper.delete(new LambdaQueryWrapper<CommunityReaction>()
