@@ -1,14 +1,45 @@
 import { PlusOutlined } from '@ant-design/icons'
 import { Alert, Button, Empty, Skeleton } from 'antd'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
+import type { CommunityPostResponse } from '../api/community'
 import PostCard from '../components/community/PostCard'
+
+type FeedChannel = 'live' | 'article' | 'video'
+
+const channels: Array<{ key: FeedChannel; label: string }> = [
+  { key: 'live', label: '直播' },
+  { key: 'article', label: '图文' },
+  { key: 'video', label: '视频' },
+]
+
+function hasVideo(post: CommunityPostResponse) {
+  return post.media.some((media) => media.fileType === 'VIDEO')
+}
+
+function getChannelPosts(channel: FeedChannel, posts: CommunityPostResponse[]) {
+  if (channel === 'live') {
+    return []
+  }
+
+  if (channel === 'video') {
+    return posts.filter(hasVideo)
+  }
+
+  return posts.filter((post) => !hasVideo(post))
+}
+
+function getChannelCount(channel: FeedChannel, posts: CommunityPostResponse[]) {
+  return getChannelPosts(channel, posts).length
+}
 
 function CircleFeedPage() {
   const navigate = useNavigate()
   const user = getStoredUser()
+  const [activeChannel, setActiveChannel] = useState<FeedChannel>('article')
 
   const feedQuery = useQuery({
     queryKey: ['community-feed'],
@@ -21,6 +52,7 @@ function CircleFeedPage() {
   })
 
   const posts = feedQuery.data ?? []
+  const visiblePosts = getChannelPosts(activeChannel, posts)
 
   function goPublish() {
     if (user) {
@@ -31,14 +63,31 @@ function CircleFeedPage() {
   }
 
   return (
-    <section className="page-section feed-page">
-      <div className="feed-shell">
-        <div className="feed-toolbar">
-          <span>{posts.length} 条动态</span>
+    <section className="page-section feed-page discovery-page">
+      <div className="discovery-shell">
+        <header className="discovery-topbar">
+          <button className="discovery-logo" type="button" onClick={() => setActiveChannel('article')}>
+            ruru
+          </button>
+
+          <nav className="feed-channel-tabs" aria-label="内容频道">
+            {channels.map((channel) => (
+              <button
+                key={channel.key}
+                type="button"
+                className={activeChannel === channel.key ? 'active' : ''}
+                onClick={() => setActiveChannel(channel.key)}
+              >
+                {channel.label}
+                <span>{getChannelCount(channel.key, posts)}</span>
+              </button>
+            ))}
+          </nav>
+
           <Button type="primary" icon={<PlusOutlined />} onClick={goPublish}>
             发布
           </Button>
-        </div>
+        </header>
 
         <div className="notice-stack">
           {feedQuery.isError ? <Alert showIcon type="error" message={feedQuery.error.message} /> : null}
@@ -46,19 +95,28 @@ function CircleFeedPage() {
 
         {feedQuery.isLoading ? <Skeleton active /> : null}
 
-        {!feedQuery.isLoading && posts.length === 0 ? (
-          <Empty description="还没有动态">
+        {!feedQuery.isLoading && activeChannel === 'live' ? (
+          <div className="channel-empty-card">
+            <strong>直播频道准备中</strong>
+            <p>这里以后只放直播卡片。等我们做直播模块时，直播间、开播状态、观看人数都会接到这里。</p>
+          </div>
+        ) : null}
+
+        {!feedQuery.isLoading && activeChannel !== 'live' && visiblePosts.length === 0 ? (
+          <Empty description={activeChannel === 'video' ? '还没有视频' : '还没有图文'}>
             <Button type="primary" onClick={goPublish}>
               发布第一条
             </Button>
           </Empty>
         ) : null}
 
-        <div className="feed-list">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} topics={topicsQuery.data ?? []} />
-          ))}
-        </div>
+        {activeChannel !== 'live' ? (
+          <div className="discovery-grid">
+            {visiblePosts.map((post) => (
+              <PostCard key={post.id} post={post} topics={topicsQuery.data ?? []} />
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   )

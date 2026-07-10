@@ -3,15 +3,16 @@ import {
   EyeOutlined,
   HeartFilled,
   HeartOutlined,
+  PlayCircleFilled,
   PushpinFilled,
 } from '@ant-design/icons'
-import { Button, Typography } from 'antd'
+import { Button } from 'antd'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { Link, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../../api/auth'
 import { communityApi } from '../../api/community'
-import type { CommunityPostResponse, CommunityTopicResponse } from '../../api/community'
+import type { CommunityPostResponse, CommunityTopicResponse, MediaAttachmentResponse } from '../../api/community'
 import TopicBadge from './TopicBadge'
 
 type PostCardProps = {
@@ -24,7 +25,7 @@ type LikeMutationContext = {
 }
 
 function getExcerpt(content: string) {
-  return content.length > 220 ? `${content.slice(0, 220)}...` : content
+  return content.length > 90 ? `${content.slice(0, 90)}...` : content
 }
 
 function getInitial(name: string) {
@@ -42,11 +43,22 @@ function togglePostLike(post: CommunityPostResponse) {
   }
 }
 
+function getPrimaryMedia(post: CommunityPostResponse): MediaAttachmentResponse | undefined {
+  return post.media.find((media) => media.fileType === 'VIDEO') ?? post.media[0]
+}
+
+function hasVideo(post: CommunityPostResponse) {
+  return post.media.some((media) => media.fileType === 'VIDEO')
+}
+
 function PostCard({ post, topics = [] }: PostCardProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = getStoredUser()
   const topic = topics.find((item) => item.id === post.topicId)
+  const primaryMedia = getPrimaryMedia(post)
+  const videoPost = hasVideo(post)
+  const cardType = videoPost ? '视频' : '图文'
 
   const likeMutation = useMutation<void, Error, void, LikeMutationContext>({
     mutationFn: () =>
@@ -82,89 +94,64 @@ function PostCard({ post, topics = [] }: PostCardProps) {
     likeMutation.mutate()
   }
 
-  function goDetail() {
-    navigate(`/circle/posts/${post.id}`)
-  }
-
   return (
-    <article className="post-card">
-      <header className="post-card-head">
-        <div className="post-author-avatar">{getInitial(post.authorName)}</div>
-        <div className="post-meta">
-          <div className="post-meta-line">
-            <strong>{post.authorName}</strong>
-            <span>{dayjs(post.createdAt).format('MM-DD HH:mm')}</span>
-            {post.pinned ? (
-              <span className="post-pin">
-                <PushpinFilled /> 置顶
-              </span>
-            ) : null}
+    <article className="post-card discovery-card">
+      <Link to={`/circle/posts/${post.id}`} className="discovery-cover">
+        {primaryMedia?.fileType === 'VIDEO' ? (
+          <video muted preload="metadata" src={primaryMedia.url} />
+        ) : primaryMedia ? (
+          <img alt={primaryMedia.originalFilename} src={primaryMedia.url} />
+        ) : (
+          <div className="text-cover">
+            <span>{getInitial(post.authorName)}</span>
+            <p>{getExcerpt(post.content)}</p>
           </div>
-          <TopicBadge name={post.topicName} color={topic?.color} />
-        </div>
-      </header>
+        )}
 
-      <Link to={`/circle/posts/${post.id}`} className="post-title-link">
-        <Typography.Title level={3} className="post-card-title">
-          {post.title}
-        </Typography.Title>
+        <span className={`content-type-badge ${videoPost ? 'video' : 'article'}`}>
+          {videoPost ? <PlayCircleFilled /> : null}
+          {cardType}
+        </span>
+        {post.pinned ? (
+          <span className="pin-badge">
+            <PushpinFilled /> 置顶
+          </span>
+        ) : null}
       </Link>
 
-      <Typography.Paragraph className="post-card-content">
-        {getExcerpt(post.content)}
-      </Typography.Paragraph>
+      <div className="discovery-card-body">
+        <Link to={`/circle/posts/${post.id}`} className="post-title-link">
+          <h3>{post.title}</h3>
+        </Link>
 
-      {post.media.length > 0 ? (
-        <div className="post-media-grid">
-          {post.media.slice(0, 4).map((media, index) => (
-            <div className="post-media-item" key={media.id}>
-              {media.fileType === 'VIDEO' ? (
-                <video
-                  className="post-media-video"
-                  controls
-                  preload="metadata"
-                  src={media.url}
-                />
-              ) : (
-                <img
-                  alt={media.originalFilename}
-                  className="post-media-image"
-                  src={media.url}
-                />
-              )}
-              {index === 3 && post.media.length > 4 ? (
-                <span className="post-media-more">+{post.media.length - 4}</span>
-              ) : null}
-            </div>
-          ))}
+        <div className="discovery-author-row">
+          <span>{post.authorName}</span>
+          <span>{dayjs(post.createdAt).format('MM-DD')}</span>
         </div>
-      ) : null}
 
-      <footer className="post-card-footer">
-        <Button
-          type="text"
-          className={`post-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
-          icon={post.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
-          loading={likeMutation.isPending}
-          onClick={handleLike}
-        >
-          {post.reactionCount}
-        </Button>
-        <Button
-          type="text"
-          className="post-action-button"
-          icon={<CommentOutlined />}
-          onClick={goDetail}
-        >
-          {post.commentCount}
-        </Button>
-        <span className="post-view-count">
-          <EyeOutlined /> {post.viewCount}
-        </span>
-        <Button type="text" className="post-read-button" onClick={goDetail}>
-          查看
-        </Button>
-      </footer>
+        <div className="discovery-topic-row">
+          <TopicBadge name={post.topicName} color={topic?.color} />
+        </div>
+
+        <footer className="discovery-card-footer">
+          <Button
+            type="text"
+            size="small"
+            className={`post-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
+            icon={post.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
+            loading={likeMutation.isPending}
+            onClick={handleLike}
+          >
+            {post.reactionCount}
+          </Button>
+          <span>
+            <CommentOutlined /> {post.commentCount}
+          </span>
+          <span>
+            <EyeOutlined /> {post.viewCount}
+          </span>
+        </footer>
+      </div>
     </article>
   )
 }
