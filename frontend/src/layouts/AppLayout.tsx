@@ -96,7 +96,12 @@ function AppLayout() {
   const location = useLocation()
   const user = getStoredUser()
   const menuItems: MenuProps['items'] = baseMenuItems.map((item) => {
-    if (item && 'key' in item && item.key === 'circle' && user?.role === 'ADMIN') {
+    if (
+      item &&
+      'key' in item &&
+      item.key === 'circle' &&
+      (user?.role === 'ADMIN' || user?.role === 'OWNER')
+    ) {
       const circleGroup = item as MenuGroupItem
       return {
         ...circleGroup,
