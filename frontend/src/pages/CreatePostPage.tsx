@@ -18,7 +18,7 @@ function CreatePostPage() {
   const createMutation = useMutation({
     mutationFn: async (values: CommunityPostFormValues) => {
       const mediaFileIds: number[] = []
-      for (const file of values.imageFiles ?? []) {
+      for (const file of values.mediaFiles ?? []) {
         const prepareResponse = await mediaApi.prepareUpload({
           filename: file.name,
           contentType: file.type || 'application/octet-stream',

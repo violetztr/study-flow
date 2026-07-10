@@ -119,12 +119,22 @@ function PostDetailPage() {
               {postQuery.data.media.length > 0 ? (
                 <div className="post-detail-media-grid">
                   {postQuery.data.media.map((media) => (
-                    <img
-                      key={media.id}
-                      alt={media.originalFilename}
-                      className="post-detail-media-image"
-                      src={media.url}
-                    />
+                    media.fileType === 'VIDEO' ? (
+                      <video
+                        key={media.id}
+                        className="post-detail-media-video"
+                        controls
+                        preload="metadata"
+                        src={media.url}
+                      />
+                    ) : (
+                      <img
+                        key={media.id}
+                        alt={media.originalFilename}
+                        className="post-detail-media-image"
+                        src={media.url}
+                      />
+                    )
                   ))}
                 </div>
               ) : null}

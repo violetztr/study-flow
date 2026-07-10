@@ -5,7 +5,7 @@ import type { UploadFile } from 'antd'
 import type { CommunityPostRequest, CommunityTopicResponse } from '../../api/community'
 
 export type CommunityPostFormValues = CommunityPostRequest & {
-  imageFiles?: File[]
+  mediaFiles?: File[]
 }
 
 type PostComposerProps = {
@@ -13,6 +13,21 @@ type PostComposerProps = {
   loading?: boolean
   initialValues?: Partial<CommunityPostRequest>
   onSubmit: (values: CommunityPostFormValues) => void
+}
+
+function limitMediaFiles(nextFileList: UploadFile[]) {
+  let videoCount = 0
+
+  return nextFileList
+    .filter((file) => {
+      const contentType = file.type || file.originFileObj?.type || ''
+      if (!contentType.startsWith('video/')) {
+        return true
+      }
+      videoCount += 1
+      return videoCount <= 1
+    })
+    .slice(0, 9)
 }
 
 function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposerProps) {
@@ -24,13 +39,13 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
       requiredMark={false}
       initialValues={initialValues}
       onFinish={(values) => {
-        const imageFiles = fileList
+        const mediaFiles = fileList
           .map((file) => file.originFileObj)
           .filter((file): file is NonNullable<UploadFile['originFileObj']> => Boolean(file))
         onSubmit({
           ...values,
           topicId: values.topicId ?? null,
-          imageFiles,
+          mediaFiles,
         })
       }}
     >
@@ -67,22 +82,22 @@ function PostComposer({ topics, loading, initialValues, onSubmit }: PostComposer
         <Input.TextArea rows={10} placeholder="写下上下文、想法、问题或你想分享的东西..." />
       </Form.Item>
 
-      <Form.Item label="图片">
+      <Form.Item label="媒体">
         <Upload.Dragger
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
           beforeUpload={() => false}
           disabled={loading}
           fileList={fileList}
           listType="picture"
           maxCount={9}
           multiple
-          onChange={({ fileList: nextFileList }) => setFileList(nextFileList.slice(0, 9))}
+          onChange={({ fileList: nextFileList }) => setFileList(limitMediaFiles(nextFileList))}
         >
           <p className="ant-upload-drag-icon">
             <InboxOutlined />
           </p>
-          <p className="ant-upload-text">选择图片，发布时会直接上传到 R2 对象存储</p>
-          <p className="ant-upload-hint">支持 JPG、PNG、WebP、GIF，最多 9 张，单张不超过 10MB。</p>
+          <p className="ant-upload-text">选择图片或视频</p>
+          <p className="ant-upload-hint">图片最多 10MB，视频最多 50MB；视频发布后需要 ruru 审核。</p>
         </Upload.Dragger>
       </Form.Item>
 

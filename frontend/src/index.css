@@ -511,7 +511,9 @@ textarea {
 }
 
 .post-media-image,
-.post-detail-media-image {
+.post-detail-media-image,
+.post-media-video,
+.post-detail-media-video {
   width: 100%;
   height: 180px;
   object-fit: cover;
@@ -523,6 +525,16 @@ textarea {
 .post-detail-media-image {
   height: auto;
   max-height: 620px;
+}
+
+.post-media-video,
+.post-detail-media-video {
+  background: #101916;
+}
+
+.post-detail-media-video {
+  height: auto;
+  max-height: 680px;
 }
 
 .workspace-card-title {

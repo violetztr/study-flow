@@ -1,10 +1,11 @@
 import { SafetyOutlined } from '@ant-design/icons'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Typography } from 'antd'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Alert, Button, Card, Empty, Form, Input, InputNumber, List, Select, Space, Typography } from 'antd'
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi, type ModerationRequest } from '../api/community'
+import { mediaApi } from '../api/media'
 
 type AdminAction =
   | 'hide-post'
@@ -31,6 +32,10 @@ const actionLabels: Record<AdminAction, string> = {
 
 function isCommunityAdmin(role?: string) {
   return role === 'ADMIN' || role === 'OWNER'
+}
+
+function isRuru(user?: ReturnType<typeof getStoredUser>) {
+  return user?.username === 'ruru'
 }
 
 function buildModerationRequest(reason?: string): ModerationRequest {
@@ -62,6 +67,8 @@ function CommunityAdminPage() {
   const [successText, setSuccessText] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const user = getStoredUser()
+  const canModerateCommunity = isCommunityAdmin(user?.role)
+  const canReviewVideo = isRuru(user)
 
   const moderationMutation = useMutation({
     mutationFn: runModerationAction,
@@ -78,24 +85,95 @@ function CommunityAdminPage() {
     },
   })
 
-  if (!isCommunityAdmin(user?.role)) {
+  const pendingMediaQuery = useQuery({
+    queryKey: ['admin-pending-media'],
+    queryFn: mediaApi.listPendingReviewMedia,
+    enabled: canReviewVideo,
+  })
+
+  const approveMutation = useMutation({
+    mutationFn: mediaApi.approveMedia,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-pending-media'] }),
+        queryClient.invalidateQueries({ queryKey: ['community-feed'] }),
+      ])
+    },
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: mediaApi.rejectMedia,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-pending-media'] })
+    },
+  })
+
+  if (!canModerateCommunity && !canReviewVideo) {
     return <Navigate to="/circle" replace />
   }
 
   return (
     <section className="page-section">
-      <section className="dashboard-header">
-        <div>
-          <p className="dashboard-kicker">Moderation</p>
-          <h1 className="dashboard-title">社区管理</h1>
-          <p className="dashboard-subtitle">
-            这里是 Ruru 社区的基础治理入口。输入帖子、评论或成员 ID 后，系统会直接调用后端管理接口并记录原因。
-          </p>
-        </div>
-        <SafetyOutlined style={{ color: 'var(--sf-primary)', fontSize: 44 }} />
-      </section>
+      <div className="page-heading minimal">
+        <SafetyOutlined style={{ color: 'var(--sf-primary)', fontSize: 24 }} />
+      </div>
 
-      <Card className="profile-card" title="执行管理动作">
+      {canReviewVideo ? (
+        <Card className="profile-card" title="视频审核">
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Alert
+              showIcon
+              type="info"
+              message="只有 ruru 可以审核视频"
+              description="视频通过前不会在公开动态里显示。通过后，帖子列表和详情页才会返回播放地址。"
+            />
+            {pendingMediaQuery.isError ? (
+              <Alert showIcon type="error" message={pendingMediaQuery.error.message} />
+            ) : null}
+            {approveMutation.isError ? (
+              <Alert showIcon type="error" message={approveMutation.error.message} />
+            ) : null}
+            {rejectMutation.isError ? (
+              <Alert showIcon type="error" message={rejectMutation.error.message} />
+            ) : null}
+            <List
+              loading={pendingMediaQuery.isLoading}
+              dataSource={pendingMediaQuery.data ?? []}
+              locale={{ emptyText: <Empty description="暂无待审核视频" /> }}
+              renderItem={(media) => (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="approve"
+                      type="primary"
+                      loading={approveMutation.isPending && approveMutation.variables === media.id}
+                      onClick={() => approveMutation.mutate(media.id)}
+                    >
+                      通过
+                    </Button>,
+                    <Button
+                      key="reject"
+                      danger
+                      loading={rejectMutation.isPending && rejectMutation.variables === media.id}
+                      onClick={() => rejectMutation.mutate(media.id)}
+                    >
+                      拒绝
+                    </Button>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={`${media.originalFilename} #${media.id}`}
+                    description={`${media.contentType} · ${(media.fileSize / 1024 / 1024).toFixed(2)}MB · ${media.status}`}
+                  />
+                </List.Item>
+              )}
+            />
+          </Space>
+        </Card>
+      ) : null}
+
+      {canModerateCommunity ? (
+        <Card className="profile-card" title="执行管理动作">
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Alert
             showIcon
@@ -155,6 +233,7 @@ function CommunityAdminPage() {
           </Typography.Text>
         </Space>
       </Card>
+      ) : null}
     </section>
   )
 }

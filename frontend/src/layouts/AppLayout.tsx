@@ -29,6 +29,11 @@ function AppLayout() {
               <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/circle/posts/new')}>
                 发布
               </Button>
+              {user.username === 'ruru' ? (
+                <Button onClick={() => navigate('/admin/community')}>
+                  审核
+                </Button>
+              ) : null}
               <Button icon={<LogoutOutlined />} onClick={handleLogout}>
                 退出
               </Button>

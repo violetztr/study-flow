@@ -35,6 +35,19 @@ export const mediaApi = {
       `/media/uploads/${mediaFileId}/complete`,
     )
   },
+  listPendingReviewMedia() {
+    return http.get<unknown, MediaUploadCompleteResponse[]>('/admin/media/pending')
+  },
+  approveMedia(mediaFileId: number) {
+    return http.post<unknown, MediaUploadCompleteResponse>(
+      `/admin/media/${mediaFileId}/approve`,
+    )
+  },
+  rejectMedia(mediaFileId: number) {
+    return http.post<unknown, MediaUploadCompleteResponse>(
+      `/admin/media/${mediaFileId}/reject`,
+    )
+  },
   async uploadToSignedUrl(uploadUrl: string, file: File, headers: Record<string, string>) {
     await axios.put(uploadUrl, file, {
       headers,

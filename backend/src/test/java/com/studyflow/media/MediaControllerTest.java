@@ -12,6 +12,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -107,6 +110,96 @@ class MediaControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void prepareVideoUploadCompletesAsPendingReview() throws Exception {
+        String token = registerAndLogin("media_video_alice", "media_video_alice@example.com");
+
+        MvcResult prepareResult = mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "walk.mp4",
+                                  "contentType": "video/mp4",
+                                  "fileSize": 2097152
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.mediaFileId").isNumber())
+                .andExpect(jsonPath("$.data.objectKey", containsString("community/pending/videos/")))
+                .andExpect(jsonPath("$.data.contentType").value("video/mp4"))
+                .andReturn();
+
+        Long mediaFileId = objectMapper.readTree(prepareResult.getResponse().getContentAsByteArray())
+                .path("data").path("mediaFileId").asLong();
+
+        mockMvc.perform(post("/api/media/uploads/{mediaFileId}/complete", mediaFileId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.fileType").value("VIDEO"))
+                .andExpect(jsonPath("$.data.status").value("PENDING_REVIEW"));
+    }
+
+    @Test
+    void prepareVideoUploadRejectsUnsupportedAndOversizedVideos() throws Exception {
+        String token = registerAndLogin("media_video_invalid", "media_video_invalid@example.com");
+
+        mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "clip.mov",
+                                  "contentType": "video/quicktime",
+                                  "fileSize": 1024
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "huge.mp4",
+                                  "contentType": "video/mp4",
+                                  "fileSize": 52428801
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void attachedVideoIsHiddenUntilRuruApprovesIt() throws Exception {
+        String authorToken = registerAndLogin("media_video_author", "media_video_author@example.com");
+        Long topicId = firstTopicId(authorToken);
+        Long videoFileId = prepareAndCompleteVideoUpload(authorToken);
+        Long postId = createPost(authorToken, topicId, videoFileId);
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)].media[*]".formatted(postId), empty()));
+
+        mockMvc.perform(post("/api/admin/media/{mediaFileId}/approve", videoFileId)
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isForbidden());
+
+        String ruruToken = registerAndLogin("ruru", "ruru@example.com");
+        mockMvc.perform(get("/api/admin/media/pending")
+                        .header("Authorization", "Bearer " + ruruToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)]".formatted(videoFileId), hasSize(1)));
+
+        mockMvc.perform(post("/api/admin/media/{mediaFileId}/approve", videoFileId)
+                        .header("Authorization", "Bearer " + ruruToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("APPROVED"));
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)].media[0].fileType".formatted(postId)).value("VIDEO"));
+    }
+
     private Long prepareImageUpload(String token) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/media/uploads/presign")
                         .header("Authorization", "Bearer " + token)
@@ -123,6 +216,59 @@ class MediaControllerTest {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsByteArray());
         return response.path("data").path("mediaFileId").asLong();
+    }
+
+    private Long prepareAndCompleteVideoUpload(String token) throws Exception {
+        MvcResult prepareResult = mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "clip.webm",
+                                  "contentType": "video/webm",
+                                  "fileSize": 4096
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Long mediaFileId = objectMapper.readTree(prepareResult.getResponse().getContentAsByteArray())
+                .path("data").path("mediaFileId").asLong();
+
+        mockMvc.perform(post("/api/media/uploads/{mediaFileId}/complete", mediaFileId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        return mediaFileId;
+    }
+
+    private Long firstTopicId(String token) throws Exception {
+        MvcResult topicsResult = mockMvc.perform(get("/api/community/topics")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(topicsResult.getResponse().getContentAsByteArray());
+        return response.path("data").get(0).path("id").asLong();
+    }
+
+    private Long createPost(String token, Long topicId, Long mediaFileId) throws Exception {
+        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "带视频的动态",
+                                  "content": "视频审核通过前不会公开展示。",
+                                  "mediaFileIds": [%d]
+                                }
+                                """.formatted(topicId, mediaFileId)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
+        return response.path("data").path("id").asLong();
     }
 
     private String registerAndLogin(String username, String email) throws Exception {

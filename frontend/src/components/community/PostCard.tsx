@@ -46,12 +46,22 @@ function PostCard({ post, topics = [] }: PostCardProps) {
         {post.media.length > 0 ? (
           <div className="post-media-grid">
             {post.media.slice(0, 4).map((media) => (
-              <img
-                key={media.id}
-                alt={media.originalFilename}
-                className="post-media-image"
-                src={media.url}
-              />
+              media.fileType === 'VIDEO' ? (
+                <video
+                  key={media.id}
+                  className="post-media-video"
+                  controls
+                  preload="metadata"
+                  src={media.url}
+                />
+              ) : (
+                <img
+                  key={media.id}
+                  alt={media.originalFilename}
+                  className="post-media-image"
+                  src={media.url}
+                />
+              )
             ))}
           </div>
         ) : null}

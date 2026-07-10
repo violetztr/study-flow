@@ -7,14 +7,17 @@ import com.studyflow.media.dto.MediaUploadPrepareResponse;
 import com.studyflow.security.UserPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/api/media")
+@RequestMapping("/api")
 public class MediaController {
     private final MediaService mediaService;
 
@@ -22,19 +25,42 @@ public class MediaController {
         this.mediaService = mediaService;
     }
 
-    @PostMapping("/uploads/presign")
-    public ApiResponse<MediaUploadPrepareResponse> prepareImageUpload(
+    @PostMapping("/media/uploads/presign")
+    public ApiResponse<MediaUploadPrepareResponse> prepareUpload(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MediaUploadPrepareRequest request
     ) {
-        return ApiResponse.success(mediaService.prepareImageUpload(principal.userId(), request));
+        return ApiResponse.success(mediaService.prepareUpload(principal.userId(), request));
     }
 
-    @PostMapping("/uploads/{mediaFileId}/complete")
+    @PostMapping("/media/uploads/{mediaFileId}/complete")
     public ApiResponse<MediaUploadCompleteResponse> completeUpload(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long mediaFileId
     ) {
         return ApiResponse.success(mediaService.completeUpload(principal.userId(), mediaFileId));
+    }
+
+    @GetMapping("/admin/media/pending")
+    public ApiResponse<List<MediaUploadCompleteResponse>> listPendingReviewMedia(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ApiResponse.success(mediaService.listPendingReviewMedia(principal.userId()));
+    }
+
+    @PostMapping("/admin/media/{mediaFileId}/approve")
+    public ApiResponse<MediaUploadCompleteResponse> approveVideo(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long mediaFileId
+    ) {
+        return ApiResponse.success(mediaService.approveVideo(principal.userId(), mediaFileId));
+    }
+
+    @PostMapping("/admin/media/{mediaFileId}/reject")
+    public ApiResponse<MediaUploadCompleteResponse> rejectVideo(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long mediaFileId
+    ) {
+        return ApiResponse.success(mediaService.rejectVideo(principal.userId(), mediaFileId));
     }
 }
