@@ -10,6 +10,8 @@ import com.studyflow.security.JwtService;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
 import com.studyflow.user.dto.UserResponse;
+import com.studyflow.wallet.PigWalletService;
+import com.studyflow.wallet.dto.UserWalletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,17 +25,20 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final CommunityMemberService communityMemberService;
+    private final PigWalletService pigWalletService;
 
     public AuthService(
             UserMapper userMapper,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            CommunityMemberService communityMemberService
+            CommunityMemberService communityMemberService,
+            PigWalletService pigWalletService
     ) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.communityMemberService = communityMemberService;
+        this.pigWalletService = pigWalletService;
     }
 
     @Transactional
@@ -69,7 +74,8 @@ public class AuthService {
         }
 
         String token = jwtService.generateToken(user.getId(), user.getUsername());
-        return new LoginResponse(token, UserResponse.from(user));
+        UserWalletResponse wallet = pigWalletService.grantDailyLoginPig(user.getId());
+        return new LoginResponse(token, UserResponse.from(user), wallet);
     }
 
     private boolean existsByUsername(String username) {

@@ -62,6 +62,23 @@ export type CommunityCommentResponse = {
   updatedAt?: string | null
 }
 
+export type CommunityDanmakuRequest = {
+  content: string
+  timeSeconds: number
+  color?: string
+}
+
+export type CommunityDanmakuResponse = {
+  id: number
+  postId: number
+  authorId: number
+  authorName: string
+  content: string
+  timeSeconds: number
+  color: string
+  createdAt: string
+}
+
 export type CommunityMemberResponse = {
   userId: number
   username: string
@@ -76,6 +93,9 @@ export type CommunityMemberResponse = {
   skills?: string | null
   githubUrl?: string | null
   websiteUrl?: string | null
+  followerCount: number
+  followingCount: number
+  followedByCurrentUser: boolean
 }
 
 export type ModerationRequest = {
@@ -113,6 +133,12 @@ export const communityApi = {
   deleteComment(commentId: number) {
     return http.delete<unknown, void>(`/community/comments/${commentId}`)
   },
+  listDanmaku(postId: number) {
+    return http.get<unknown, CommunityDanmakuResponse[]>(`/community/posts/${postId}/danmaku`)
+  },
+  createDanmaku(postId: number, request: CommunityDanmakuRequest) {
+    return http.post<unknown, CommunityDanmakuResponse>(`/community/posts/${postId}/danmaku`, request)
+  },
   likePost(postId: number) {
     return http.post<unknown, void>(`/community/posts/${postId}/reactions/like`)
   },
@@ -127,6 +153,12 @@ export const communityApi = {
   },
   getMember(userId: number) {
     return http.get<unknown, CommunityMemberResponse>(`/community/members/${userId}`)
+  },
+  followMember(userId: number) {
+    return http.post<unknown, CommunityMemberResponse>(`/community/members/${userId}/follow`)
+  },
+  unfollowMember(userId: number) {
+    return http.delete<unknown, CommunityMemberResponse>(`/community/members/${userId}/follow`)
   },
   hidePost(postId: number, request: ModerationRequest) {
     return http.post<unknown, void>(`/admin/community/posts/${postId}/hide`, request)

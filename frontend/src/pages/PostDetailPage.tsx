@@ -1,8 +1,17 @@
-import { ArrowLeftOutlined, EyeOutlined, HeartFilled, HeartOutlined, SendOutlined } from '@ant-design/icons'
-import { Alert, Button, Form, Input, Skeleton } from 'antd'
+import {
+  ArrowLeftOutlined,
+  EyeOutlined,
+  HeartFilled,
+  HeartOutlined,
+  SendOutlined,
+  UserAddOutlined,
+  UserDeleteOutlined,
+} from '@ant-design/icons'
+import { Alert, Button, Form, Input, Skeleton, Tag } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
 import type { CommunityPostResponse } from '../api/community'
@@ -10,6 +19,10 @@ import CommentList from '../components/community/CommentList'
 import TopicBadge from '../components/community/TopicBadge'
 
 type CommentFormValues = {
+  content: string
+}
+
+type DanmakuFormValues = {
   content: string
 }
 
@@ -28,12 +41,26 @@ function togglePostLike(post: CommunityPostResponse) {
   }
 }
 
+function hasVideo(post: CommunityPostResponse) {
+  return post.media.some((media) => media.fileType === 'VIDEO')
+}
+
+function firstVideo(post?: CommunityPostResponse) {
+  return post?.media.find((media) => media.fileType === 'VIDEO')
+}
+
+function firstImages(post?: CommunityPostResponse) {
+  return post?.media.filter((media) => media.fileType !== 'VIDEO') ?? []
+}
+
 function PostDetailPage() {
   const { id } = useParams()
   const postId = Number(id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [form] = Form.useForm<CommentFormValues>()
+  const [commentForm] = Form.useForm<CommentFormValues>()
+  const [danmakuForm] = Form.useForm<DanmakuFormValues>()
+  const [currentSecond, setCurrentSecond] = useState(0)
   const user = getStoredUser()
 
   const postQuery = useQuery({
@@ -48,10 +75,27 @@ function PostDetailPage() {
     enabled: Number.isFinite(postId),
   })
 
+  const danmakuQuery = useQuery({
+    queryKey: ['community-danmaku', postId],
+    queryFn: () => communityApi.listDanmaku(postId),
+    enabled: Number.isFinite(postId),
+  })
+
   const meQuery = useQuery({
     queryKey: ['community-me'],
     queryFn: communityApi.getMe,
     enabled: Boolean(user),
+  })
+
+  const authorQuery = useQuery({
+    queryKey: ['community-member', postQuery.data?.authorId],
+    queryFn: () => communityApi.getMember(postQuery.data!.authorId),
+    enabled: Boolean(user && postQuery.data?.authorId),
+  })
+
+  const feedQuery = useQuery({
+    queryKey: ['community-feed'],
+    queryFn: communityApi.listFeed,
   })
 
   const likeMutation = useMutation<void, Error, void, LikeMutationContext>({
@@ -80,12 +124,36 @@ function PostDetailPage() {
     },
   })
 
+  const followMutation = useMutation({
+    mutationFn: () =>
+      authorQuery.data?.followedByCurrentUser
+        ? communityApi.unfollowMember(postQuery.data!.authorId)
+        : communityApi.followMember(postQuery.data!.authorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-member', postQuery.data?.authorId] })
+      queryClient.invalidateQueries({ queryKey: ['community-members'] })
+    },
+  })
+
   const commentMutation = useMutation({
     mutationFn: (values: CommentFormValues) => communityApi.createComment(postId, values),
     onSuccess: () => {
-      form.resetFields()
+      commentForm.resetFields()
       queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
       queryClient.invalidateQueries({ queryKey: ['community-comments', postId] })
+    },
+  })
+
+  const danmakuMutation = useMutation({
+    mutationFn: (values: DanmakuFormValues) =>
+      communityApi.createDanmaku(postId, {
+        content: values.content,
+        timeSeconds: currentSecond,
+        color: '#ffffff',
+      }),
+    onSuccess: () => {
+      danmakuForm.resetFields()
+      queryClient.invalidateQueries({ queryKey: ['community-danmaku', postId] })
     },
   })
 
@@ -110,10 +178,19 @@ function PostDetailPage() {
   }
 
   const post = postQuery.data
+  const video = firstVideo(post)
+  const imageMedia = firstImages(post)
+  const relatedVideos = (feedQuery.data ?? [])
+    .filter((item) => item.id !== post?.id && hasVideo(item))
+    .slice(0, 5)
+  const activeDanmaku = (danmakuQuery.data ?? []).filter(
+    (item) => Math.abs(item.timeSeconds - currentSecond) <= 5,
+  )
+  const canFollowAuthor = Boolean(user && post && user.id !== post.authorId)
 
   return (
-    <section className="page-section detail-page">
-      <div className="detail-shell">
+    <section className={`page-section detail-page ${video ? 'video-watch-page' : ''}`}>
+      <div className={`detail-shell ${video ? 'video-detail-shell' : ''}`}>
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
@@ -125,17 +202,169 @@ function PostDetailPage() {
 
         <div className="notice-stack">
           {postQuery.isError ? <Alert showIcon type="error" message={postQuery.error.message} /> : null}
-          {commentsQuery.isError ? (
-            <Alert showIcon type="error" message={commentsQuery.error.message} />
-          ) : null}
-          {commentMutation.isError ? (
-            <Alert showIcon type="error" message={commentMutation.error.message} />
-          ) : null}
+          {commentsQuery.isError ? <Alert showIcon type="error" message={commentsQuery.error.message} /> : null}
+          {danmakuQuery.isError ? <Alert showIcon type="error" message={danmakuQuery.error.message} /> : null}
+          {commentMutation.isError ? <Alert showIcon type="error" message={commentMutation.error.message} /> : null}
+          {danmakuMutation.isError ? <Alert showIcon type="error" message={danmakuMutation.error.message} /> : null}
+          {followMutation.isError ? <Alert showIcon type="error" message={followMutation.error.message} /> : null}
         </div>
 
         {postQuery.isLoading ? <Skeleton active /> : null}
 
-        {post ? (
+        {post && video ? (
+          <div className="watch-layout">
+            <main className="watch-main">
+              <div className="watch-title-row">
+                <div>
+                  <h1>{post.title}</h1>
+                  <div className="watch-meta">
+                    <TopicBadge name={post.topicName} />
+                    <span>{dayjs(post.createdAt).format('YYYY-MM-DD HH:mm')}</span>
+                    <span>
+                      <EyeOutlined /> {post.viewCount}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="ruru-player">
+                <video
+                  controls
+                  preload="metadata"
+                  src={video.url}
+                  onTimeUpdate={(event) => setCurrentSecond(Math.floor(event.currentTarget.currentTime))}
+                />
+                <div className="danmaku-layer" aria-hidden="true">
+                  {activeDanmaku.map((item, index) => (
+                    <span
+                      key={item.id}
+                      className="danmaku-float"
+                      style={{
+                        color: item.color,
+                        top: `${12 + (index % 7) * 11}%`,
+                        animationDelay: `${(index % 4) * 0.5}s`,
+                      }}
+                    >
+                      {item.content}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="player-toolbar">
+                <Form<DanmakuFormValues>
+                  className="danmaku-form"
+                  form={danmakuForm}
+                  onFinish={(values) => (user ? danmakuMutation.mutate(values) : requireLogin())}
+                >
+                  <Form.Item name="content" rules={[{ required: true, message: '写一句弹幕吧' }]}>
+                    <Input
+                      maxLength={200}
+                      placeholder={user ? '发一条友善的弹幕' : '登录后发送弹幕'}
+                      disabled={!user}
+                    />
+                  </Form.Item>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    icon={<SendOutlined />}
+                    loading={danmakuMutation.isPending}
+                    onClick={() => {
+                      if (!user) {
+                        requireLogin()
+                      }
+                    }}
+                  >
+                    发送
+                  </Button>
+                </Form>
+
+                <div className="quality-switch">
+                  <button type="button" className="active">
+                    原画
+                  </button>
+                  <button type="button" disabled title="后面接转码服务后开放">
+                    1080P
+                  </button>
+                  <button type="button" disabled title="后面接转码服务后开放">
+                    720P
+                  </button>
+                </div>
+              </div>
+
+              <div className="watch-actions">
+                <Button
+                  type="text"
+                  className={`post-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
+                  icon={post.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
+                  loading={likeMutation.isPending}
+                  onClick={() => (user ? likeMutation.mutate() : requireLogin())}
+                >
+                  {post.likedByCurrentUser ? '已赞' : '点赞'} {post.reactionCount}
+                </Button>
+                <span>{post.commentCount} 条评论</span>
+                <span>{danmakuQuery.data?.length ?? 0} 条弹幕</span>
+              </div>
+
+              <p className="watch-description">{post.content}</p>
+            </main>
+
+            <aside className="watch-side">
+              <section className="author-panel">
+                <div className="author-avatar">{post.authorName.slice(0, 1).toUpperCase()}</div>
+                <div className="author-info">
+                  <strong>{post.authorName}</strong>
+                  <span>
+                    {authorQuery.data?.followerCount ?? 0} 粉丝 · {authorQuery.data?.followingCount ?? 0} 关注
+                  </span>
+                </div>
+                {canFollowAuthor ? (
+                  <Button
+                    type={authorQuery.data?.followedByCurrentUser ? 'default' : 'primary'}
+                    icon={authorQuery.data?.followedByCurrentUser ? <UserDeleteOutlined /> : <UserAddOutlined />}
+                    loading={followMutation.isPending || authorQuery.isLoading}
+                    onClick={() => followMutation.mutate()}
+                  >
+                    {authorQuery.data?.followedByCurrentUser ? '已关注' : '关注'}
+                  </Button>
+                ) : null}
+              </section>
+
+              <section className="side-card">
+                <div className="side-card-title">简介</div>
+                <p>{post.content || '这个视频还没有简介。'}</p>
+              </section>
+
+              <section className="side-card">
+                <div className="side-card-title">更多视频</div>
+                <div className="related-list">
+                  {relatedVideos.length > 0 ? (
+                    relatedVideos.map((item) => {
+                      const cover = item.media[0]
+                      return (
+                        <Link className="related-video" to={`/circle/posts/${item.id}`} key={item.id}>
+                          <div className="related-cover">
+                            {cover?.fileType === 'VIDEO' ? (
+                              <video muted preload="metadata" src={cover.url} />
+                            ) : null}
+                          </div>
+                          <div>
+                            <strong>{item.title}</strong>
+                            <span>{item.authorName}</span>
+                          </div>
+                        </Link>
+                      )
+                    })
+                  ) : (
+                    <p className="muted-text">还没有更多视频。</p>
+                  )}
+                </div>
+              </section>
+            </aside>
+          </div>
+        ) : null}
+
+        {post && !video ? (
           <article className="post-detail-card">
             <div className="post-detail-meta">
               <TopicBadge name={post.topicName} />
@@ -146,25 +375,15 @@ function PostDetailPage() {
             <h1>{post.title}</h1>
             <p className="post-detail-content">{post.content}</p>
 
-            {post.media.length > 0 ? (
+            {imageMedia.length > 0 ? (
               <div className="post-detail-media-grid">
-                {post.media.map((media) => (
-                  <div className="post-detail-media-item" key={media.id}>
-                    {media.fileType === 'VIDEO' ? (
-                      <video
-                        className="post-detail-media-video"
-                        controls
-                        preload="metadata"
-                        src={media.url}
-                      />
-                    ) : (
-                      <img
-                        alt={media.originalFilename}
-                        className="post-detail-media-image"
-                        src={media.url}
-                      />
-                    )}
-                  </div>
+                {imageMedia.map((media) => (
+                  <img
+                    key={media.id}
+                    alt={media.originalFilename}
+                    className="post-detail-media-image"
+                    src={media.url}
+                  />
                 ))}
               </div>
             ) : null}
@@ -179,9 +398,7 @@ function PostDetailPage() {
               >
                 {post.likedByCurrentUser ? '已喜欢' : '喜欢'} {post.reactionCount}
               </Button>
-              <span>
-                {post.commentCount} 条评论
-              </span>
+              <span>{post.commentCount} 条评论</span>
               <span>
                 <EyeOutlined /> {post.viewCount}
               </span>
@@ -189,59 +406,77 @@ function PostDetailPage() {
           </article>
         ) : null}
 
-        <section className="comment-panel">
-          <div className="comment-panel-head">
-            <h2>评论</h2>
-            <span>{commentsQuery.data?.length ?? 0} 条</span>
-          </div>
-
-          {user ? (
-            <Form<CommentFormValues>
-              className="comment-composer"
-              form={form}
-              layout="vertical"
-              requiredMark={false}
-              onFinish={(values) => commentMutation.mutate(values)}
-            >
-              <Form.Item
-                name="content"
-                rules={[
-                  { required: true, message: '请输入评论内容' },
-                  { max: 2000, message: '评论不能超过 2000 个字符' },
-                ]}
-              >
-                <Input.TextArea
-                  bordered={false}
-                  className="comment-input"
-                  autoSize={{ minRows: 3, maxRows: 8 }}
-                  placeholder="写一句回应..."
-                />
-              </Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                icon={<SendOutlined />}
-                loading={commentMutation.isPending}
-              >
-                发送
-              </Button>
-            </Form>
-          ) : (
-            <div className="login-nudge">
-              <span>登录后可以评论和点赞。</span>
-              <Button type="primary" onClick={requireLogin}>
-                登录
-              </Button>
+        {post ? (
+          <section className="comment-panel watch-comment-panel">
+            <div className="comment-panel-head">
+              <h2>评论</h2>
+              <span>{commentsQuery.data?.length ?? 0} 条</span>
             </div>
-          )}
 
-          <CommentList
-            comments={commentsQuery.data ?? []}
-            currentUserId={meQuery.data?.userId}
-            deletingId={deleteCommentMutation.variables ?? null}
-            onDelete={user ? (commentId) => deleteCommentMutation.mutate(commentId) : undefined}
-          />
-        </section>
+            {user ? (
+              <Form<CommentFormValues>
+                className="comment-composer"
+                form={commentForm}
+                layout="vertical"
+                requiredMark={false}
+                onFinish={(values) => commentMutation.mutate(values)}
+              >
+                <Form.Item
+                  name="content"
+                  rules={[
+                    { required: true, message: '请输入评论内容' },
+                    { max: 2000, message: '评论不能超过 2000 个字符' },
+                  ]}
+                >
+                  <Input.TextArea
+                    bordered={false}
+                    className="comment-input"
+                    autoSize={{ minRows: 3, maxRows: 8 }}
+                    placeholder="写一条评论..."
+                  />
+                </Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<SendOutlined />}
+                  loading={commentMutation.isPending}
+                >
+                  发送
+                </Button>
+              </Form>
+            ) : (
+              <div className="login-nudge">
+                <span>登录后可以评论、点赞、关注和发送弹幕。</span>
+                <Button type="primary" onClick={requireLogin}>
+                  登录
+                </Button>
+              </div>
+            )}
+
+            <CommentList
+              comments={commentsQuery.data ?? []}
+              currentUserId={meQuery.data?.userId}
+              deletingId={deleteCommentMutation.variables ?? null}
+              onDelete={user ? (commentId) => deleteCommentMutation.mutate(commentId) : undefined}
+            />
+          </section>
+        ) : null}
+
+        {post && !video ? (
+          <div className="article-author-footer">
+            <Tag color="green">{post.authorName}</Tag>
+            {canFollowAuthor ? (
+              <Button
+                size="small"
+                icon={authorQuery.data?.followedByCurrentUser ? <UserDeleteOutlined /> : <UserAddOutlined />}
+                loading={followMutation.isPending || authorQuery.isLoading}
+                onClick={() => followMutation.mutate()}
+              >
+                {authorQuery.data?.followedByCurrentUser ? '已关注' : '关注作者'}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </section>
   )

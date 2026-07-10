@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -48,5 +50,21 @@ public class CommunityMemberController {
             @Valid @RequestBody UserProfileRequest request
     ) {
         return ApiResponse.success(communityMemberService.updateCurrentProfile(principal.userId(), request));
+    }
+
+    @PostMapping("/{userId}/follow")
+    public ApiResponse<CommunityMemberResponse> followMember(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long userId
+    ) {
+        return ApiResponse.success(communityMemberService.followMember(principal.userId(), userId));
+    }
+
+    @DeleteMapping("/{userId}/follow")
+    public ApiResponse<CommunityMemberResponse> unfollowMember(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long userId
+    ) {
+        return ApiResponse.success(communityMemberService.unfollowMember(principal.userId(), userId));
     }
 }

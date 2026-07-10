@@ -37,7 +37,8 @@ public class SecurityConfig {
                                 "/api/community/topics",
                                 "/api/community/feed",
                                 "/api/community/posts/*",
-                                "/api/community/posts/*/comments"
+                                "/api/community/posts/*/comments",
+                                "/api/community/posts/*/danmaku"
                         ).permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()

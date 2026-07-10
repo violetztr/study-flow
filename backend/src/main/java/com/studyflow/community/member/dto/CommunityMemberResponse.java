@@ -17,7 +17,10 @@ public record CommunityMemberResponse(
         String avatarUrl,
         String skills,
         String githubUrl,
-        String websiteUrl
+        String websiteUrl,
+        Integer followerCount,
+        Integer followingCount,
+        Boolean followedByCurrentUser
 ) {
     public static CommunityMemberResponse from(
             Circle circle,
@@ -38,7 +41,10 @@ public record CommunityMemberResponse(
                 profile.getAvatarUrl(),
                 profile.getSkills(),
                 profile.getGithubUrl(),
-                profile.getWebsiteUrl()
+                profile.getWebsiteUrl(),
+                0,
+                0,
+                false
         );
     }
 }

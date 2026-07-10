@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
 import com.studyflow.community.circle.CircleMapper;
+import com.studyflow.community.follow.UserFollow;
+import com.studyflow.community.follow.UserFollowMapper;
 import com.studyflow.community.member.dto.CommunityMemberResponse;
 import com.studyflow.community.member.dto.UserProfileRequest;
 import com.studyflow.user.User;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -30,17 +33,20 @@ public class CommunityMemberService {
     private final CircleMemberMapper circleMemberMapper;
     private final UserProfileMapper userProfileMapper;
     private final UserMapper userMapper;
+    private final UserFollowMapper userFollowMapper;
 
     public CommunityMemberService(
             CircleMapper circleMapper,
             CircleMemberMapper circleMemberMapper,
             UserProfileMapper userProfileMapper,
-            UserMapper userMapper
+            UserMapper userMapper,
+            UserFollowMapper userFollowMapper
     ) {
         this.circleMapper = circleMapper;
         this.circleMemberMapper = circleMemberMapper;
         this.userProfileMapper = userProfileMapper;
         this.userMapper = userMapper;
+        this.userFollowMapper = userFollowMapper;
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -56,7 +62,7 @@ public class CommunityMemberService {
         CircleMember member = findRequiredMember(circle.getId(), userId);
         User user = findRequiredUser(userId);
         UserProfile profile = findProfile(userId);
-        return toMemberResponse(circle, member, user, profile);
+        return toMemberResponse(circle, member, user, profile, userId);
     }
 
     public Circle requireDefaultMember(Long userId) {
@@ -93,7 +99,7 @@ public class CommunityMemberService {
         CircleMember targetMember = findRequiredVisibleMember(circle.getId(), targetUserId);
         User targetUser = findRequiredUser(targetUserId);
         UserProfile profile = findProfile(targetUserId);
-        return toMemberResponse(circle, targetMember, targetUser, profile);
+        return toMemberResponse(circle, targetMember, targetUser, profile, currentUserId);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -120,7 +126,8 @@ public class CommunityMemberService {
                         circle,
                         member,
                         usersById.get(member.getUserId()),
-                        profilesByUserId.get(member.getUserId())
+                        profilesByUserId.get(member.getUserId()),
+                        currentUserId
                 ))
                 .toList();
     }
@@ -138,7 +145,36 @@ public class CommunityMemberService {
         profile.setGithubUrl(request.githubUrl());
         profile.setWebsiteUrl(request.websiteUrl());
         userProfileMapper.updateById(profile);
-        return CommunityMemberResponse.from(circle, member, profile, user.getUsername());
+        return toMemberResponse(circle, member, user, profile, userId);
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public CommunityMemberResponse followMember(Long currentUserId, Long targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new BusinessException(400, "Cannot follow yourself");
+        }
+        Circle circle = requireActiveDefaultMember(currentUserId);
+        findRequiredVisibleMember(circle.getId(), targetUserId);
+        UserFollow follow = new UserFollow();
+        follow.setFollowerId(currentUserId);
+        follow.setFollowingId(targetUserId);
+        follow.setCreatedAt(LocalDateTime.now());
+        try {
+            userFollowMapper.insert(follow);
+        } catch (DuplicateKeyException ignored) {
+            // Idempotent follow.
+        }
+        return getMember(currentUserId, targetUserId);
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public CommunityMemberResponse unfollowMember(Long currentUserId, Long targetUserId) {
+        Circle circle = requireActiveDefaultMember(currentUserId);
+        findRequiredVisibleMember(circle.getId(), targetUserId);
+        userFollowMapper.delete(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowerId, currentUserId)
+                .eq(UserFollow::getFollowingId, targetUserId));
+        return getMember(currentUserId, targetUserId);
     }
 
     public Circle getDefaultCircle() {
@@ -185,7 +221,8 @@ public class CommunityMemberService {
             Circle circle,
             CircleMember member,
             User user,
-            UserProfile profile
+            UserProfile profile,
+            Long currentUserId
     ) {
         if (user == null) {
             throw new BusinessException(404, "User does not exist");
@@ -206,8 +243,27 @@ public class CommunityMemberService {
                 profile != null ? profile.getAvatarUrl() : null,
                 profile != null ? profile.getSkills() : null,
                 profile != null ? profile.getGithubUrl() : null,
-                profile != null ? profile.getWebsiteUrl() : null
+                profile != null ? profile.getWebsiteUrl() : null,
+                followerCount(member.getUserId()),
+                followingCount(member.getUserId()),
+                currentUserId != null && isFollowing(currentUserId, member.getUserId())
         );
+    }
+
+    private Integer followerCount(Long userId) {
+        return Math.toIntExact(userFollowMapper.selectCount(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowingId, userId)));
+    }
+
+    private Integer followingCount(Long userId) {
+        return Math.toIntExact(userFollowMapper.selectCount(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowerId, userId)));
+    }
+
+    private boolean isFollowing(Long followerId, Long followingId) {
+        return userFollowMapper.selectCount(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowerId, followerId)
+                .eq(UserFollow::getFollowingId, followingId)) > 0;
     }
 
     private void ensureCircleMember(Long circleId, Long userId) {

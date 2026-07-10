@@ -1,11 +1,12 @@
 import { LoginOutlined, LogoutOutlined, PlusOutlined, UserAddOutlined } from '@ant-design/icons'
 import { Button, Layout, Space } from 'antd'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
-import { clearSession, getStoredUser } from '../api/auth'
+import { clearSession, getStoredUser, getStoredWallet } from '../api/auth'
 
 function AppLayout() {
   const navigate = useNavigate()
   const user = getStoredUser()
+  const wallet = getStoredWallet()
 
   function handleLogout() {
     clearSession()
@@ -26,6 +27,9 @@ function AppLayout() {
           {user ? (
             <>
               <span className="app-user">{user.username}</span>
+              <span className="pig-wallet" title="每日登录获得 1 个猪猪币">
+                🐖 {wallet?.pigBalance ?? 0}
+              </span>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/circle/posts/new')}>
                 发布
               </Button>

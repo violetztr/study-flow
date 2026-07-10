@@ -1,6 +1,7 @@
 import { AUTH_TOKEN_KEY, http } from './http'
 
 export const AUTH_USER_KEY = 'study-flow-user'
+export const AUTH_WALLET_KEY = 'study-flow-wallet'
 
 export type UserResponse = {
   id: number
@@ -8,6 +9,11 @@ export type UserResponse = {
   email: string
   role: string
   status: string
+}
+
+export type UserWalletResponse = {
+  pigBalance: number
+  todayGranted: boolean
 }
 
 export type LoginRequest = {
@@ -24,6 +30,7 @@ export type RegisterRequest = {
 export type LoginResponse = {
   token: string
   user: UserResponse
+  wallet?: UserWalletResponse
 }
 
 export function login(request: LoginRequest) {
@@ -41,11 +48,15 @@ export function getCurrentUser() {
 export function saveSession(response: LoginResponse) {
   localStorage.setItem(AUTH_TOKEN_KEY, response.token)
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user))
+  if (response.wallet) {
+    localStorage.setItem(AUTH_WALLET_KEY, JSON.stringify(response.wallet))
+  }
 }
 
 export function clearSession() {
   localStorage.removeItem(AUTH_TOKEN_KEY)
   localStorage.removeItem(AUTH_USER_KEY)
+  localStorage.removeItem(AUTH_WALLET_KEY)
 }
 
 export function getStoredUser(): UserResponse | null {
@@ -58,6 +69,20 @@ export function getStoredUser(): UserResponse | null {
     return JSON.parse(rawUser) as UserResponse
   } catch {
     clearSession()
+    return null
+  }
+}
+
+export function getStoredWallet(): UserWalletResponse | null {
+  const rawWallet = localStorage.getItem(AUTH_WALLET_KEY)
+  if (!rawWallet) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawWallet) as UserWalletResponse
+  } catch {
+    localStorage.removeItem(AUTH_WALLET_KEY)
     return null
   }
 }
