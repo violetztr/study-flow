@@ -131,6 +131,7 @@ sudo docker compose ps
 - 数据库设计：[docs/database.md](docs/database.md)
 - 部署说明：[docs/deploy.md](docs/deploy.md)
 - 面试展示讲法：[docs/interview.md](docs/interview.md)
+- 生产级路线图：[docs/ruru-production-roadmap.md](docs/ruru-production-roadmap.md)
 - 阶段 1-2 任务清单：[docs/superpowers/plans/2026-07-11-ruru-bilibili-stage-1-2.md](docs/superpowers/plans/2026-07-11-ruru-bilibili-stage-1-2.md)
 
 ## 已完成阶段
