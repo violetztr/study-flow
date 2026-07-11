@@ -130,9 +130,10 @@ function PostDetailPage() {
   })
 
   const authorQuery = useQuery({
-    queryKey: ['community-member', postQuery.data?.authorId],
-    queryFn: () => communityApi.getMember(postQuery.data!.authorId),
-    enabled: Boolean(user && postQuery.data?.authorId),
+    queryKey: ['community-profile', postQuery.data?.authorId],
+    queryFn: () => communityApi.getProfile(postQuery.data!.authorId),
+    enabled: Boolean(postQuery.data?.authorId),
+    select: (profile) => profile.member,
   })
 
   const feedQuery = useQuery({
@@ -229,6 +230,7 @@ function PostDetailPage() {
         : communityApi.followMember(postQuery.data!.authorId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['community-member', postQuery.data?.authorId] })
+      queryClient.invalidateQueries({ queryKey: ['community-profile', postQuery.data?.authorId] })
       queryClient.invalidateQueries({ queryKey: ['community-members'] })
     },
   })
@@ -465,9 +467,11 @@ function PostDetailPage() {
 
             <aside className="watch-side">
               <section className="author-panel">
-                <div className="author-avatar">{post.authorName.slice(0, 1).toUpperCase()}</div>
+                <Link to={`/circle/members/${post.authorId}`} className="author-avatar">
+                  {post.authorName.slice(0, 1).toUpperCase()}
+                </Link>
                 <div className="author-info">
-                  <strong>{post.authorName}</strong>
+                  <Link to={`/circle/members/${post.authorId}`}>{post.authorName}</Link>
                   <span>
                     {formatMetric(authorQuery.data?.followerCount)} 粉丝 ·{' '}
                     {formatMetric(authorQuery.data?.followingCount)} 关注
@@ -555,9 +559,13 @@ function PostDetailPage() {
           <article className="post-detail-card article-detail-card">
             <div className="article-detail-head">
               <div className="article-author-block">
-                <div className="author-avatar">{post.authorName.slice(0, 1).toUpperCase()}</div>
+                <Link to={`/circle/members/${post.authorId}`} className="author-avatar">
+                  {post.authorName.slice(0, 1).toUpperCase()}
+                </Link>
                 <div>
-                  <strong>{post.authorName}</strong>
+                  <Link to={`/circle/members/${post.authorId}`}>
+                    <strong>{post.authorName}</strong>
+                  </Link>
                   <span>{dayjs(post.createdAt).format('YYYY-MM-DD HH:mm')}</span>
                 </div>
               </div>

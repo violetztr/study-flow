@@ -265,6 +265,7 @@ GET /api/community/members/me
 PUT /api/community/members/me/profile
 GET /api/community/members
 GET /api/community/members/{userId}
+GET /api/community/profiles/{userId}
 ```
 
 资料请求：
@@ -278,6 +279,34 @@ GET /api/community/members/{userId}
   "websiteUrl": "https://example.com"
 }
 ```
+
+用户主页聚合响应：
+
+```json
+{
+  "member": {
+    "userId": 1,
+    "username": "ruru",
+    "displayName": "ruru",
+    "followerCount": 12,
+    "followingCount": 3,
+    "followedByCurrentUser": false
+  },
+  "posts": [],
+  "favoritePosts": [],
+  "totalPostCount": 0,
+  "articleCount": 0,
+  "videoCount": 0,
+  "liveCount": 0,
+  "currentUserProfile": false
+}
+```
+
+说明：
+
+- `GET /api/community/profiles/{userId}` 可公开访问，用于个人空间页面。
+- `followedByCurrentUser` 会根据当前登录用户变化；游客访问时为 `false`。
+- `favoritePosts` 只在访问自己的主页时返回，避免公开暴露个人收藏。
 
 ### 管理接口
 

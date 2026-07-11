@@ -103,6 +103,15 @@ public class CommunityMemberService {
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
+    public CommunityMemberResponse getPublicMember(Long currentUserId, Long targetUserId) {
+        Circle circle = getDefaultCircle();
+        CircleMember targetMember = findRequiredVisibleMember(circle.getId(), targetUserId);
+        User targetUser = findRequiredUser(targetUserId);
+        UserProfile profile = findProfile(targetUserId);
+        return toMemberResponse(circle, targetMember, targetUser, profile, currentUserId);
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public List<CommunityMemberResponse> listMembers(Long currentUserId) {
         Circle circle = requireReadableDefaultMember(currentUserId);
 

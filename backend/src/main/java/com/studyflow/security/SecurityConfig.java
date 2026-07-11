@@ -36,6 +36,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/community/topics",
                                 "/api/community/feed",
+                                "/api/community/profiles/*",
                                 "/api/community/posts/*",
                                 "/api/community/posts/*/comments",
                                 "/api/community/posts/*/danmaku"

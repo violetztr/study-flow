@@ -107,6 +107,17 @@ export type CommunityMemberResponse = {
   followedByCurrentUser: boolean
 }
 
+export type CommunityMemberProfileResponse = {
+  member: CommunityMemberResponse
+  posts: CommunityPostResponse[]
+  favoritePosts: CommunityPostResponse[]
+  totalPostCount: number
+  articleCount: number
+  videoCount: number
+  liveCount: number
+  currentUserProfile: boolean
+}
+
 export type ModerationRequest = {
   reason?: string
 }
@@ -174,6 +185,9 @@ export const communityApi = {
   },
   getMember(userId: number) {
     return http.get<unknown, CommunityMemberResponse>(`/community/members/${userId}`)
+  },
+  getProfile(userId: number) {
+    return http.get<unknown, CommunityMemberProfileResponse>(`/community/profiles/${userId}`)
   },
   followMember(userId: number) {
     return http.post<unknown, CommunityMemberResponse>(`/community/members/${userId}/follow`)

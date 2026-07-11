@@ -19,10 +19,10 @@ function App() {
       <Route element={<AppLayout />}>
         <Route path="/circle" element={<CircleFeedPage />} />
         <Route path="/circle/posts/:id" element={<PostDetailPage />} />
+        <Route path="/circle/members/:id" element={<MemberProfilePage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/circle/posts/new" element={<CreatePostPage />} />
           <Route path="/circle/members" element={<MembersPage />} />
-          <Route path="/circle/members/:id" element={<MemberProfilePage />} />
           <Route path="/admin/community" element={<CommunityAdminPage />} />
         </Route>
       </Route>

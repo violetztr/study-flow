@@ -115,6 +115,17 @@ public class CommunityPostService {
         return toResponses(posts, userId);
     }
 
+    public List<CommunityPostResponse> listAuthorPosts(Long currentUserId, Long authorId) {
+        Circle circle = communityMemberService.getDefaultCircle();
+        List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getAuthorId, authorId)
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .orderByDesc(CommunityPost::getCreatedAt)
+                .orderByDesc(CommunityPost::getId));
+        return toResponses(posts, currentUserId);
+    }
+
     public CommunityPost requirePublishedPost(Long circleId, Long postId) {
         CommunityPost post = communityPostMapper.selectOne(new LambdaQueryWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, postId)

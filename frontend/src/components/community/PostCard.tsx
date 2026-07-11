@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import { Button } from 'antd'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { QueryKey } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { Link, useNavigate } from 'react-router-dom'
 import { getStoredUser, getStoredWallet, saveStoredWallet } from '../../api/auth'
@@ -18,6 +19,7 @@ import TopicBadge from './TopicBadge'
 
 type PostCardProps = {
   post: CommunityPostResponse
+  invalidateQueryKeys?: QueryKey[]
 }
 
 type PostMutationContext = {
@@ -86,7 +88,7 @@ function mediaPreviewUrl(media?: MediaAttachmentResponse) {
   return media.fileType === 'VIDEO' ? media.coverUrl : media.url
 }
 
-function PostCard({ post }: PostCardProps) {
+function PostCard({ post, invalidateQueryKeys = [] }: PostCardProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = getStoredUser()
@@ -118,6 +120,9 @@ function PostCard({ post }: PostCardProps) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
       queryClient.invalidateQueries({ queryKey: ['community-post', post.id] })
+      invalidateQueryKeys.forEach((queryKey) => {
+        queryClient.invalidateQueries({ queryKey })
+      })
     },
   })
 
@@ -147,6 +152,9 @@ function PostCard({ post }: PostCardProps) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
       queryClient.invalidateQueries({ queryKey: ['community-post', post.id] })
+      invalidateQueryKeys.forEach((queryKey) => {
+        queryClient.invalidateQueries({ queryKey })
+      })
     },
   })
 
@@ -174,6 +182,9 @@ function PostCard({ post }: PostCardProps) {
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
       queryClient.invalidateQueries({ queryKey: ['community-post', post.id] })
       queryClient.invalidateQueries({ queryKey: ['community-favorites-my'] })
+      invalidateQueryKeys.forEach((queryKey) => {
+        queryClient.invalidateQueries({ queryKey })
+      })
     },
   })
 
@@ -242,7 +253,9 @@ function PostCard({ post }: PostCardProps) {
         </Link>
 
         <div className="discovery-author-row">
-          <span>{post.authorName}</span>
+          <Link to={`/circle/members/${post.authorId}`} className="author-name-link">
+            {post.authorName}
+          </Link>
           <span>{dayjs(post.createdAt).format('MM-DD')}</span>
         </div>
 
