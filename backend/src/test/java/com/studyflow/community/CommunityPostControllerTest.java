@@ -83,6 +83,7 @@ class CommunityPostControllerTest {
                                 }
                                 """.formatted(topicId, mediaFileId)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.contentType").value("ARTICLE"))
                 .andExpect(jsonPath("$.data.media[0].id").value(mediaFileId))
                 .andExpect(jsonPath("$.data.media[0].fileType").value("IMAGE"))
                 .andExpect(jsonPath("$.data.media[0].url", containsString("test-account.r2.cloudflarestorage.com")))

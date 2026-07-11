@@ -37,6 +37,7 @@ export type CommunityPostResponse = {
   topicName?: string | null
   title: string
   content: string
+  contentType: 'ARTICLE' | 'VIDEO' | 'LIVE' | string
   status: string
   pinned: boolean
   commentCount: number

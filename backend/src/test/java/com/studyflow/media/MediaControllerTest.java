@@ -216,6 +216,7 @@ class MediaControllerTest {
 
         mockMvc.perform(get("/api/community/feed"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].contentType").value("VIDEO"))
                 .andExpect(jsonPath("$.data[?(@.id == %d)].media[0].fileType".formatted(postId)).value("VIDEO"))
                 .andExpect(jsonPath("$.data[0].media[0].coverUrl",
                         containsString("test-account.r2.cloudflarestorage.com")));

@@ -70,6 +70,7 @@ function PostCard({ post }: PostCardProps) {
   const user = getStoredUser()
   const primaryMedia = getPrimaryMedia(post)
   const previewUrl = mediaPreviewUrl(primaryMedia)
+  const isVideoPost = post.contentType === 'VIDEO' || primaryMedia?.fileType === 'VIDEO'
 
   const likeMutation = useMutation<void, Error, void, PostMutationContext>({
     mutationFn: () =>
@@ -151,7 +152,7 @@ function PostCard({ post }: PostCardProps) {
       <Link to={`/circle/posts/${post.id}`} className="discovery-cover">
         {previewUrl ? (
           <img alt={primaryMedia?.originalFilename ?? post.title} src={previewUrl} loading="lazy" />
-        ) : primaryMedia?.fileType === 'VIDEO' ? (
+        ) : isVideoPost ? (
           <div className="text-cover video-cover-fallback">
             <span>▶</span>
             <p>{post.title}</p>

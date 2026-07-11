@@ -34,6 +34,7 @@ import static com.studyflow.community.member.CommunityMemberService.STATUS_ACTIV
 public class CommunityPostService {
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String STATUS_DELETED = "DELETED";
+    private static final String CONTENT_TYPE_ARTICLE = "ARTICLE";
     private static final String CONTENT_FORMAT_TEXT = "TEXT";
     private static final String VISIBILITY_CIRCLE = "CIRCLE";
 
@@ -125,6 +126,7 @@ public class CommunityPostService {
         Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityTopic topic = findActiveTopic(circle.getId(), request.topicId());
         LocalDateTime now = LocalDateTime.now();
+        String contentType = mediaService.resolvePostContentType(userId, request.mediaFileIds());
 
         CommunityPost post = new CommunityPost();
         post.setCircleId(circle.getId());
@@ -134,6 +136,7 @@ public class CommunityPostService {
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setVideoCoverMediaFileId(request.videoCoverMediaFileId());
+        post.setContentType(contentType);
         post.setContentFormat(CONTENT_FORMAT_TEXT);
         post.setVisibility(VISIBILITY_CIRCLE);
         post.setStatus(STATUS_PUBLISHED);
@@ -162,6 +165,7 @@ public class CommunityPostService {
         Long nextTopicId = topic == null ? null : topic.getId();
         String nextTopicName = resolveTopicName(topic, request.topicName());
         LocalDateTime now = LocalDateTime.now();
+        String nextContentType = mediaService.resolvePostContentType(userId, request.mediaFileIds());
 
         int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, post.getId())
@@ -173,6 +177,7 @@ public class CommunityPostService {
                 .set(CommunityPost::getTitle, request.title())
                 .set(CommunityPost::getContent, request.content())
                 .set(CommunityPost::getVideoCoverMediaFileId, request.videoCoverMediaFileId())
+                .set(CommunityPost::getContentType, nextContentType)
                 .set(CommunityPost::getUpdatedAt, now));
         if (updated != 1) {
             throw new BusinessException(409, "Post status changed");
@@ -183,6 +188,7 @@ public class CommunityPostService {
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setVideoCoverMediaFileId(request.videoCoverMediaFileId());
+        post.setContentType(nextContentType);
         post.setUpdatedAt(now);
         mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), request.videoCoverMediaFileId(), now);
         return toResponse(post, userId);
@@ -318,6 +324,7 @@ public class CommunityPostService {
                 topicName,
                 post.getTitle(),
                 post.getContent(),
+                post.getContentType() == null ? CONTENT_TYPE_ARTICLE : post.getContentType(),
                 post.getStatus(),
                 post.getPinned(),
                 post.getCommentCount(),

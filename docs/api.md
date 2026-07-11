@@ -121,14 +121,17 @@ DELETE /api/community/posts/{postId}
 - 只能编辑和删除自己的帖子。
 - 删除是软删除，帖子状态变为 `DELETED`。
 - 禁言成员不能发帖、改帖或删帖。
-- `mediaFileIds` 可为空，最多 9 个，必须是当前用户已经上传完成的图片文件。
+- `mediaFileIds` 可为空，最多 9 个，必须是当前用户已经上传完成的图片或视频文件。
+- 后端会根据媒体自动返回 `contentType`：普通图文为 `ARTICLE`，带视频为 `VIDEO`，`LIVE` 为后续直播预留。
+- 视频帖子必须传 `videoCoverMediaFileId`，封面必须是当前用户已经上传完成的图片。
 
-返回的帖子数据会包含 `media` 图片列表：
+返回的帖子数据会包含 `media` 媒体列表：
 
 ```json
 {
   "id": 1,
   "title": "第一条社区帖子",
+  "contentType": "ARTICLE",
   "media": [
     {
       "id": 1,
@@ -136,7 +139,8 @@ DELETE /api/community/posts/{postId}
       "contentType": "image/png",
       "originalFilename": "cat.png",
       "fileSize": 2048,
-      "url": "https://..."
+      "url": "https://...",
+      "coverUrl": null
     }
   ]
 }
@@ -187,9 +191,12 @@ POST /api/media/uploads/{mediaFileId}/complete
 
 规则：
 
-- 当前只支持 `image/jpeg`、`image/png`、`image/webp`、`image/gif`。
+- 当前支持图片：`image/jpeg`、`image/png`、`image/webp`、`image/gif`。
+- 当前支持视频：`video/mp4`、`video/webm`。
 - 默认单张图片最大 `10MB`。
-- 服务器不保存图片文件，只保存 R2 object key、文件类型、大小、上传人和状态。
+- 默认单个视频最大 `200MB`。
+- 图片完成上传后状态为 `UPLOADED`，视频完成上传后状态为 `PENDING_REVIEW`，需要 ruru 审核通过后公开。
+- 服务器不保存媒体文件，只保存 R2 object key、文件类型、大小、上传人和状态。
 - R2 密钥只放在后端 `.env`，浏览器永远不能拿到密钥。
 
 ### 评论

@@ -135,6 +135,8 @@ portfolio_projects
 | topic_id | BIGINT | 话题 ID，可为空 |
 | title | VARCHAR(160) | 标题 |
 | content | TEXT | 正文 |
+| content_type | VARCHAR(30) | 内容类型：`ARTICLE`、`VIDEO`，`LIVE` 后续预留 |
+| video_cover_media_file_id | BIGINT | 视频封面媒体 ID，仅视频内容使用 |
 | content_format | VARCHAR(30) | 内容格式，当前为 `TEXT` |
 | visibility | VARCHAR(30) | 可见范围，当前为 `CIRCLE` |
 | status | VARCHAR(30) | `PUBLISHED`、`HIDDEN`、`DELETED` |
@@ -147,11 +149,11 @@ portfolio_projects
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |
 
-帖子图片不直接存在 `community_posts`，而是通过 `community_post_media` 关联到 `media_files`。
+帖子图片和视频不直接存在 `community_posts`，而是通过 `community_post_media` 关联到 `media_files`。列表页根据 `content_type` 区分图文、视频和后续直播频道。
 
 ## media_files
 
-保存上传到 Cloudflare R2 的图片元信息。真实图片文件在 R2，数据库不存二进制文件。
+保存上传到 Cloudflare R2 的图片和视频元信息。真实文件在 R2，数据库不存二进制文件。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -162,16 +164,16 @@ portfolio_projects
 | object_key | VARCHAR(500) | R2 对象路径，唯一 |
 | original_filename | VARCHAR(255) | 原始文件名 |
 | content_type | VARCHAR(120) | MIME 类型 |
-| file_type | VARCHAR(30) | 文件类型，当前为 `IMAGE` |
+| file_type | VARCHAR(30) | 文件类型：`IMAGE`、`VIDEO` |
 | file_size | BIGINT | 文件大小，单位字节 |
-| status | VARCHAR(30) | `PENDING`、`UPLOADED`、`ATTACHED` |
+| status | VARCHAR(30) | `PENDING`、`UPLOADED`、`ATTACHED`、`PENDING_REVIEW`、`APPROVED`、`REJECTED` |
 | uploaded_at | DATETIME | 前端确认上传完成时间 |
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |
 
 ## community_post_media
 
-保存帖子和图片的多对多关系。
+保存帖子和媒体文件的多对多关系。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -181,7 +183,7 @@ portfolio_projects
 | sort_order | INT | 图片排序 |
 | created_at | DATETIME | 创建时间 |
 
-一条帖子最多关联 9 张图片。后期如果拆微服务，`media_files` 会是第一个适合迁出去的表。
+一条帖子最多关联 9 个媒体文件，其中视频当前最多 1 个。视频封面存在 `media_files`，但不放进正文媒体列表，而是由 `community_posts.video_cover_media_file_id` 指向。后期如果拆微服务，`media_files` 会是第一个适合迁出去的表。
 
 ## community_comments
 

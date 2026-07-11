@@ -17,12 +17,12 @@ const channels: Array<{ key: FeedChannel; label: string }> = [
 ]
 
 function hasVideo(post: CommunityPostResponse) {
-  return post.media.some((media) => media.fileType === 'VIDEO')
+  return post.contentType === 'VIDEO' || post.media.some((media) => media.fileType === 'VIDEO')
 }
 
 function getChannelPosts(channel: FeedChannel, posts: CommunityPostResponse[]) {
   if (channel === 'live') {
-    return []
+    return posts.filter((post) => post.contentType === 'LIVE')
   }
 
   if (channel === 'video') {

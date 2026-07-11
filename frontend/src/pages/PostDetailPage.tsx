@@ -55,7 +55,7 @@ function togglePostPig(post: CommunityPostResponse) {
 }
 
 function hasVideo(post: CommunityPostResponse) {
-  return post.media.some((media) => media.fileType === 'VIDEO')
+  return post.contentType === 'VIDEO' || post.media.some((media) => media.fileType === 'VIDEO')
 }
 
 function firstVideo(post?: CommunityPostResponse) {

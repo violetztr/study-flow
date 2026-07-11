@@ -14,6 +14,7 @@ public record CommunityPostResponse(
         String topicName,
         String title,
         String content,
+        String contentType,
         String status,
         Boolean pinned,
         Integer commentCount,

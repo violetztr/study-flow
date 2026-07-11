@@ -42,6 +42,8 @@ public class MediaService {
     private static final String STORAGE_PROVIDER_R2 = "R2";
     private static final String FILE_TYPE_IMAGE = "IMAGE";
     private static final String FILE_TYPE_VIDEO = "VIDEO";
+    private static final String CONTENT_TYPE_ARTICLE = "ARTICLE";
+    private static final String CONTENT_TYPE_VIDEO = "VIDEO";
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_UPLOADED = "UPLOADED";
     private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
@@ -180,6 +182,24 @@ public class MediaService {
         mediaFile.setStatus(STATUS_REJECTED);
         mediaFile.setUpdatedAt(now);
         return toCompleteResponse(mediaFile);
+    }
+
+    public String resolvePostContentType(Long userId, List<Long> mediaFileIds) {
+        List<Long> normalizedIds = normalizeMediaIds(mediaFileIds == null ? Collections.emptyList() : mediaFileIds);
+        if (normalizedIds.isEmpty()) {
+            return CONTENT_TYPE_ARTICLE;
+        }
+
+        Map<Long, MediaFile> mediaById = ownAttachableMedia(userId, normalizedIds);
+        for (Long mediaFileId : normalizedIds) {
+            if (!mediaById.containsKey(mediaFileId)) {
+                throw new BusinessException(400, "Media does not exist or is not ready");
+            }
+        }
+
+        boolean hasVideo = mediaById.values().stream()
+                .anyMatch(mediaFile -> FILE_TYPE_VIDEO.equals(mediaFile.getFileType()));
+        return hasVideo ? CONTENT_TYPE_VIDEO : CONTENT_TYPE_ARTICLE;
     }
 
     @Transactional

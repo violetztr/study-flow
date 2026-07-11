@@ -17,6 +17,7 @@ public class CommunityPost {
     private Long videoCoverMediaFileId;
     private String title;
     private String content;
+    private String contentType;
     private String contentFormat;
     private String visibility;
     private String status;
@@ -92,6 +93,14 @@ public class CommunityPost {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 
     public String getContentFormat() {
