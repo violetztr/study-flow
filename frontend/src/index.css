@@ -884,6 +884,11 @@ textarea {
   background: rgba(168, 106, 36, 0.1);
 }
 
+.post-action-button.favorited {
+  color: #c6933d;
+  background: rgba(198, 147, 61, 0.12);
+}
+
 .pig-mark {
   font-size: 12px;
   line-height: 1;
@@ -1445,6 +1450,11 @@ textarea {
 .watch-action-button.pigged {
   color: #a86a24;
   background: rgba(168, 106, 36, 0.11);
+}
+
+.watch-action-button.favorited {
+  color: #c6933d;
+  background: rgba(198, 147, 61, 0.13);
 }
 
 .watch-action-button.ant-btn[disabled] {

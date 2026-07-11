@@ -4,6 +4,8 @@ import {
   HeartFilled,
   HeartOutlined,
   PushpinFilled,
+  StarFilled,
+  StarOutlined,
 } from '@ant-design/icons'
 import { Button } from 'antd'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -58,6 +60,18 @@ function togglePostPig(post: CommunityPostResponse) {
     ...post,
     piggedByCurrentUser: true,
     pigCount: post.pigCount + 1,
+  }
+}
+
+function togglePostFavorite(post: CommunityPostResponse) {
+  const nextFavorited = !post.favoritedByCurrentUser
+  const delta = nextFavorited ? 1 : -1
+  const favoriteCount = post.favoriteCount ?? 0
+
+  return {
+    ...post,
+    favoritedByCurrentUser: nextFavorited,
+    favoriteCount: Math.max(0, favoriteCount + delta),
   }
 }
 
@@ -136,6 +150,33 @@ function PostCard({ post }: PostCardProps) {
     },
   })
 
+  const favoriteMutation = useMutation<void, Error, void, PostMutationContext>({
+    mutationFn: () =>
+      post.favoritedByCurrentUser
+        ? communityApi.unfavoritePost(post.id)
+        : communityApi.favoritePost(post.id),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['community-feed'] })
+      const previousFeed = queryClient.getQueryData<CommunityPostResponse[]>(['community-feed'])
+
+      queryClient.setQueryData<CommunityPostResponse[]>(['community-feed'], (currentFeed) =>
+        currentFeed?.map((item) => (item.id === post.id ? togglePostFavorite(item) : item)),
+      )
+
+      return { previousFeed }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousFeed) {
+        queryClient.setQueryData(['community-feed'], context.previousFeed)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+      queryClient.invalidateQueries({ queryKey: ['community-post', post.id] })
+      queryClient.invalidateQueries({ queryKey: ['community-favorites-my'] })
+    },
+  })
+
   function requireLogin() {
     navigate('/login', { state: { from: '/circle' } })
   }
@@ -154,6 +195,14 @@ function PostCard({ post }: PostCardProps) {
       return
     }
     pigMutation.mutate()
+  }
+
+  function handleFavorite() {
+    if (!user) {
+      requireLogin()
+      return
+    }
+    favoriteMutation.mutate()
   }
 
   return (
@@ -215,6 +264,16 @@ function PostCard({ post }: PostCardProps) {
           <span>
             <CommentOutlined /> {formatMetric(post.commentCount)}
           </span>
+          <Button
+            type="text"
+            size="small"
+            className={`post-action-button metric-action ${post.favoritedByCurrentUser ? 'favorited' : ''}`}
+            icon={post.favoritedByCurrentUser ? <StarFilled /> : <StarOutlined />}
+            loading={favoriteMutation.isPending}
+            onClick={handleFavorite}
+          >
+            {formatMetric(post.favoriteCount)}
+          </Button>
           {!isVideoPost ? (
             <span>
               <EyeOutlined /> {formatMetric(post.viewCount)}

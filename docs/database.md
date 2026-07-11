@@ -12,6 +12,7 @@
 - `community_posts`：帖子
 - `community_comments`：评论
 - `community_reactions`：互动记录，目前用于帖子点赞
+- `community_favorites`：帖子收藏记录
 - `community_moderation_actions`：管理操作记录
 - `media_files`：上传到对象存储的媒体文件记录
 - `community_post_media`：帖子和媒体文件关联表
@@ -143,6 +144,8 @@ portfolio_projects
 | pinned | BOOLEAN | 是否置顶 |
 | comment_count | INT | 评论数 |
 | reaction_count | INT | 点赞数 |
+| pig_count | INT | 投猪币数 |
+| favorite_count | INT | 收藏数 |
 | view_count | INT | 浏览数 |
 | last_activity_at | DATETIME | 最近活跃时间 |
 | deleted_at | DATETIME | 软删除时间 |
@@ -205,7 +208,7 @@ portfolio_projects
 
 ## community_reactions
 
-保存通用互动。当前用于帖子点赞。
+保存通用互动。当前用于帖子点赞和投猪币。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -214,10 +217,24 @@ portfolio_projects
 | target_type | VARCHAR(30) | 目标类型，当前为 `POST` |
 | target_id | BIGINT | 目标 ID |
 | user_id | BIGINT | 操作用户 |
-| reaction_type | VARCHAR(30) | 互动类型，当前为 `LIKE` |
+| reaction_type | VARCHAR(30) | 互动类型，当前为 `LIKE`、`PIG` |
 | created_at | DATETIME | 创建时间 |
 
 唯一约束：`circle_id + target_type + target_id + user_id + reaction_type`，保证同一用户不能重复点赞同一目标。
+
+## community_favorites
+
+保存帖子收藏关系。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| circle_id | BIGINT | 社区 ID |
+| post_id | BIGINT | 帖子 ID |
+| user_id | BIGINT | 收藏用户 |
+| created_at | DATETIME | 收藏时间 |
+
+唯一约束：`circle_id + post_id + user_id`，保证同一用户不能重复收藏同一帖子。`community_posts.favorite_count` 是列表页和详情页快速展示用的计数字段。
 
 ## community_moderation_actions
 

@@ -7,6 +7,7 @@ import {
   MessageOutlined,
   ShareAltOutlined,
   SendOutlined,
+  StarFilled,
   StarOutlined,
   UserAddOutlined,
   UserDeleteOutlined,
@@ -54,6 +55,18 @@ function togglePostPig(post: CommunityPostResponse) {
     ...post,
     piggedByCurrentUser: true,
     pigCount: post.pigCount + 1,
+  }
+}
+
+function togglePostFavorite(post: CommunityPostResponse) {
+  const nextFavorited = !post.favoritedByCurrentUser
+  const delta = nextFavorited ? 1 : -1
+  const favoriteCount = post.favoriteCount ?? 0
+
+  return {
+    ...post,
+    favoritedByCurrentUser: nextFavorited,
+    favoriteCount: Math.max(0, favoriteCount + delta),
   }
 }
 
@@ -179,6 +192,33 @@ function PostDetailPage() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+    },
+  })
+
+  const favoriteMutation = useMutation<void, Error, void, LikeMutationContext>({
+    mutationFn: () =>
+      postQuery.data?.favoritedByCurrentUser
+        ? communityApi.unfavoritePost(postId)
+        : communityApi.favoritePost(postId),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['community-post', postId] })
+      const previousPost = queryClient.getQueryData<CommunityPostResponse>(['community-post', postId])
+
+      queryClient.setQueryData<CommunityPostResponse>(['community-post', postId], (currentPost) =>
+        currentPost ? togglePostFavorite(currentPost) : currentPost,
+      )
+
+      return { previousPost }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(['community-post', postId], context.previousPost)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+      queryClient.invalidateQueries({ queryKey: ['community-favorites-my'] })
     },
   })
 
@@ -392,8 +432,14 @@ function PostDetailPage() {
                 >
                   🐖 投猪币 {formatMetric(post.pigCount)}
                 </Button>
-                <Button type="text" className="watch-action-button" icon={<StarOutlined />} disabled>
-                  收藏
+                <Button
+                  type="text"
+                  className={`watch-action-button ${post.favoritedByCurrentUser ? 'favorited' : ''}`}
+                  icon={post.favoritedByCurrentUser ? <StarFilled /> : <StarOutlined />}
+                  loading={favoriteMutation.isPending}
+                  onClick={() => (user ? favoriteMutation.mutate() : requireLogin())}
+                >
+                  {post.favoritedByCurrentUser ? '已收藏' : '收藏'} {formatMetric(post.favoriteCount)}
                 </Button>
                 <Button type="text" className="watch-action-button" icon={<ShareAltOutlined />} disabled>
                   分享
@@ -576,8 +622,14 @@ function PostDetailPage() {
               >
                 🐖 投猪币 {formatMetric(post.pigCount)}
               </Button>
-              <Button type="text" className="watch-action-button" icon={<StarOutlined />} disabled>
-                收藏
+              <Button
+                type="text"
+                className={`watch-action-button ${post.favoritedByCurrentUser ? 'favorited' : ''}`}
+                icon={post.favoritedByCurrentUser ? <StarFilled /> : <StarOutlined />}
+                loading={favoriteMutation.isPending}
+                onClick={() => (user ? favoriteMutation.mutate() : requireLogin())}
+              >
+                {post.favoritedByCurrentUser ? '已收藏' : '收藏'} {formatMetric(post.favoriteCount)}
               </Button>
               <Button type="text" className="watch-action-button" icon={<ShareAltOutlined />} disabled>
                 分享

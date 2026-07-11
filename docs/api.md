@@ -136,7 +136,9 @@ DELETE /api/community/posts/{postId}
   "danmakuCount": 0,
   "reactionCount": 0,
   "pigCount": 0,
+  "favoriteCount": 0,
   "viewCount": 0,
+  "favoritedByCurrentUser": false,
   "media": [
     {
       "id": 1,
@@ -153,6 +155,7 @@ DELETE /api/community/posts/{postId}
 
 `url` 是临时签名访问地址，R2 Bucket 保持私有。
 `danmakuCount` 是已发布弹幕数量，主要用于视频卡片和视频详情页的数据展示。
+`favoriteCount` 和 `favoritedByCurrentUser` 用于收藏按钮和“我的收藏”列表。
 
 ### 媒体上传
 
@@ -239,6 +242,21 @@ DELETE /api/community/posts/{postId}/reactions/like
 - 重复点赞不会重复计数。
 - 重复取消点赞不会把计数减成负数。
 - 禁言成员不能点赞或取消点赞。
+
+### 收藏
+
+```text
+POST /api/community/posts/{postId}/favorites
+DELETE /api/community/posts/{postId}/favorites
+GET /api/community/favorites/my
+```
+
+规则：
+
+- 重复收藏不会重复计数。
+- 重复取消收藏不会把计数减成负数。
+- `GET /api/community/favorites/my` 返回当前用户收藏过的公开视频列表，数据结构和动态流里的帖子一致。
+- 未登录用户不能收藏、取消收藏或查看自己的收藏列表。
 
 ### 成员和资料
 

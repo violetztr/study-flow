@@ -6,6 +6,7 @@ import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
 import com.studyflow.community.danmaku.CommunityDanmaku;
 import com.studyflow.community.danmaku.CommunityDanmakuMapper;
+import com.studyflow.community.favorite.CommunityFavoriteService;
 import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +50,7 @@ public class CommunityPostService {
     private final CommunityReactionService communityReactionService;
     private final MediaService mediaService;
     private final CommunityDanmakuMapper communityDanmakuMapper;
+    private final CommunityFavoriteService communityFavoriteService;
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
@@ -57,7 +60,8 @@ public class CommunityPostService {
             UserMapper userMapper,
             CommunityReactionService communityReactionService,
             MediaService mediaService,
-            CommunityDanmakuMapper communityDanmakuMapper
+            CommunityDanmakuMapper communityDanmakuMapper,
+            CommunityFavoriteService communityFavoriteService
     ) {
         this.communityPostMapper = communityPostMapper;
         this.communityTopicMapper = communityTopicMapper;
@@ -67,6 +71,7 @@ public class CommunityPostService {
         this.communityReactionService = communityReactionService;
         this.mediaService = mediaService;
         this.communityDanmakuMapper = communityDanmakuMapper;
+        this.communityFavoriteService = communityFavoriteService;
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
@@ -86,6 +91,28 @@ public class CommunityPostService {
         incrementViewCount(post.getId(), LocalDateTime.now());
         post.setViewCount(post.getViewCount() == null ? 1 : post.getViewCount() + 1);
         return toResponse(post, userId);
+    }
+
+    public List<CommunityPostResponse> listFavoritePosts(Long userId) {
+        List<Long> favoritePostIds = communityFavoriteService.favoritePostIdsByUser(userId);
+        if (favoritePostIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Circle circle = communityMemberService.getDefaultCircle();
+        List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .in(CommunityPost::getId, favoritePostIds));
+        Map<Long, Integer> orderByFavoriteTime = new HashMap<>();
+        for (int index = 0; index < favoritePostIds.size(); index++) {
+            orderByFavoriteTime.put(favoritePostIds.get(index), index);
+        }
+        posts.sort((left, right) -> Integer.compare(
+                orderByFavoriteTime.getOrDefault(left.getId(), Integer.MAX_VALUE),
+                orderByFavoriteTime.getOrDefault(right.getId(), Integer.MAX_VALUE)
+        ));
+        return toResponses(posts, userId);
     }
 
     public CommunityPost requirePublishedPost(Long circleId, Long postId) {
@@ -149,6 +176,7 @@ public class CommunityPostService {
         post.setCommentCount(0);
         post.setReactionCount(0);
         post.setPigCount(0);
+        post.setFavoriteCount(0);
         post.setViewCount(0);
         post.setLastActivityAt(now);
         post.setCreatedAt(now);
@@ -296,6 +324,7 @@ public class CommunityPostService {
         Map<Long, CommunityTopic> topics = topics(topicIds);
         Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
         Set<Long> piggedPostIds = communityReactionService.piggedPostIds(userId, postIds);
+        Set<Long> favoritedPostIds = communityFavoriteService.favoritedPostIds(userId, postIds);
         Map<Long, Integer> danmakuCounts = publishedDanmakuCounts(postIds);
         Map<Long, Long> videoCoverMediaFileIds = posts.stream()
                 .filter(post -> post.getVideoCoverMediaFileId() != null)
@@ -303,7 +332,16 @@ public class CommunityPostService {
         Map<Long, List<MediaAttachmentResponse>> mediaByPostId =
                 mediaService.attachmentsByPostIds(postIds, videoCoverMediaFileIds);
         return posts.stream()
-                .map(post -> toResponse(post, authorNames, topics, likedPostIds, piggedPostIds, danmakuCounts, mediaByPostId))
+                .map(post -> toResponse(
+                        post,
+                        authorNames,
+                        topics,
+                        likedPostIds,
+                        piggedPostIds,
+                        favoritedPostIds,
+                        danmakuCounts,
+                        mediaByPostId
+                ))
                 .toList();
     }
 
@@ -317,6 +355,7 @@ public class CommunityPostService {
             Map<Long, CommunityTopic> topics,
             Set<Long> likedPostIds,
             Set<Long> piggedPostIds,
+            Set<Long> favoritedPostIds,
             Map<Long, Integer> danmakuCounts,
             Map<Long, List<MediaAttachmentResponse>> mediaByPostId
     ) {
@@ -338,9 +377,11 @@ public class CommunityPostService {
                 danmakuCounts.getOrDefault(post.getId(), 0),
                 post.getReactionCount(),
                 post.getPigCount() == null ? 0 : post.getPigCount(),
+                post.getFavoriteCount() == null ? 0 : post.getFavoriteCount(),
                 post.getViewCount(),
                 likedPostIds.contains(post.getId()),
                 piggedPostIds.contains(post.getId()),
+                favoritedPostIds.contains(post.getId()),
                 mediaByPostId.getOrDefault(post.getId(), Collections.emptyList()),
                 post.getLastActivityAt(),
                 post.getCreatedAt(),

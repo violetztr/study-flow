@@ -25,6 +25,7 @@ public class CommunityPost {
     private Integer commentCount;
     private Integer reactionCount;
     private Integer pigCount;
+    private Integer favoriteCount;
     private Integer viewCount;
     private LocalDateTime lastActivityAt;
     private LocalDateTime createdAt;
@@ -157,6 +158,14 @@ public class CommunityPost {
 
     public void setPigCount(Integer pigCount) {
         this.pigCount = pigCount;
+    }
+
+    public Integer getFavoriteCount() {
+        return favoriteCount;
+    }
+
+    public void setFavoriteCount(Integer favoriteCount) {
+        this.favoriteCount = favoriteCount;
     }
 
     public Integer getViewCount() {

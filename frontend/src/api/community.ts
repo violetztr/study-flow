@@ -44,9 +44,11 @@ export type CommunityPostResponse = {
   danmakuCount: number
   reactionCount: number
   pigCount: number
+  favoriteCount: number
   viewCount: number
   likedByCurrentUser: boolean
   piggedByCurrentUser: boolean
+  favoritedByCurrentUser: boolean
   media: MediaAttachmentResponse[]
   lastActivityAt?: string | null
   createdAt: string
@@ -154,6 +156,15 @@ export const communityApi = {
   },
   pigPost(postId: number) {
     return http.post<unknown, void>(`/community/posts/${postId}/reactions/pig`)
+  },
+  favoritePost(postId: number) {
+    return http.post<unknown, void>(`/community/posts/${postId}/favorites`)
+  },
+  unfavoritePost(postId: number) {
+    return http.delete<unknown, void>(`/community/posts/${postId}/favorites`)
+  },
+  listMyFavorites() {
+    return http.get<unknown, CommunityPostResponse[]>('/community/favorites/my')
   },
   getMe() {
     return http.get<unknown, CommunityMemberResponse>('/community/members/me')
