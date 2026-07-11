@@ -577,6 +577,57 @@ textarea {
   display: block;
 }
 
+.composer-cover-box {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) 1fr auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--sf-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.composer-cover-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.composer-cover-copy strong {
+  color: var(--sf-text);
+  font-size: 15px;
+}
+
+.composer-cover-copy span {
+  color: var(--sf-muted);
+  font-size: 13px;
+}
+
+.composer-cover-preview {
+  overflow: hidden;
+  width: min(260px, 100%);
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  background: #e9ede9;
+}
+
+.composer-cover-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.composer-cover-preview span {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  color: var(--sf-muted);
+  font-size: 13px;
+}
+
 .composer-actions {
   display: flex;
   justify-content: flex-end;
@@ -658,6 +709,12 @@ textarea {
   background:
     radial-gradient(circle at 18% 18%, rgba(31, 95, 80, 0.14), transparent 38%),
     linear-gradient(135deg, #f0f3ef, #ffffff);
+}
+
+.video-cover-fallback {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(31, 95, 80, 0.18), transparent 36%),
+    linear-gradient(135deg, #eef2ef, #ffffff);
 }
 
 .text-cover span {
@@ -1302,7 +1359,9 @@ textarea {
   background: #e7ebe8;
 }
 
+.related-cover img,
 .related-cover video {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1382,9 +1441,18 @@ textarea {
   }
 
   .composer-tools,
+  .composer-cover-box,
   .login-nudge {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .composer-cover-box {
+    display: flex;
+  }
+
+  .composer-cover-preview {
+    width: 100%;
   }
 
   .feed-page.discovery-page {

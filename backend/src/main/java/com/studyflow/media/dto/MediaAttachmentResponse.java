@@ -6,6 +6,7 @@ public record MediaAttachmentResponse(
         String contentType,
         String originalFilename,
         Long fileSize,
-        String url
+        String url,
+        String coverUrl
 ) {
 }

@@ -183,14 +183,26 @@ public class MediaService {
     }
 
     @Transactional
-    public void replacePostMedia(Long userId, Long postId, List<Long> mediaFileIds, LocalDateTime now) {
+    public void replacePostMedia(
+            Long userId,
+            Long postId,
+            List<Long> mediaFileIds,
+            Long videoCoverMediaFileId,
+            LocalDateTime now
+    ) {
         if (mediaFileIds == null) {
+            if (videoCoverMediaFileId != null) {
+                throw new BusinessException(400, "Only video posts need a cover");
+            }
             return;
         }
         List<Long> normalizedIds = normalizeMediaIds(mediaFileIds);
         communityPostMediaMapper.delete(new LambdaQueryWrapper<CommunityPostMedia>()
                 .eq(CommunityPostMedia::getPostId, postId));
         if (normalizedIds.isEmpty()) {
+            if (videoCoverMediaFileId != null) {
+                throw new BusinessException(400, "Only video posts need a cover");
+            }
             return;
         }
 
@@ -204,6 +216,7 @@ public class MediaService {
         long videoCount = mediaById.values().stream()
                 .filter(mediaFile -> FILE_TYPE_VIDEO.equals(mediaFile.getFileType()))
                 .count();
+        MediaFile videoCoverMedia = resolveVideoCover(userId, videoCoverMediaFileId, videoCount);
         if (videoCount > 1) {
             throw new BusinessException(400, "一条动态最多上传 1 个视频");
         }
@@ -217,10 +230,13 @@ public class MediaService {
             communityPostMediaMapper.insert(postMedia);
         }
 
-        List<Long> imageIds = mediaById.values().stream()
+        LinkedHashSet<Long> imageIds = mediaById.values().stream()
                 .filter(mediaFile -> FILE_TYPE_IMAGE.equals(mediaFile.getFileType()))
                 .map(MediaFile::getId)
-                .toList();
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (videoCoverMedia != null) {
+            imageIds.add(videoCoverMedia.getId());
+        }
         if (!imageIds.isEmpty()) {
             mediaFileMapper.update(null, new LambdaUpdateWrapper<MediaFile>()
                     .in(MediaFile::getId, imageIds)
@@ -231,6 +247,13 @@ public class MediaService {
     }
 
     public Map<Long, List<MediaAttachmentResponse>> attachmentsByPostIds(Set<Long> postIds) {
+        return attachmentsByPostIds(postIds, Collections.emptyMap());
+    }
+
+    public Map<Long, List<MediaAttachmentResponse>> attachmentsByPostIds(
+            Set<Long> postIds,
+            Map<Long, Long> videoCoverMediaFileIds
+    ) {
         if (postIds.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -246,10 +269,12 @@ public class MediaService {
             return Collections.emptyMap();
         }
 
-        List<Long> mediaFileIds = postMediaRows.stream()
+        LinkedHashSet<Long> mediaFileIds = postMediaRows.stream()
                 .map(CommunityPostMedia::getMediaFileId)
-                .distinct()
-                .toList();
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        videoCoverMediaFileIds.values().stream()
+                .filter(id -> id != null && id > 0)
+                .forEach(mediaFileIds::add);
         Map<Long, MediaFile> mediaById = mediaFileMapper.selectBatchIds(mediaFileIds)
                 .stream()
                 .collect(Collectors.toMap(MediaFile::getId, Function.identity()));
@@ -260,8 +285,12 @@ public class MediaService {
             if (mediaFile == null || !isPubliclyVisible(mediaFile)) {
                 continue;
             }
+            MediaFile coverMediaFile = null;
+            if (FILE_TYPE_VIDEO.equals(mediaFile.getFileType())) {
+                coverMediaFile = mediaById.get(videoCoverMediaFileIds.get(postMedia.getPostId()));
+            }
             result.computeIfAbsent(postMedia.getPostId(), ignored -> new ArrayList<>())
-                    .add(toAttachmentResponse(mediaFile));
+                    .add(toAttachmentResponse(mediaFile, coverMediaFile));
         }
         return result;
     }
@@ -278,6 +307,27 @@ public class MediaService {
                         )))
                 .stream()
                 .collect(Collectors.toMap(MediaFile::getId, Function.identity()));
+    }
+
+    private MediaFile resolveVideoCover(Long userId, Long videoCoverMediaFileId, long videoCount) {
+        if (videoCount == 0) {
+            if (videoCoverMediaFileId != null) {
+                throw new BusinessException(400, "只有视频需要封面");
+            }
+            return null;
+        }
+        if (videoCoverMediaFileId == null || videoCoverMediaFileId <= 0) {
+            throw new BusinessException(400, "视频需要封面");
+        }
+        MediaFile coverMedia = mediaFileMapper.selectOne(new LambdaQueryWrapper<MediaFile>()
+                .eq(MediaFile::getId, videoCoverMediaFileId)
+                .eq(MediaFile::getUploaderId, userId)
+                .eq(MediaFile::getFileType, FILE_TYPE_IMAGE)
+                .in(MediaFile::getStatus, List.of(STATUS_UPLOADED, STATUS_ATTACHED)));
+        if (coverMedia == null) {
+            throw new BusinessException(400, "视频封面不存在或还没有上传完成");
+        }
+        return coverMedia;
     }
 
     private List<Long> normalizeMediaIds(List<Long> mediaFileIds) {
@@ -464,14 +514,15 @@ public class MediaService {
                 .build();
     }
 
-    private MediaAttachmentResponse toAttachmentResponse(MediaFile mediaFile) {
+    private MediaAttachmentResponse toAttachmentResponse(MediaFile mediaFile, MediaFile coverMediaFile) {
         return new MediaAttachmentResponse(
                 mediaFile.getId(),
                 mediaFile.getFileType(),
                 mediaFile.getContentType(),
                 mediaFile.getOriginalFilename(),
                 mediaFile.getFileSize(),
-                presignGetUrl(mediaFile)
+                presignGetUrl(mediaFile),
+                coverMediaFile == null || !isPubliclyVisible(coverMediaFile) ? null : presignGetUrl(coverMediaFile)
         );
     }
 

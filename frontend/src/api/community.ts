@@ -14,6 +14,7 @@ export type CommunityPostRequest = {
   content: string
   topicId?: number | null
   topicName?: string | null
+  videoCoverMediaFileId?: number | null
   mediaFileIds?: number[]
 }
 
@@ -24,6 +25,7 @@ export type MediaAttachmentResponse = {
   originalFilename: string
   fileSize: number
   url: string
+  coverUrl?: string | null
 }
 
 export type CommunityPostResponse = {

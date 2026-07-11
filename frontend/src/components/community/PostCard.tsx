@@ -57,11 +57,19 @@ function getPrimaryMedia(post: CommunityPostResponse): MediaAttachmentResponse |
   return post.media.find((media) => media.fileType === 'VIDEO') ?? post.media[0]
 }
 
+function mediaPreviewUrl(media?: MediaAttachmentResponse) {
+  if (!media) {
+    return null
+  }
+  return media.fileType === 'VIDEO' ? media.coverUrl : media.url
+}
+
 function PostCard({ post }: PostCardProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = getStoredUser()
   const primaryMedia = getPrimaryMedia(post)
+  const previewUrl = mediaPreviewUrl(primaryMedia)
 
   const likeMutation = useMutation<void, Error, void, PostMutationContext>({
     mutationFn: () =>
@@ -141,10 +149,13 @@ function PostCard({ post }: PostCardProps) {
   return (
     <article className="post-card discovery-card">
       <Link to={`/circle/posts/${post.id}`} className="discovery-cover">
-        {primaryMedia?.fileType === 'VIDEO' ? (
-          <video muted preload="metadata" src={primaryMedia.url} />
-        ) : primaryMedia ? (
-          <img alt={primaryMedia.originalFilename} src={primaryMedia.url} />
+        {previewUrl ? (
+          <img alt={primaryMedia?.originalFilename ?? post.title} src={previewUrl} loading="lazy" />
+        ) : primaryMedia?.fileType === 'VIDEO' ? (
+          <div className="text-cover video-cover-fallback">
+            <span>▶</span>
+            <p>{post.title}</p>
+          </div>
         ) : (
           <div className="text-cover">
             <span>{getInitial(post.authorName)}</span>

@@ -6,6 +6,17 @@ import { communityApi } from '../api/community'
 import { mediaApi } from '../api/media'
 import PostComposer, { type CommunityPostFormValues } from '../components/community/PostComposer'
 
+async function uploadMediaFile(file: File) {
+  const prepareResponse = await mediaApi.prepareUpload({
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
+    fileSize: file.size,
+  })
+  await mediaApi.uploadToSignedUrl(prepareResponse.uploadUrl, file, prepareResponse.headers)
+  const completeResponse = await mediaApi.completeUpload(prepareResponse.mediaFileId)
+  return completeResponse.id
+}
+
 function CreatePostPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -14,21 +25,19 @@ function CreatePostPage() {
     mutationFn: async (values: CommunityPostFormValues) => {
       const mediaFileIds: number[] = []
       for (const file of values.mediaFiles ?? []) {
-        const prepareResponse = await mediaApi.prepareUpload({
-          filename: file.name,
-          contentType: file.type || 'application/octet-stream',
-          fileSize: file.size,
-        })
-        await mediaApi.uploadToSignedUrl(prepareResponse.uploadUrl, file, prepareResponse.headers)
-        const completeResponse = await mediaApi.completeUpload(prepareResponse.mediaFileId)
-        mediaFileIds.push(completeResponse.id)
+        mediaFileIds.push(await uploadMediaFile(file))
       }
+
+      const videoCoverMediaFileId = values.videoCoverFile
+        ? await uploadMediaFile(values.videoCoverFile)
+        : null
 
       return communityApi.createPost({
         title: values.title,
         content: values.content,
         topicId: null,
         topicName: values.topicName ?? null,
+        videoCoverMediaFileId,
         mediaFileIds,
       })
     },

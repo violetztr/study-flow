@@ -298,6 +298,7 @@ function PostDetailPage() {
                 <video
                   controls
                   preload="metadata"
+                  poster={video.coverUrl ?? undefined}
                   src={video.url}
                   onTimeUpdate={(event) => setCurrentSecond(Math.floor(event.currentTarget.currentTime))}
                 />
@@ -431,8 +432,8 @@ function PostDetailPage() {
                       return (
                         <Link className="related-video" to={`/circle/posts/${item.id}`} key={item.id}>
                           <div className="related-cover">
-                            {cover?.fileType === 'VIDEO' ? (
-                              <video muted preload="metadata" src={cover.url} />
+                            {cover?.fileType === 'VIDEO' && cover.coverUrl ? (
+                              <img alt={cover.originalFilename} src={cover.coverUrl} loading="lazy" />
                             ) : null}
                           </div>
                           <div>

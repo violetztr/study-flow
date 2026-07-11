@@ -11,6 +11,7 @@ public record CommunityPostRequest(
         @NotBlank @Size(max = 10000) String content,
         Long topicId,
         @Size(max = 10) String topicName,
+        Long videoCoverMediaFileId,
         @Size(max = 9) List<@NotNull Long> mediaFileIds
 ) {
 }

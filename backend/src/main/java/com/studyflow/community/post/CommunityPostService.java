@@ -133,6 +133,7 @@ public class CommunityPostService {
         post.setTopicName(resolveTopicName(topic, request.topicName()));
         post.setTitle(request.title());
         post.setContent(request.content());
+        post.setVideoCoverMediaFileId(request.videoCoverMediaFileId());
         post.setContentFormat(CONTENT_FORMAT_TEXT);
         post.setVisibility(VISIBILITY_CIRCLE);
         post.setStatus(STATUS_PUBLISHED);
@@ -148,7 +149,7 @@ public class CommunityPostService {
         if (post.getTopicId() != null) {
             communityTopicMapper.incrementPostCount(post.getTopicId());
         }
-        mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), now);
+        mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), request.videoCoverMediaFileId(), now);
         return toResponse(post, userId);
     }
 
@@ -171,6 +172,7 @@ public class CommunityPostService {
                 .set(CommunityPost::getTopicName, nextTopicName)
                 .set(CommunityPost::getTitle, request.title())
                 .set(CommunityPost::getContent, request.content())
+                .set(CommunityPost::getVideoCoverMediaFileId, request.videoCoverMediaFileId())
                 .set(CommunityPost::getUpdatedAt, now));
         if (updated != 1) {
             throw new BusinessException(409, "Post status changed");
@@ -180,8 +182,9 @@ public class CommunityPostService {
         post.setTopicName(nextTopicName);
         post.setTitle(request.title());
         post.setContent(request.content());
+        post.setVideoCoverMediaFileId(request.videoCoverMediaFileId());
         post.setUpdatedAt(now);
-        mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), now);
+        mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), request.videoCoverMediaFileId(), now);
         return toResponse(post, userId);
     }
 
@@ -282,7 +285,11 @@ public class CommunityPostService {
         Map<Long, CommunityTopic> topics = topics(topicIds);
         Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
         Set<Long> piggedPostIds = communityReactionService.piggedPostIds(userId, postIds);
-        Map<Long, List<MediaAttachmentResponse>> mediaByPostId = mediaService.attachmentsByPostIds(postIds);
+        Map<Long, Long> videoCoverMediaFileIds = posts.stream()
+                .filter(post -> post.getVideoCoverMediaFileId() != null)
+                .collect(Collectors.toMap(CommunityPost::getId, CommunityPost::getVideoCoverMediaFileId));
+        Map<Long, List<MediaAttachmentResponse>> mediaByPostId =
+                mediaService.attachmentsByPostIds(postIds, videoCoverMediaFileIds);
         return posts.stream()
                 .map(post -> toResponse(post, authorNames, topics, likedPostIds, piggedPostIds, mediaByPostId))
                 .toList();

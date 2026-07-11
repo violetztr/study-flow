@@ -192,7 +192,8 @@ class MediaControllerTest {
         String authorToken = registerAndLogin("media_video_author", "media_video_author@example.com");
         Long topicId = firstTopicId(authorToken);
         Long videoFileId = prepareAndCompleteVideoUpload(authorToken);
-        Long postId = createPost(authorToken, topicId, videoFileId);
+        Long coverFileId = prepareAndCompleteImageUpload(authorToken);
+        Long postId = createPost(authorToken, topicId, videoFileId, coverFileId);
 
         mockMvc.perform(get("/api/community/feed"))
                 .andExpect(status().isOk())
@@ -215,7 +216,30 @@ class MediaControllerTest {
 
         mockMvc.perform(get("/api/community/feed"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[?(@.id == %d)].media[0].fileType".formatted(postId)).value("VIDEO"));
+                .andExpect(jsonPath("$.data[?(@.id == %d)].media[0].fileType".formatted(postId)).value("VIDEO"))
+                .andExpect(jsonPath("$.data[0].media[0].coverUrl",
+                        containsString("test-account.r2.cloudflarestorage.com")));
+    }
+
+    @Test
+    void videoPostRequiresCoverImage() throws Exception {
+        String token = registerAndLogin("media_video_cover_required", "media_video_cover_required@example.com");
+        Long topicId = firstTopicId(token);
+        Long videoFileId = prepareAndCompleteVideoUpload(token);
+
+        mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "Video without cover",
+                                  "content": "Video posts need a cover image.",
+                                  "mediaFileIds": [%d]
+                                }
+                                """.formatted(topicId, videoFileId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     private Long prepareImageUpload(String token) throws Exception {
@@ -234,6 +258,16 @@ class MediaControllerTest {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsByteArray());
         return response.path("data").path("mediaFileId").asLong();
+    }
+
+    private Long prepareAndCompleteImageUpload(String token) throws Exception {
+        Long mediaFileId = prepareImageUpload(token);
+
+        mockMvc.perform(post("/api/media/uploads/{mediaFileId}/complete", mediaFileId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        return mediaFileId;
     }
 
     private Long prepareAndCompleteVideoUpload(String token) throws Exception {
@@ -268,6 +302,26 @@ class MediaControllerTest {
 
         JsonNode response = objectMapper.readTree(topicsResult.getResponse().getContentAsByteArray());
         return response.path("data").get(0).path("id").asLong();
+    }
+
+    private Long createPost(String token, Long topicId, Long mediaFileId, Long coverFileId) throws Exception {
+        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "Video post",
+                                  "content": "Video is hidden until ruru approves it.",
+                                  "mediaFileIds": [%d],
+                                  "videoCoverMediaFileId": %d
+                                }
+                                """.formatted(topicId, mediaFileId, coverFileId)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
+        return response.path("data").path("id").asLong();
     }
 
     private Long createPost(String token, Long topicId, Long mediaFileId) throws Exception {
