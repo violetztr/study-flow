@@ -37,6 +37,36 @@ ruru:{domain}:{action}:{identity}
 
 `RedisKeys` 会把空格、冒号等不稳定字符规范化成下划线，避免 key 中出现难读、难排查的内容。
 
+## 接口限流
+
+当前限流通过 `RateLimitInterceptor` 统一拦截 `/api/**` 请求，不在每个 Controller 里手写判断。
+
+限流规则：
+
+| 接口 | action | 身份维度 | 窗口 | 阈值 | 目的 |
+| --- | --- | --- | --- | --- | --- |
+| `POST /api/auth/login` | `login` | IP | 1 分钟 | 8 次 | 防暴力破解 |
+| `POST /api/auth/register` | `register` | IP | 5 分钟 | 5 次 | 防批量注册 |
+| `POST /api/media/uploads/presign` | `upload` | 用户优先，未登录用 IP | 1 分钟 | 20 次 | 防恶意刷上传 URL |
+| `POST /api/community/posts/{id}/comments` | `comment` | 用户优先，未登录用 IP | 1 分钟 | 12 次 | 防刷评论 |
+| `POST /api/community/posts/{id}/danmaku` | `danmaku` | 用户优先，未登录用 IP | 1 分钟 | 30 次 | 防刷弹幕 |
+| `POST /api/community/posts/{id}/reactions/like` | `like` | 用户优先，未登录用 IP | 1 分钟 | 60 次 | 防脚本刷点赞 |
+| `POST /api/community/posts/{id}/reactions/pig` | `pig` | 用户优先，未登录用 IP | 1 分钟 | 20 次 | 防脚本刷投币 |
+| `POST /api/community/posts/{id}/favorites` | `favorite` | 用户优先，未登录用 IP | 1 分钟 | 60 次 | 防脚本刷收藏 |
+| `POST /api/community/posts/{id}/views` | `view` | 用户优先，未登录用 IP | 1 分钟 | 120 次 | 防刷播放上报 |
+
+超过限制时返回：
+
+```json
+{
+  "code": 429,
+  "message": "请求太频繁，请稍后再试",
+  "data": null
+}
+```
+
+登录和注册使用 IP 维度，因为这两个接口通常还没有用户身份。社区互动和上传使用用户优先，是为了避免同一个 IP 下多个正常用户互相影响；如果没有登录态，就回退到 IP。
+
 ## RedisCacheService 封装
 
 当前封装能力：
@@ -69,10 +99,9 @@ Redis 不应该成为当前阶段的单点故障。
 
 ## 后续接入顺序
 
-1. 接口限流：登录、注册、上传、评论、弹幕、点赞、投币、播放上报。
-2. 播放防刷：用 `setIfAbsent` 做短期去重。
-3. 首页 feed 和帖子详情短缓存。
-4. 点赞、收藏、投币、播放等热点计数缓存。
-5. Redis ZSet 榜单。
+1. 播放防刷：用 `setIfAbsent` 做短期去重。
+2. 首页 feed 和帖子详情短缓存。
+3. 点赞、收藏、投币、播放等热点计数缓存。
+4. Redis ZSet 榜单。
 
 每接一个场景，都要补测试和缓存失效规则。
