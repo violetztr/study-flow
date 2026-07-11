@@ -42,7 +42,7 @@ study-flow-frontend   前端 Nginx，暴露主机端口 8088
 study-flow-backend    后端 Spring Boot
 study-flow-mysql      MySQL
 study-flow-redis      Redis
-Cloudflare R2         图片对象存储，不在服务器硬盘保存图片
+Cloudflare R2         图片/视频对象存储，不在服务器硬盘保存媒体文件
 ```
 
 ## 服务器准备
@@ -111,6 +111,7 @@ R2_BUCKET=ruru-community
 R2_UPLOAD_URL_TTL=10m
 R2_READ_URL_TTL=1h
 R2_MAX_IMAGE_BYTES=10485760
+R2_MAX_VIDEO_BYTES=209715200
 ```
 
 不要把 `.env` 提交到 GitHub。
@@ -123,7 +124,7 @@ R2 Bucket：
 ruru-community
 ```
 
-Bucket 保持私有，后端使用 S3 兼容签名 URL 上传和读取图片。
+Bucket 保持私有，后端使用 S3 兼容签名 URL 上传和读取图片、视频和视频封面。
 
 为了让浏览器可以直传 R2，需要在 R2 Bucket 的 CORS 配置中允许站点来源。示例：
 
@@ -282,11 +283,17 @@ Flyway 会在后端启动时自动迁移数据库。
 - 已经在线上执行过的 Flyway 历史迁移不要修改或删除。
 - 如果以后还要调整数据库，继续新增 `V9__xxx.sql`、`V10__xxx.sql` 这种新迁移。
 
-当前媒体模块新增 `V9__add_media_files.sql`：
+当前媒体和 B 站式社区能力主要由这些迁移支撑：
 
-- 新增 `media_files`，记录 R2 图片对象元信息。
-- 新增 `community_post_media`，把图片挂到帖子上。
-- 图片真实文件不进 MySQL，也不占服务器硬盘。
+- `V9__add_media_files.sql`：新增 `media_files` 和 `community_post_media`，记录 R2 媒体对象元信息。
+- `V10__add_social_wallet_danmaku.sql`：新增钱包、每日奖励、关注关系和弹幕表。
+- `V13__add_video_cover_to_posts.sql`：新增视频封面字段。
+- `V14__add_post_content_type.sql`：新增图文、视频、直播预留的内容类型。
+- `V15__add_post_favorites.sql`：新增收藏表和收藏计数。
+- `V16__add_submission_review_fields.sql`：新增投稿审核状态、审核人、审核时间和驳回原因。
+- `V17__add_post_view_history.sql`：新增播放上报和观看历史表。
+
+图片和视频真实文件不进 MySQL，也不占服务器硬盘。
 
 ## 上线检查
 
@@ -296,6 +303,8 @@ Flyway 会在后端启动时自动迁移数据库。
 https://www.violet-surf.com/login
 https://www.violet-surf.com/circle
 https://www.violet-surf.com/circle/posts/new
+https://www.violet-surf.com/circle/submissions
+https://www.violet-surf.com/circle/history
 https://www.violet-surf.com/circle/members
 ```
 
@@ -303,11 +312,14 @@ https://www.violet-surf.com/circle/members
 
 - 新用户注册后自动加入 Ruru 社区。
 - 登录后默认进入 `/circle`。
-- 可以发帖、评论、点赞、取消点赞。
-- 可以在发帖时选择图片，图片上传到 R2 后显示在动态流和帖子详情。
+- 可以发图文、评论、点赞、取消点赞、收藏、投猪币。
+- 可以投稿视频，视频和封面上传到 R2 后进入待审核。
+- 管理员通过视频后，视频出现在视频频道和详情页。
+- 视频播放超过 10 秒或 20% 后才增加播放量，登录用户可以看到观看历史。
+- 视频详情页可以发送、关闭、选择颜色和删除弹幕。
 - 成员列表可以看到正常注册用户，`DISABLED` 圈内成员不会展示。
 - 普通用户看不到管理菜单。
-- `ADMIN` 或 `OWNER` 用户可以访问 `/admin/community`，并执行隐藏、恢复、禁言、解禁等真实管理操作。
+- `ADMIN` 或 `OWNER` 用户可以访问 `/admin/community`，并执行审核、驳回、删除、禁言、解禁等真实管理操作。
 
 ## 常见排查
 

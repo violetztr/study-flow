@@ -13,7 +13,12 @@
 - `community_comments`：评论
 - `community_reactions`：互动记录，目前用于帖子点赞
 - `community_favorites`：帖子收藏记录
+- `community_danmaku`：视频弹幕
+- `community_post_views`：视频播放和观看历史
 - `community_moderation_actions`：管理操作记录
+- `user_wallets`：用户投币资产
+- `user_daily_rewards`：每日登录奖励记录
+- `user_follows`：用户关注关系
 - `media_files`：上传到对象存储的媒体文件记录
 - `community_post_media`：帖子和媒体文件关联表
 
@@ -149,7 +154,7 @@ portfolio_projects
 | reaction_count | INT | 点赞数 |
 | pig_count | INT | 投猪币数 |
 | favorite_count | INT | 收藏数 |
-| view_count | INT | 浏览数 |
+| view_count | INT | 有效播放数，视频播放超过阈值后才增加 |
 | last_activity_at | DATETIME | 最近活跃时间 |
 | deleted_at | DATETIME | 软删除时间 |
 | created_at | DATETIME | 创建时间 |
@@ -239,6 +244,84 @@ portfolio_projects
 
 唯一约束：`circle_id + post_id + user_id`，保证同一用户不能重复收藏同一帖子。`community_posts.favorite_count` 是列表页和详情页快速展示用的计数字段。
 
+## community_danmaku
+
+保存视频弹幕。弹幕只允许绑定到公开视频内容，图文内容不能发送弹幕。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| post_id | BIGINT | 视频帖子 ID |
+| user_id | BIGINT | 发送用户 ID |
+| content | VARCHAR(200) | 弹幕内容 |
+| time_seconds | INT | 弹幕绑定的视频时间点，单位秒 |
+| color | VARCHAR(20) | 弹幕颜色，默认 `#ffffff` |
+| status | VARCHAR(30) | `PUBLISHED`、`DELETED` |
+| created_at | DATETIME | 创建时间 |
+
+索引：`post_id + time_seconds + id`，用于按视频时间线读取弹幕。
+
+## community_post_views
+
+保存视频播放记录和观看历史。打开详情页不直接增加播放量，只有播放超过 10 秒或超过 20% 才算一次有效播放。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| circle_id | BIGINT | 社区 ID |
+| post_id | BIGINT | 视频帖子 ID |
+| user_id | BIGINT | 登录用户 ID，游客为空 |
+| viewer_key | VARCHAR(160) | 观看者标识，登录用户为用户 ID，游客为 IP + User-Agent 哈希 |
+| max_progress_seconds | INT | 最大观看进度 |
+| duration_seconds | INT | 视频总时长 |
+| counted | BOOLEAN | 是否已经计入播放量 |
+| first_viewed_at | DATETIME | 首次观看时间 |
+| last_viewed_at | DATETIME | 最近观看时间 |
+| created_at | DATETIME | 创建时间 |
+| updated_at | DATETIME | 更新时间 |
+
+唯一约束：`circle_id + post_id + viewer_key`，避免同一用户或同一游客反复刷新刷播放量。
+
+## user_wallets
+
+保存用户投币资产。当前资产名是“猪币”，用于视频或图文投币。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| user_id | BIGINT | 用户 ID，唯一 |
+| pig_balance | INT | 当前猪币余额 |
+| created_at | DATETIME | 创建时间 |
+| updated_at | DATETIME | 更新时间 |
+
+## user_daily_rewards
+
+保存每日登录奖励记录，避免一天内重复发放。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| user_id | BIGINT | 用户 ID |
+| reward_date | DATE | 奖励日期 |
+| reward_type | VARCHAR(30) | 奖励类型，当前为每日登录 |
+| amount | INT | 奖励数量 |
+| created_at | DATETIME | 创建时间 |
+
+唯一约束：`user_id + reward_date + reward_type`。
+
+## user_follows
+
+保存用户关注关系。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | BIGINT | 主键 |
+| follower_id | BIGINT | 关注者用户 ID |
+| following_id | BIGINT | 被关注者用户 ID |
+| created_at | DATETIME | 创建时间 |
+
+唯一约束：`follower_id + following_id`，避免重复关注。
+
 ## community_moderation_actions
 
 保存管理员审核操作记录。
@@ -248,7 +331,7 @@ portfolio_projects
 | id | BIGINT | 主键 |
 | circle_id | BIGINT | 社区 ID |
 | admin_user_id | BIGINT | 管理员用户 ID |
-| target_type | VARCHAR(30) | 目标类型：`POST`、`COMMENT`、`MEMBER` |
+| target_type | VARCHAR(30) | 目标类型：`POST`、`COMMENT`、`DANMAKU`、`MEMBER` |
 | target_id | BIGINT | 目标 ID |
 | action_type | VARCHAR(40) | 操作类型：`APPROVE`、`REJECT`、`HIDE`、`RESTORE`、`DELETE`、`MUTE`、`UNMUTE` |
 | reason | VARCHAR(500) | 操作原因 |
