@@ -41,6 +41,7 @@ export type CommunityPostResponse = {
   status: string
   pinned: boolean
   commentCount: number
+  danmakuCount: number
   reactionCount: number
   pigCount: number
   viewCount: number

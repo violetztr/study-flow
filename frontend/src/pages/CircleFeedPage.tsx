@@ -92,8 +92,7 @@ function CircleFeedPage() {
 
         {!feedQuery.isLoading && activeChannel === 'live' ? (
           <div className="channel-empty-card">
-            <strong>直播频道准备中</strong>
-            <p>这里以后只放直播卡片。等我们做直播模块时，直播间、开播状态、观看人数都会接到这里。</p>
+            <strong>直播准备中</strong>
           </div>
         ) : null}
 

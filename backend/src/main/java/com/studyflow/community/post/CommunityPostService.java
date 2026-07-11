@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
+import com.studyflow.community.danmaku.CommunityDanmaku;
+import com.studyflow.community.danmaku.CommunityDanmakuMapper;
 import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
@@ -45,6 +47,7 @@ public class CommunityPostService {
     private final UserMapper userMapper;
     private final CommunityReactionService communityReactionService;
     private final MediaService mediaService;
+    private final CommunityDanmakuMapper communityDanmakuMapper;
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
@@ -53,7 +56,8 @@ public class CommunityPostService {
             UserProfileMapper userProfileMapper,
             UserMapper userMapper,
             CommunityReactionService communityReactionService,
-            MediaService mediaService
+            MediaService mediaService,
+            CommunityDanmakuMapper communityDanmakuMapper
     ) {
         this.communityPostMapper = communityPostMapper;
         this.communityTopicMapper = communityTopicMapper;
@@ -62,6 +66,7 @@ public class CommunityPostService {
         this.userMapper = userMapper;
         this.communityReactionService = communityReactionService;
         this.mediaService = mediaService;
+        this.communityDanmakuMapper = communityDanmakuMapper;
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
@@ -291,13 +296,14 @@ public class CommunityPostService {
         Map<Long, CommunityTopic> topics = topics(topicIds);
         Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
         Set<Long> piggedPostIds = communityReactionService.piggedPostIds(userId, postIds);
+        Map<Long, Integer> danmakuCounts = publishedDanmakuCounts(postIds);
         Map<Long, Long> videoCoverMediaFileIds = posts.stream()
                 .filter(post -> post.getVideoCoverMediaFileId() != null)
                 .collect(Collectors.toMap(CommunityPost::getId, CommunityPost::getVideoCoverMediaFileId));
         Map<Long, List<MediaAttachmentResponse>> mediaByPostId =
                 mediaService.attachmentsByPostIds(postIds, videoCoverMediaFileIds);
         return posts.stream()
-                .map(post -> toResponse(post, authorNames, topics, likedPostIds, piggedPostIds, mediaByPostId))
+                .map(post -> toResponse(post, authorNames, topics, likedPostIds, piggedPostIds, danmakuCounts, mediaByPostId))
                 .toList();
     }
 
@@ -311,6 +317,7 @@ public class CommunityPostService {
             Map<Long, CommunityTopic> topics,
             Set<Long> likedPostIds,
             Set<Long> piggedPostIds,
+            Map<Long, Integer> danmakuCounts,
             Map<Long, List<MediaAttachmentResponse>> mediaByPostId
     ) {
         CommunityTopic topic = post.getTopicId() == null ? null : topics.get(post.getTopicId());
@@ -328,6 +335,7 @@ public class CommunityPostService {
                 post.getStatus(),
                 post.getPinned(),
                 post.getCommentCount(),
+                danmakuCounts.getOrDefault(post.getId(), 0),
                 post.getReactionCount(),
                 post.getPigCount() == null ? 0 : post.getPigCount(),
                 post.getViewCount(),
@@ -366,5 +374,16 @@ public class CommunityPostService {
                         .in(CommunityTopic::getId, topicIds))
                 .stream()
                 .collect(Collectors.toMap(CommunityTopic::getId, Function.identity()));
+    }
+
+    private Map<Long, Integer> publishedDanmakuCounts(Set<Long> postIds) {
+        if (postIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return communityDanmakuMapper.selectList(new LambdaQueryWrapper<CommunityDanmaku>()
+                        .in(CommunityDanmaku::getPostId, postIds)
+                        .eq(CommunityDanmaku::getStatus, STATUS_PUBLISHED))
+                .stream()
+                .collect(Collectors.groupingBy(CommunityDanmaku::getPostId, Collectors.summingInt(item -> 1)));
     }
 }

@@ -66,6 +66,31 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void feedShowsDanmakuCountForPostMetrics() throws Exception {
+        String token = registerAndLogin("post_danmaku_metric_alice", "post_danmaku_metric_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "带弹幕的视频", "首页卡片应该能直接看到弹幕数量。");
+
+        mockMvc.perform(post("/api/community/posts/{postId}/danmaku", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "第一条弹幕",
+                                  "timeSeconds": 3,
+                                  "color": "#ffffff"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/feed")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(postId))
+                .andExpect(jsonPath("$.data[0].danmakuCount").value(1));
+    }
+
+    @Test
     void createPostCanAttachUploadedImagesAndFeedShowsMedia() throws Exception {
         String token = registerAndLogin("post_media_alice", "post_media_alice@example.com");
         Long topicId = firstTopicId(token);

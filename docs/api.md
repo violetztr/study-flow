@@ -132,6 +132,11 @@ DELETE /api/community/posts/{postId}
   "id": 1,
   "title": "第一条社区帖子",
   "contentType": "ARTICLE",
+  "commentCount": 0,
+  "danmakuCount": 0,
+  "reactionCount": 0,
+  "pigCount": 0,
+  "viewCount": 0,
   "media": [
     {
       "id": 1,
@@ -147,6 +152,7 @@ DELETE /api/community/posts/{postId}
 ```
 
 `url` 是临时签名访问地址，R2 Bucket 保持私有。
+`danmakuCount` 是已发布弹幕数量，主要用于视频卡片和视频详情页的数据展示。
 
 ### 媒体上传
 

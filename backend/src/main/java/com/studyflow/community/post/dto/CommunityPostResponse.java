@@ -18,6 +18,7 @@ public record CommunityPostResponse(
         String status,
         Boolean pinned,
         Integer commentCount,
+        Integer danmakuCount,
         Integer reactionCount,
         Integer pigCount,
         Integer viewCount,

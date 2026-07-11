@@ -1,4 +1,4 @@
-import { Tag } from 'antd'
+import type { CSSProperties } from 'react'
 
 type TopicBadgeProps = {
   name?: string | null
@@ -7,13 +7,13 @@ type TopicBadgeProps = {
 
 function TopicBadge({ name, color }: TopicBadgeProps) {
   if (!name) {
-    return <Tag>未分类</Tag>
+    return null
   }
 
   return (
-    <Tag color={color || 'green'} style={{ borderRadius: 999, paddingInline: 10 }}>
+    <span className="topic-pill" style={{ '--topic-color': color || '#2f6f60' } as CSSProperties}>
       {name}
-    </Tag>
+    </span>
   )
 }
 

@@ -30,6 +30,14 @@ function getInitial(name: string) {
   return name.trim().slice(0, 1).toUpperCase() || 'R'
 }
 
+function formatMetric(value?: number | null) {
+  const safeValue = value ?? 0
+  if (safeValue >= 10000) {
+    return `${(safeValue / 10000).toFixed(safeValue >= 100000 ? 0 : 1).replace(/\.0$/, '')}万`
+  }
+  return `${safeValue}`
+}
+
 function togglePostLike(post: CommunityPostResponse) {
   const nextLiked = !post.likedByCurrentUser
   const delta = nextLiked ? 1 : -1
@@ -71,6 +79,7 @@ function PostCard({ post }: PostCardProps) {
   const primaryMedia = getPrimaryMedia(post)
   const previewUrl = mediaPreviewUrl(primaryMedia)
   const isVideoPost = post.contentType === 'VIDEO' || primaryMedia?.fileType === 'VIDEO'
+  const danmakuCount = post.danmakuCount ?? 0
 
   const likeMutation = useMutation<void, Error, void, PostMutationContext>({
     mutationFn: () =>
@@ -148,7 +157,7 @@ function PostCard({ post }: PostCardProps) {
   }
 
   return (
-    <article className="post-card discovery-card">
+    <article className={`post-card discovery-card ${isVideoPost ? 'video-card' : 'article-card'}`}>
       <Link to={`/circle/posts/${post.id}`} className="discovery-cover">
         {previewUrl ? (
           <img alt={primaryMedia?.originalFilename ?? post.title} src={previewUrl} loading="lazy" />
@@ -167,6 +176,13 @@ function PostCard({ post }: PostCardProps) {
         {post.pinned ? (
           <span className="pin-badge">
             <PushpinFilled /> 置顶
+          </span>
+        ) : null}
+
+        {isVideoPost ? (
+          <span className="cover-metrics">
+            <span>▶ {formatMetric(post.viewCount)}</span>
+            <span>弹 {formatMetric(danmakuCount)}</span>
           </span>
         ) : null}
       </Link>
@@ -189,28 +205,31 @@ function PostCard({ post }: PostCardProps) {
           <Button
             type="text"
             size="small"
-            className={`post-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
+            className={`post-action-button metric-action ${post.likedByCurrentUser ? 'liked' : ''}`}
             icon={post.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
             loading={likeMutation.isPending}
             onClick={handleLike}
           >
-            {post.reactionCount}
+            {formatMetric(post.reactionCount)}
           </Button>
           <span>
-            <CommentOutlined /> {post.commentCount}
+            <CommentOutlined /> {formatMetric(post.commentCount)}
           </span>
+          {!isVideoPost ? (
+            <span>
+              <EyeOutlined /> {formatMetric(post.viewCount)}
+            </span>
+          ) : null}
           <Button
             type="text"
             size="small"
-            className={`post-action-button pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
+            className={`post-action-button metric-action pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
             loading={pigMutation.isPending}
             onClick={handlePig}
           >
-            🐖 {post.pigCount}
+            <span className="pig-mark">🐖</span>
+            {formatMetric(post.pigCount)}
           </Button>
-          <span>
-            <EyeOutlined /> {post.viewCount}
-          </span>
         </footer>
       </div>
     </article>
