@@ -54,6 +54,7 @@ public class CommunityPostService {
     private final MediaService mediaService;
     private final CommunityDanmakuMapper communityDanmakuMapper;
     private final CommunityFavoriteService communityFavoriteService;
+    private final CommunityPostCacheService communityPostCacheService;
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
@@ -64,7 +65,8 @@ public class CommunityPostService {
             CommunityReactionService communityReactionService,
             MediaService mediaService,
             CommunityDanmakuMapper communityDanmakuMapper,
-            CommunityFavoriteService communityFavoriteService
+            CommunityFavoriteService communityFavoriteService,
+            CommunityPostCacheService communityPostCacheService
     ) {
         this.communityPostMapper = communityPostMapper;
         this.communityTopicMapper = communityTopicMapper;
@@ -75,9 +77,28 @@ public class CommunityPostService {
         this.mediaService = mediaService;
         this.communityDanmakuMapper = communityDanmakuMapper;
         this.communityFavoriteService = communityFavoriteService;
+        this.communityPostCacheService = communityPostCacheService;
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
+        if (userId == null) {
+            return communityPostCacheService.getFeed()
+                    .orElseGet(() -> {
+                        List<CommunityPostResponse> posts = listFeedFromDatabase(null);
+                        communityPostCacheService.cacheFeed(posts);
+                        return posts;
+                    });
+        }
+        return communityPostCacheService.getFeed()
+                .map(posts -> personalizeResponses(posts, userId))
+                .orElseGet(() -> {
+                    List<CommunityPostResponse> posts = listFeedFromDatabase(null);
+                    communityPostCacheService.cacheFeed(posts);
+                    return personalizeResponses(posts, userId);
+                });
+    }
+
+    private List<CommunityPostResponse> listFeedFromDatabase(Long userId) {
         Circle circle = communityMemberService.getDefaultCircle();
         List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
                         .eq(CommunityPost::getCircleId, circle.getId())
@@ -89,6 +110,24 @@ public class CommunityPostService {
     }
 
     public CommunityPostResponse getPost(Long userId, Long postId) {
+        if (userId == null) {
+            return communityPostCacheService.getPostDetail(postId)
+                    .orElseGet(() -> {
+                        CommunityPostResponse post = getPostFromDatabase(null, postId);
+                        communityPostCacheService.cachePostDetail(postId, post);
+                        return post;
+                    });
+        }
+        return communityPostCacheService.getPostDetail(postId)
+                .map(post -> personalizeResponse(post, userId))
+                .orElseGet(() -> {
+                    CommunityPostResponse post = getPostFromDatabase(null, postId);
+                    communityPostCacheService.cachePostDetail(postId, post);
+                    return personalizeResponse(post, userId);
+                });
+    }
+
+    private CommunityPostResponse getPostFromDatabase(Long userId, Long postId) {
         Circle circle = communityMemberService.getDefaultCircle();
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
         return toResponse(post, userId);
@@ -189,6 +228,7 @@ public class CommunityPostService {
         if (updated != 1) {
             throw new BusinessException(404, "帖子不存在");
         }
+        communityPostCacheService.evictFeedAndPost(postId);
     }
 
     public void decrementCommentCount(Long postId, LocalDateTime now) {
@@ -196,14 +236,18 @@ public class CommunityPostService {
                 .eq(CommunityPost::getId, postId)
                 .setSql("comment_count = CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")
                 .set(CommunityPost::getUpdatedAt, now));
+        communityPostCacheService.evictFeedAndPost(postId);
     }
 
     public void incrementViewCount(Long postId, LocalDateTime now) {
-        communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+        int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, postId)
                 .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
                 .setSql("view_count = view_count + 1")
                 .set(CommunityPost::getUpdatedAt, now));
+        if (updated > 0) {
+            communityPostCacheService.evictFeedAndPost(postId);
+        }
     }
 
     @Transactional
@@ -239,6 +283,9 @@ public class CommunityPostService {
             communityTopicMapper.incrementPostCount(post.getTopicId());
         }
         mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), request.videoCoverMediaFileId(), now);
+        if (STATUS_PUBLISHED.equals(post.getStatus())) {
+            communityPostCacheService.evictFeed();
+        }
         return toResponse(post, userId);
     }
 
@@ -277,6 +324,7 @@ public class CommunityPostService {
         post.setContentType(nextContentType);
         post.setUpdatedAt(now);
         mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), request.videoCoverMediaFileId(), now);
+        communityPostCacheService.evictFeedAndPost(post.getId());
         return toResponse(post, userId);
     }
 
@@ -299,6 +347,7 @@ public class CommunityPostService {
         if (post.getTopicId() != null) {
             communityTopicMapper.decrementPostCount(post.getTopicId());
         }
+        communityPostCacheService.evictFeedAndPost(post.getId());
     }
 
     private CommunityTopic findActiveTopic(Long circleId, Long topicId) {
@@ -400,6 +449,67 @@ public class CommunityPostService {
                         mediaByPostId
                 ))
                 .toList();
+    }
+
+    private List<CommunityPostResponse> personalizeResponses(List<CommunityPostResponse> posts, Long userId) {
+        if (posts.isEmpty() || userId == null) {
+            return posts;
+        }
+        Set<Long> postIds = posts.stream()
+                .map(CommunityPostResponse::id)
+                .collect(Collectors.toSet());
+        Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
+        Set<Long> piggedPostIds = communityReactionService.piggedPostIds(userId, postIds);
+        Set<Long> favoritedPostIds = communityFavoriteService.favoritedPostIds(userId, postIds);
+        return posts.stream()
+                .map(post -> withViewerState(
+                        post,
+                        likedPostIds.contains(post.id()),
+                        piggedPostIds.contains(post.id()),
+                        favoritedPostIds.contains(post.id())
+                ))
+                .toList();
+    }
+
+    private CommunityPostResponse personalizeResponse(CommunityPostResponse post, Long userId) {
+        return personalizeResponses(List.of(post), userId).get(0);
+    }
+
+    private CommunityPostResponse withViewerState(
+            CommunityPostResponse post,
+            boolean liked,
+            boolean pigged,
+            boolean favorited
+    ) {
+        return new CommunityPostResponse(
+                post.id(),
+                post.circleId(),
+                post.authorId(),
+                post.authorName(),
+                post.topicId(),
+                post.topicName(),
+                post.title(),
+                post.content(),
+                post.contentType(),
+                post.status(),
+                post.reviewedBy(),
+                post.reviewedAt(),
+                post.reviewReason(),
+                post.pinned(),
+                post.commentCount(),
+                post.danmakuCount(),
+                post.reactionCount(),
+                post.pigCount(),
+                post.favoriteCount(),
+                post.viewCount(),
+                liked,
+                pigged,
+                favorited,
+                post.media(),
+                post.lastActivityAt(),
+                post.createdAt(),
+                post.updatedAt()
+        );
     }
 
     private CommunityPostResponse toResponse(CommunityPost post, Long userId) {

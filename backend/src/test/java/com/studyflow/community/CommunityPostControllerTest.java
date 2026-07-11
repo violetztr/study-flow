@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studyflow.community.post.CommunityPost;
 import com.studyflow.community.post.CommunityPostMapper;
+import com.studyflow.community.post.dto.CommunityPostResponse;
 import com.studyflow.community.member.CircleMember;
 import com.studyflow.community.member.CircleMemberMapper;
 import com.studyflow.community.topic.CommunityTopicMapper;
@@ -22,6 +23,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,7 +32,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -79,11 +84,72 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void guestFeedWritesShortRedisCache() throws Exception {
+        String token = registerAndLogin("post_feed_cache_alice", "post_feed_cache_alice@example.com");
+        Long postId = createPost(token, firstTopicId(token), "Feed cache", "Guest feed should be cached briefly.");
+        String feedKey = RedisKeys.feed("all", 0);
+        doReturn(Optional.empty()).when(redisCacheService).get(eq(feedKey));
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(postId));
+
+        verify(redisCacheService).get(eq(feedKey));
+        verify(redisCacheService).set(eq(feedKey), anyString(), eq(Duration.ofMinutes(2)));
+    }
+
+    @Test
+    void cachedDetailKeepsLoggedInViewerStateFresh() throws Exception {
+        String authorToken = registerAndLogin("post_detail_cache_author", "post_detail_cache_author@example.com");
+        String viewerToken = registerAndLogin("post_detail_cache_viewer", "post_detail_cache_viewer@example.com");
+        Long postId = createPost(authorToken, firstTopicId(authorToken), "Live title", "Live content");
+        mockMvc.perform(post("/api/community/posts/{postId}/reactions/like", postId)
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk());
+        String detailKey = RedisKeys.postDetail(postId);
+        doReturn(Optional.of(objectMapper.writeValueAsString(cachedGuestPost(postId, "Cached title"))))
+                .when(redisCacheService)
+                .get(eq(detailKey));
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId)
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Cached title"))
+                .andExpect(jsonPath("$.data.likedByCurrentUser").value(true))
+                .andExpect(jsonPath("$.data.piggedByCurrentUser").value(false))
+                .andExpect(jsonPath("$.data.favoritedByCurrentUser").value(false));
+    }
+
+    @Test
+    void updatingPostEvictsFeedAndDetailCache() throws Exception {
+        String token = registerAndLogin("post_cache_update_alice", "post_cache_update_alice@example.com");
+        JsonNode topics = topics(token);
+        Long postId = createPost(token, topics.get(0).path("id").asLong(), "Before cache update", "Before content.");
+        clearInvocations(redisCacheService);
+
+        mockMvc.perform(put("/api/community/posts/{id}", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "After cache update",
+                                  "content": "After content."
+                                }
+                                """.formatted(topics.get(0).path("id").asLong())))
+                .andExpect(status().isOk());
+
+        verify(redisCacheService).delete(eq(RedisKeys.feed("all", 0)));
+        verify(redisCacheService).delete(eq(RedisKeys.postDetail(postId)));
+    }
+
+    @Test
     void feedShowsDanmakuCountForPostMetrics() throws Exception {
         String token = registerAndLogin("post_danmaku_metric_alice", "post_danmaku_metric_alice@example.com");
         Long topicId = firstTopicId(token);
         Long postId = createPost(token, topicId, "带弹幕的视频", "首页卡片应该能直接看到弹幕数量。");
         markAsPublishedVideo(postId);
+        clearInvocations(redisCacheService);
 
         mockMvc.perform(post("/api/community/posts/{postId}/danmaku", postId)
                         .header("Authorization", "Bearer " + token)
@@ -96,6 +162,8 @@ class CommunityPostControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk());
+        verify(redisCacheService).delete(eq(RedisKeys.feed("all", 0)));
+        verify(redisCacheService).delete(eq(RedisKeys.postDetail(postId)));
 
         mockMvc.perform(get("/api/community/feed")
                         .header("Authorization", "Bearer " + token))
@@ -790,5 +858,38 @@ class CommunityPostControllerTest {
                 .eq(CircleMember::getUserId, userId));
         member.setStatus(status);
         circleMemberMapper.updateById(member);
+    }
+
+    private CommunityPostResponse cachedGuestPost(Long postId, String title) {
+        LocalDateTime now = LocalDateTime.now();
+        return new CommunityPostResponse(
+                postId,
+                1L,
+                1L,
+                "cached-author",
+                null,
+                "缓存",
+                title,
+                "Cached content",
+                "ARTICLE",
+                "PUBLISHED",
+                null,
+                null,
+                null,
+                false,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                false,
+                false,
+                false,
+                List.of(),
+                now,
+                now,
+                now
+        );
     }
 }

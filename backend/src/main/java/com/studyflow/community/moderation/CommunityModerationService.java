@@ -13,6 +13,7 @@ import com.studyflow.community.member.CircleMemberMapper;
 import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.moderation.dto.ModerationRequest;
 import com.studyflow.community.post.CommunityPost;
+import com.studyflow.community.post.CommunityPostCacheService;
 import com.studyflow.community.post.CommunityPostMapper;
 import com.studyflow.community.post.CommunityPostService;
 import com.studyflow.community.post.dto.CommunityPostResponse;
@@ -59,6 +60,7 @@ public class CommunityModerationService {
     private final CommunityModerationActionMapper moderationActionMapper;
     private final MediaService mediaService;
     private final UserMapper userMapper;
+    private final CommunityPostCacheService communityPostCacheService;
 
     public CommunityModerationService(
             CommunityMemberService communityMemberService,
@@ -70,7 +72,8 @@ public class CommunityModerationService {
             CommunityTopicMapper communityTopicMapper,
             CommunityModerationActionMapper moderationActionMapper,
             MediaService mediaService,
-            UserMapper userMapper
+            UserMapper userMapper,
+            CommunityPostCacheService communityPostCacheService
     ) {
         this.communityMemberService = communityMemberService;
         this.communityPostMapper = communityPostMapper;
@@ -82,6 +85,7 @@ public class CommunityModerationService {
         this.moderationActionMapper = moderationActionMapper;
         this.mediaService = mediaService;
         this.userMapper = userMapper;
+        this.communityPostCacheService = communityPostCacheService;
     }
 
     public List<CommunityPostResponse> listPendingSubmissions(Long adminUserId) {
@@ -100,6 +104,7 @@ public class CommunityModerationService {
             communityTopicMapper.incrementPostCount(post.getTopicId());
         }
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_APPROVE, null, now);
+        communityPostCacheService.evictFeedAndPost(postId);
     }
 
     @Transactional
@@ -111,6 +116,7 @@ public class CommunityModerationService {
         updatePostReviewStatus(post.getId(), STATUS_PENDING_REVIEW, STATUS_REJECTED, adminUserId, reason, now);
         mediaService.rejectAttachedVideosForPost(post.getId(), now);
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_REJECT, reason, now);
+        communityPostCacheService.evictFeedAndPost(postId);
     }
 
     @Transactional
@@ -123,6 +129,7 @@ public class CommunityModerationService {
             communityTopicMapper.decrementPostCount(post.getTopicId());
         }
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_HIDE, reason(request), now);
+        communityPostCacheService.evictFeedAndPost(postId);
     }
 
     @Transactional
@@ -135,6 +142,7 @@ public class CommunityModerationService {
             communityTopicMapper.incrementPostCount(post.getTopicId());
         }
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_RESTORE, reason(request), now);
+        communityPostCacheService.evictFeedAndPost(postId);
     }
 
     @Transactional
@@ -156,6 +164,7 @@ public class CommunityModerationService {
             communityTopicMapper.decrementPostCount(post.getTopicId());
         }
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_DELETE, null, now);
+        communityPostCacheService.evictFeedAndPost(postId);
     }
 
     @Transactional
@@ -166,6 +175,7 @@ public class CommunityModerationService {
         updateCommentStatus(comment.getId(), STATUS_PUBLISHED, STATUS_HIDDEN, now);
         decrementCommentCount(comment.getPostId(), now);
         recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_HIDE, reason(request), now);
+        communityPostCacheService.evictFeedAndPost(comment.getPostId());
     }
 
     @Transactional
@@ -176,6 +186,7 @@ public class CommunityModerationService {
         updateCommentStatus(comment.getId(), STATUS_HIDDEN, STATUS_PUBLISHED, now);
         incrementCommentCount(comment.getPostId(), now);
         recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_RESTORE, reason(request), now);
+        communityPostCacheService.evictFeedAndPost(comment.getPostId());
     }
 
     @Transactional
@@ -197,6 +208,7 @@ public class CommunityModerationService {
             decrementCommentCount(comment.getPostId(), now);
         }
         recordAction(circle.getId(), adminUserId, TARGET_COMMENT, commentId, ACTION_DELETE, null, now);
+        communityPostCacheService.evictFeedAndPost(comment.getPostId());
     }
 
     @Transactional
@@ -212,6 +224,7 @@ public class CommunityModerationService {
             throw new BusinessException(409, "Danmaku status changed");
         }
         recordAction(circle.getId(), adminUserId, TARGET_DANMAKU, danmakuId, ACTION_DELETE, null, now);
+        communityPostCacheService.evictFeedAndPost(danmaku.getPostId());
     }
 
     @Transactional

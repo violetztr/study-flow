@@ -9,6 +9,7 @@ import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
 import com.studyflow.community.post.CommunityPost;
+import com.studyflow.community.post.CommunityPostCacheService;
 import com.studyflow.community.post.CommunityPostService;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
@@ -31,6 +32,7 @@ public class CommunityDanmakuService {
     private final CommunityDanmakuMapper communityDanmakuMapper;
     private final CommunityMemberService communityMemberService;
     private final CommunityPostService communityPostService;
+    private final CommunityPostCacheService communityPostCacheService;
     private final UserProfileMapper userProfileMapper;
     private final UserMapper userMapper;
 
@@ -38,12 +40,14 @@ public class CommunityDanmakuService {
             CommunityDanmakuMapper communityDanmakuMapper,
             CommunityMemberService communityMemberService,
             CommunityPostService communityPostService,
+            CommunityPostCacheService communityPostCacheService,
             UserProfileMapper userProfileMapper,
             UserMapper userMapper
     ) {
         this.communityDanmakuMapper = communityDanmakuMapper;
         this.communityMemberService = communityMemberService;
         this.communityPostService = communityPostService;
+        this.communityPostCacheService = communityPostCacheService;
         this.userProfileMapper = userProfileMapper;
         this.userMapper = userMapper;
     }
@@ -76,6 +80,7 @@ public class CommunityDanmakuService {
         danmaku.setStatus(STATUS_PUBLISHED);
         danmaku.setCreatedAt(LocalDateTime.now());
         communityDanmakuMapper.insert(danmaku);
+        communityPostCacheService.evictFeedAndPost(post.getId());
         return toResponse(danmaku);
     }
 
