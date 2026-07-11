@@ -91,9 +91,28 @@ public class CommunityPostService {
     public CommunityPostResponse getPost(Long userId, Long postId) {
         Circle circle = communityMemberService.getDefaultCircle();
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
-        incrementViewCount(post.getId(), LocalDateTime.now());
-        post.setViewCount(post.getViewCount() == null ? 1 : post.getViewCount() + 1);
         return toResponse(post, userId);
+    }
+
+    public List<CommunityPostResponse> listPublishedPostsByIds(Long userId, List<Long> postIds) {
+        if (postIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Circle circle = communityMemberService.getDefaultCircle();
+        List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .in(CommunityPost::getId, postIds));
+        Map<Long, Integer> orderByPostId = new HashMap<>();
+        for (int index = 0; index < postIds.size(); index++) {
+            orderByPostId.put(postIds.get(index), index);
+        }
+        posts.sort((left, right) -> Integer.compare(
+                orderByPostId.getOrDefault(left.getId(), Integer.MAX_VALUE),
+                orderByPostId.getOrDefault(right.getId(), Integer.MAX_VALUE)
+        ));
+        return toResponses(posts, userId);
     }
 
     public List<CommunityPostResponse> listFavoritePosts(Long userId) {
@@ -179,7 +198,7 @@ public class CommunityPostService {
                 .set(CommunityPost::getUpdatedAt, now));
     }
 
-    private void incrementViewCount(Long postId, LocalDateTime now) {
+    public void incrementViewCount(Long postId, LocalDateTime now) {
         communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, postId)
                 .eq(CommunityPost::getStatus, STATUS_PUBLISHED)

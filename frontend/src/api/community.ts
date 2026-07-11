@@ -91,6 +91,24 @@ export type CommunityDanmakuResponse = {
   createdAt: string
 }
 
+export type CommunityViewReportRequest = {
+  playedSeconds: number
+  durationSeconds: number
+}
+
+export type CommunityViewReportResponse = {
+  counted: boolean
+  viewCount: number
+}
+
+export type CommunityWatchHistoryResponse = {
+  post: CommunityPostResponse
+  maxProgressSeconds: number
+  durationSeconds: number
+  firstViewedAt: string
+  lastViewedAt: string
+}
+
 export type CommunityMemberResponse = {
   userId: number
   username: string
@@ -164,6 +182,12 @@ export const communityApi = {
   },
   createDanmaku(postId: number, request: CommunityDanmakuRequest) {
     return http.post<unknown, CommunityDanmakuResponse>(`/community/posts/${postId}/danmaku`, request)
+  },
+  reportPostView(postId: number, request: CommunityViewReportRequest) {
+    return http.post<unknown, CommunityViewReportResponse>(`/community/posts/${postId}/views`, request)
+  },
+  listMyWatchHistory() {
+    return http.get<unknown, CommunityWatchHistoryResponse[]>('/community/views/history/my')
   },
   likePost(postId: number) {
     return http.post<unknown, void>(`/community/posts/${postId}/reactions/like`)

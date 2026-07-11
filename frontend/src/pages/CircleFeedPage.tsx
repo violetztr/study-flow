@@ -80,6 +80,7 @@ function CircleFeedPage() {
           </nav>
 
           <div className="discovery-actions">
+            {user ? <Button onClick={() => navigate('/circle/history')}>历史</Button> : null}
             {user ? <Button onClick={() => navigate('/circle/submissions')}>稿件</Button> : null}
             <Button type="primary" icon={<PlusOutlined />} onClick={goSubmit}>
               投稿

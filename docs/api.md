@@ -164,6 +164,52 @@ DELETE /api/community/posts/{postId}
 `danmakuCount` 是已发布弹幕数量，主要用于视频卡片和视频详情页的数据展示。
 `favoriteCount` 和 `favoritedByCurrentUser` 用于收藏按钮和“我的收藏”列表。
 
+### 播放量和观看历史
+
+```text
+POST /api/community/posts/{postId}/views
+GET /api/community/views/history/my
+```
+
+播放上报请求：
+
+```json
+{
+  "playedSeconds": 12,
+  "durationSeconds": 60
+}
+```
+
+规则：
+- 打开视频详情页不会立刻增加 `viewCount`。
+- 视频播放超过 10 秒，或者播放进度超过 20%，才算一次有效播放。
+- 同一个登录用户对同一个视频只计一次播放量，后续上报只更新观看进度。
+- 未登录游客会使用 IP 和 User-Agent 生成粗略访客标识，避免简单刷新刷播放量。
+- `GET /api/community/views/history/my` 只返回当前登录用户自己的观看历史，便于后续做继续观看。
+
+播放上报返回：
+
+```json
+{
+  "counted": true,
+  "viewCount": 18
+}
+```
+
+观看历史返回：
+
+```json
+[
+  {
+    "post": {},
+    "maxProgressSeconds": 36,
+    "durationSeconds": 180,
+    "firstViewedAt": "2026-07-11T10:00:00",
+    "lastViewedAt": "2026-07-11T10:05:00"
+  }
+]
+```
+
 ### 媒体上传
 
 ```text

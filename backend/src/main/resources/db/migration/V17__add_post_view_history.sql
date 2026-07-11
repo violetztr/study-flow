@@ -1,0 +1,20 @@
+CREATE TABLE community_post_views (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    circle_id BIGINT NOT NULL,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT NULL,
+    viewer_key VARCHAR(160) NOT NULL,
+    max_progress_seconds INT NOT NULL DEFAULT 0,
+    duration_seconds INT NOT NULL DEFAULT 0,
+    counted BOOLEAN NOT NULL DEFAULT FALSE,
+    first_viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_community_post_views_circle FOREIGN KEY (circle_id) REFERENCES circles(id),
+    CONSTRAINT fk_community_post_views_post FOREIGN KEY (post_id) REFERENCES community_posts(id),
+    CONSTRAINT fk_community_post_views_user FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE KEY uk_community_post_views_viewer (circle_id, post_id, viewer_key),
+    INDEX idx_community_post_views_user_last (user_id, last_viewed_at),
+    INDEX idx_community_post_views_post_id (post_id)
+);

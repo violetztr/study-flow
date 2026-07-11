@@ -33,6 +33,9 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/community/posts/*/views"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/community/topics",
                                 "/api/community/feed",

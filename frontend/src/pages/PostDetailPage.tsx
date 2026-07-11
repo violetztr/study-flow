@@ -15,7 +15,7 @@ import {
 import { Alert, Button, Form, Input, Popconfirm, Skeleton } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { useState } from 'react'
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getStoredUser, getStoredWallet, saveStoredWallet } from '../api/auth'
 import { communityApi } from '../api/community'
@@ -74,6 +74,10 @@ function hasVideo(post: CommunityPostResponse) {
   return post.contentType === 'VIDEO' || post.media.some((media) => media.fileType === 'VIDEO')
 }
 
+function shouldReportPlayback(playedSeconds: number, durationSeconds: number) {
+  return playedSeconds >= 10 || (durationSeconds > 0 && playedSeconds * 5 >= durationSeconds)
+}
+
 function formatMetric(value?: number | null) {
   const safeValue = value ?? 0
   if (safeValue >= 10000) {
@@ -102,6 +106,7 @@ function PostDetailPage() {
   const [commentForm] = Form.useForm<CommentFormValues>()
   const [danmakuForm] = Form.useForm<DanmakuFormValues>()
   const [currentSecond, setCurrentSecond] = useState(0)
+  const viewReportedRef = useRef(false)
   const user = getStoredUser()
   const canModerate = canModerateCommunity(user)
 
@@ -139,6 +144,28 @@ function PostDetailPage() {
   const feedQuery = useQuery({
     queryKey: ['community-feed'],
     queryFn: communityApi.listFeed,
+  })
+
+  useEffect(() => {
+    viewReportedRef.current = false
+    setCurrentSecond(0)
+  }, [postId])
+
+  const reportViewMutation = useMutation({
+    mutationFn: (values: { playedSeconds: number; durationSeconds: number }) =>
+      communityApi.reportPostView(postId, values),
+    onSuccess: (response) => {
+      queryClient.setQueryData<CommunityPostResponse>(['community-post', postId], (currentPost) =>
+        currentPost ? { ...currentPost, viewCount: response.viewCount } : currentPost,
+      )
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+      if (user) {
+        queryClient.invalidateQueries({ queryKey: ['community-watch-history-my'] })
+      }
+    },
+    onError: () => {
+      viewReportedRef.current = false
+    },
   })
 
   const likeMutation = useMutation<void, Error, void, LikeMutationContext>({
@@ -281,6 +308,21 @@ function PostDetailPage() {
     },
   })
 
+  function handleVideoTimeUpdate(event: SyntheticEvent<HTMLVideoElement>) {
+    const videoElement = event.currentTarget
+    const playedSeconds = Math.floor(videoElement.currentTime)
+    const durationSeconds = Number.isFinite(videoElement.duration)
+      ? Math.floor(videoElement.duration)
+      : 0
+
+    setCurrentSecond(playedSeconds)
+
+    if (!viewReportedRef.current && shouldReportPlayback(playedSeconds, durationSeconds)) {
+      viewReportedRef.current = true
+      reportViewMutation.mutate({ playedSeconds, durationSeconds })
+    }
+  }
+
   if (!Number.isFinite(postId)) {
     return (
       <section className="page-section">
@@ -356,7 +398,7 @@ function PostDetailPage() {
                   preload="metadata"
                   poster={video.coverUrl ?? undefined}
                   src={video.url}
-                  onTimeUpdate={(event) => setCurrentSecond(Math.floor(event.currentTarget.currentTime))}
+                  onTimeUpdate={handleVideoTimeUpdate}
                 />
                 <div className="danmaku-layer" aria-hidden="true">
                   {activeDanmaku.map((item, index) => (

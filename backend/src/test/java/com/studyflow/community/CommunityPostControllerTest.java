@@ -91,6 +91,89 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void openingDetailDoesNotIncreaseViewCount() throws Exception {
+        String token = registerAndLogin("post_view_detail_alice", "post_view_detail_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Detail read only", "Opening detail should not count as playback.");
+
+        mockMvc.perform(get("/api/community/posts/{id}", postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.viewCount").value(0));
+
+        mockMvc.perform(get("/api/community/posts/{id}", postId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.viewCount").value(0));
+
+        assertThat(communityPostMapper.selectById(postId).getViewCount()).isZero();
+    }
+
+    @Test
+    void qualifiedVideoPlaybackIncrementsOnceAndAppearsInHistory() throws Exception {
+        String token = registerAndLogin("post_view_video_alice", "post_view_video_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Video playback", "A real playback should count once.");
+        markAsPublishedVideo(postId);
+
+        mockMvc.perform(post("/api/community/posts/{id}/views", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "playedSeconds": 12,
+                                  "durationSeconds": 60
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.counted").value(true))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+
+        mockMvc.perform(post("/api/community/posts/{id}/views", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "playedSeconds": 30,
+                                  "durationSeconds": 60
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.counted").value(false))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+
+        mockMvc.perform(get("/api/community/views/history/my")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].post.id").value(postId))
+                .andExpect(jsonPath("$.data[0].maxProgressSeconds").value(30))
+                .andExpect(jsonPath("$.data[0].durationSeconds").value(60));
+    }
+
+    @Test
+    void unqualifiedVideoPlaybackDoesNotIncreaseViewCount() throws Exception {
+        String token = registerAndLogin("post_view_short_alice", "post_view_short_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Short playback", "Too little progress should not count.");
+        markAsPublishedVideo(postId);
+
+        mockMvc.perform(post("/api/community/posts/{id}/views", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "playedSeconds": 3,
+                                  "durationSeconds": 60
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.counted").value(false))
+                .andExpect(jsonPath("$.data.viewCount").value(0));
+
+        assertThat(communityPostMapper.selectById(postId).getViewCount()).isZero();
+    }
+
+    @Test
     void createPostCanAttachUploadedImagesAndFeedShowsMedia() throws Exception {
         String token = registerAndLogin("post_media_alice", "post_media_alice@example.com");
         Long topicId = firstTopicId(token);
@@ -547,6 +630,13 @@ class CommunityPostControllerTest {
 
         JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
         return response.path("data").path("id").asLong();
+    }
+
+    private void markAsPublishedVideo(Long postId) {
+        CommunityPost post = communityPostMapper.selectById(postId);
+        post.setContentType("VIDEO");
+        post.setStatus("PUBLISHED");
+        communityPostMapper.updateById(post);
     }
 
     private Long prepareAndCompleteImageUpload(String token) throws Exception {
