@@ -893,6 +893,63 @@ textarea {
   padding: 28px;
 }
 
+.article-detail-card {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  padding: clamp(22px, 4vw, 42px);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(252, 252, 249, 0.96)),
+    radial-gradient(circle at 8% 0%, rgba(31, 95, 80, 0.08), transparent 32%);
+}
+
+.article-detail-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.article-author-block {
+  display: flex;
+  min-width: 0;
+  gap: 12px;
+  align-items: center;
+}
+
+.article-author-block strong,
+.article-author-block span {
+  display: block;
+}
+
+.article-author-block strong {
+  color: #111817;
+  font-size: 16px;
+}
+
+.article-author-block span {
+  margin-top: 3px;
+  color: var(--sf-muted);
+  font-size: 13px;
+}
+
+.article-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 10px;
+  color: var(--sf-muted);
+  font-size: 13px;
+}
+
+.article-detail-meta span {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
 .post-detail-card h1 {
   margin: 14px 0 12px;
   color: var(--sf-text);
@@ -905,13 +962,25 @@ textarea {
   margin: 0 0 20px;
   color: rgba(29, 37, 34, 0.88);
   font-size: 17px;
-  line-height: 1.9;
+  line-height: 2;
   white-space: pre-wrap;
 }
 
 .post-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
   padding-top: 16px;
   border-top: 1px solid var(--sf-border);
+  color: var(--sf-muted);
+  font-size: 13px;
+}
+
+.post-detail-actions > span {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .comment-panel {
@@ -1148,6 +1217,30 @@ textarea {
 .post-detail-media-image {
   height: auto;
   max-height: 620px;
+}
+
+.article-media-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 22px 0;
+}
+
+.article-media-grid.single-image {
+  grid-template-columns: 1fr;
+}
+
+.article-media-grid .post-detail-media-image {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.article-media-grid.single-image .post-detail-media-image {
+  height: auto;
+  max-height: 720px;
+  object-fit: contain;
 }
 
 .post-media-video,

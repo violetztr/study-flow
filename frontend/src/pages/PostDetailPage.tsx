@@ -11,7 +11,7 @@ import {
   UserAddOutlined,
   UserDeleteOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, Form, Input, Popconfirm, Skeleton, Tag } from 'antd'
+import { Alert, Button, Form, Input, Popconfirm, Skeleton } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -506,18 +506,47 @@ function PostDetailPage() {
         ) : null}
 
         {post && !video ? (
-          <article className="post-detail-card">
-            <div className="post-detail-meta">
+          <article className="post-detail-card article-detail-card">
+            <div className="article-detail-head">
+              <div className="article-author-block">
+                <div className="author-avatar">{post.authorName.slice(0, 1).toUpperCase()}</div>
+                <div>
+                  <strong>{post.authorName}</strong>
+                  <span>{dayjs(post.createdAt).format('YYYY-MM-DD HH:mm')}</span>
+                </div>
+              </div>
+
+              {canFollowAuthor ? (
+                <Button
+                  size="small"
+                  icon={authorQuery.data?.followedByCurrentUser ? <UserDeleteOutlined /> : <UserAddOutlined />}
+                  loading={followMutation.isPending || authorQuery.isLoading}
+                  onClick={() => followMutation.mutate()}
+                >
+                  {authorQuery.data?.followedByCurrentUser ? '已关注' : '关注'}
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="article-detail-meta">
               <TopicBadge name={post.topicName} />
-              <span>{post.authorName}</span>
-              <span>{dayjs(post.createdAt).format('YYYY-MM-DD HH:mm')}</span>
+              <span>
+                <EyeOutlined /> {formatMetric(post.viewCount)} 浏览
+              </span>
+              <span>
+                <MessageOutlined /> {formatMetric(post.commentCount)} 评论
+              </span>
             </div>
 
             <h1>{post.title}</h1>
             <p className="post-detail-content">{post.content}</p>
 
             {imageMedia.length > 0 ? (
-              <div className="post-detail-media-grid">
+              <div
+                className={`post-detail-media-grid article-media-grid ${
+                  imageMedia.length === 1 ? 'single-image' : ''
+                }`}
+              >
                 {imageMedia.map((media) => (
                   <img
                     key={media.id}
@@ -532,24 +561,30 @@ function PostDetailPage() {
             <div className="post-detail-actions">
               <Button
                 type="text"
-                className={`post-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
+                className={`watch-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
                 icon={post.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
                 loading={likeMutation.isPending}
                 onClick={() => (user ? likeMutation.mutate() : requireLogin())}
               >
-                {post.likedByCurrentUser ? '已喜欢' : '喜欢'} {post.reactionCount}
+                {post.likedByCurrentUser ? '已喜欢' : '喜欢'} {formatMetric(post.reactionCount)}
               </Button>
               <Button
                 type="text"
-                className={`post-action-button pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
+                className={`watch-action-button pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
                 loading={pigMutation.isPending}
                 onClick={() => (user ? pigMutation.mutate() : requireLogin())}
               >
-                🐖 {post.pigCount}
+                🐖 投猪币 {formatMetric(post.pigCount)}
               </Button>
-              <span>{post.commentCount} 条评论</span>
+              <Button type="text" className="watch-action-button" icon={<StarOutlined />} disabled>
+                收藏
+              </Button>
+              <Button type="text" className="watch-action-button" icon={<ShareAltOutlined />} disabled>
+                分享
+              </Button>
+              <span>{formatMetric(post.commentCount)} 评论</span>
               <span>
-                <EyeOutlined /> {post.viewCount}
+                <EyeOutlined /> {formatMetric(post.viewCount)}
               </span>
               {canModerate ? (
                 <Popconfirm title="确认删除这个帖子？" onConfirm={() => deletePostMutation.mutate()}>
@@ -617,22 +652,6 @@ function PostDetailPage() {
               onDelete={user ? (commentId) => deleteCommentMutation.mutate(commentId) : undefined}
             />
           </section>
-        ) : null}
-
-        {post && !video ? (
-          <div className="article-author-footer">
-            <Tag color="green">{post.authorName}</Tag>
-            {canFollowAuthor ? (
-              <Button
-                size="small"
-                icon={authorQuery.data?.followedByCurrentUser ? <UserDeleteOutlined /> : <UserAddOutlined />}
-                loading={followMutation.isPending || authorQuery.isLoading}
-                onClick={() => followMutation.mutate()}
-              >
-                {authorQuery.data?.followedByCurrentUser ? '已关注' : '关注作者'}
-              </Button>
-            ) : null}
-          </div>
         ) : null}
       </div>
     </section>
