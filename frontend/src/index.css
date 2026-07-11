@@ -2117,6 +2117,9 @@ textarea {
 .danmaku-float {
   position: absolute;
   right: -40%;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
   max-width: 70%;
   font-size: clamp(14px, 1.6vw, 22px);
   font-weight: 800;
@@ -2125,6 +2128,10 @@ textarea {
     0 0 10px rgba(0, 0, 0, 0.35);
   white-space: nowrap;
   animation: danmaku-slide 8s linear infinite;
+}
+
+.danmaku-layer.is-paused .danmaku-float {
+  animation-play-state: paused;
 }
 
 @keyframes danmaku-slide {
@@ -2138,7 +2145,7 @@ textarea {
 
 .player-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 12px;
   align-items: center;
   padding: 12px 0 10px;
@@ -2158,6 +2165,60 @@ textarea {
 .danmaku-form input {
   border-radius: 999px;
   background: #fff;
+}
+
+.danmaku-controls {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  padding: 4px 6px;
+  border: 1px solid rgba(29, 37, 34, 0.08);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.danmaku-controls label,
+.danmaku-color-picker {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.danmaku-controls label {
+  color: #4f5955;
+  font-size: 13px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.danmaku-color-picker {
+  padding-left: 10px;
+  border-left: 1px solid rgba(29, 37, 34, 0.08);
+}
+
+.danmaku-color-picker button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  place-items: center;
+  background: transparent;
+  cursor: pointer;
+}
+
+.danmaku-color-picker button span {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(29, 37, 34, 0.15);
+  border-radius: 999px;
+  background: var(--danmaku-color);
+}
+
+.danmaku-color-picker button.active {
+  border-color: var(--sf-primary);
+  box-shadow: 0 0 0 3px rgba(47, 102, 87, 0.1);
 }
 
 .quality-switch {
@@ -2374,19 +2435,52 @@ textarea {
   gap: 8px;
 }
 
+.danmaku-list-card .side-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.danmaku-list-card .side-card-title small {
+  color: var(--sf-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .danmaku-admin-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid rgba(29, 37, 34, 0.08);
 }
 
+.danmaku-admin-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(29, 37, 34, 0.04);
+}
+
 .danmaku-admin-item span {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  align-items: center;
   overflow: hidden;
   color: #4c5652;
   font-size: 13px;
+}
+
+.danmaku-admin-item b {
+  flex: 0 0 auto;
+  color: var(--sf-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.danmaku-admin-item span {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2635,6 +2729,11 @@ textarea {
 
   .danmaku-form {
     flex-direction: column;
+  }
+
+  .danmaku-controls {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .quality-switch {

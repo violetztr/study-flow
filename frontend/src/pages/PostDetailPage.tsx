@@ -12,10 +12,10 @@ import {
   UserAddOutlined,
   UserDeleteOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, Form, Input, Popconfirm, Skeleton } from 'antd'
+import { Alert, Button, Form, Input, Popconfirm, Skeleton, Switch } from 'antd'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getStoredUser, getStoredWallet, saveStoredWallet } from '../api/auth'
 import { communityApi } from '../api/community'
@@ -34,6 +34,16 @@ type DanmakuFormValues = {
 type LikeMutationContext = {
   previousPost?: CommunityPostResponse
 }
+
+const DANMAKU_FLOAT_SECONDS = 8
+
+const danmakuColorOptions = [
+  { label: '白', value: '#ffffff' },
+  { label: '粉', value: '#ff6699' },
+  { label: '蓝', value: '#66ccff' },
+  { label: '黄', value: '#ffd166' },
+  { label: '绿', value: '#7ee787' },
+]
 
 function togglePostLike(post: CommunityPostResponse) {
   const nextLiked = !post.likedByCurrentUser
@@ -78,6 +88,14 @@ function shouldReportPlayback(playedSeconds: number, durationSeconds: number) {
   return playedSeconds >= 10 || (durationSeconds > 0 && playedSeconds * 5 >= durationSeconds)
 }
 
+function formatPlaybackTime(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds))
+  const minutes = Math.floor(safeSeconds / 60)
+  const restSeconds = safeSeconds % 60
+
+  return `${minutes}:${restSeconds.toString().padStart(2, '0')}`
+}
+
 function formatMetric(value?: number | null) {
   const safeValue = value ?? 0
   if (safeValue >= 10000) {
@@ -106,6 +124,9 @@ function PostDetailPage() {
   const [commentForm] = Form.useForm<CommentFormValues>()
   const [danmakuForm] = Form.useForm<DanmakuFormValues>()
   const [currentSecond, setCurrentSecond] = useState(0)
+  const [danmakuColor, setDanmakuColor] = useState(danmakuColorOptions[0].value)
+  const [danmakuVisible, setDanmakuVisible] = useState(true)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const viewReportedRef = useRef(false)
   const user = getStoredUser()
   const canModerate = canModerateCommunity(user)
@@ -276,11 +297,13 @@ function PostDetailPage() {
       communityApi.createDanmaku(postId, {
         content: values.content,
         timeSeconds: currentSecond,
-        color: '#ffffff',
+        color: danmakuColor,
       }),
     onSuccess: () => {
       danmakuForm.resetFields()
       queryClient.invalidateQueries({ queryKey: ['community-danmaku', postId] })
+      queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] })
     },
   })
 
@@ -297,6 +320,8 @@ function PostDetailPage() {
     mutationFn: communityApi.adminDeleteDanmaku,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['community-danmaku', postId] })
+      queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
+      queryClient.invalidateQueries({ queryKey: ['community-feed'] })
     },
   })
 
@@ -341,9 +366,14 @@ function PostDetailPage() {
   const relatedVideos = (feedQuery.data ?? [])
     .filter((item) => item.id !== post?.id && hasVideo(item))
     .slice(0, 5)
-  const activeDanmaku = (danmakuQuery.data ?? []).filter(
-    (item) => Math.abs(item.timeSeconds - currentSecond) <= 5,
-  )
+  const danmakuItems = danmakuQuery.data ?? []
+  const activeDanmaku = danmakuVisible
+    ? danmakuItems.filter(
+        (item) =>
+          currentSecond >= item.timeSeconds &&
+          currentSecond < item.timeSeconds + DANMAKU_FLOAT_SECONDS,
+      )
+    : []
   const canFollowAuthor = Boolean(user && post && user.id !== post.authorId)
 
   return (
@@ -399,8 +429,11 @@ function PostDetailPage() {
                   poster={video.coverUrl ?? undefined}
                   src={video.url}
                   onTimeUpdate={handleVideoTimeUpdate}
+                  onPlay={() => setIsVideoPlaying(true)}
+                  onPause={() => setIsVideoPlaying(false)}
+                  onEnded={() => setIsVideoPlaying(false)}
                 />
-                <div className="danmaku-layer" aria-hidden="true">
+                <div className={`danmaku-layer ${isVideoPlaying ? '' : 'is-paused'}`} aria-hidden="true">
                   {activeDanmaku.map((item, index) => (
                     <span
                       key={item.id}
@@ -408,7 +441,7 @@ function PostDetailPage() {
                       style={{
                         color: item.color,
                         top: `${12 + (index % 7) * 11}%`,
-                        animationDelay: `${(index % 4) * 0.5}s`,
+                        animationDuration: `${DANMAKU_FLOAT_SECONDS}s`,
                       }}
                     >
                       {item.content}
@@ -444,6 +477,27 @@ function PostDetailPage() {
                     发送
                   </Button>
                 </Form>
+
+                <div className="danmaku-controls">
+                  <label>
+                    <Switch size="small" checked={danmakuVisible} onChange={setDanmakuVisible} />
+                    <span>弹幕</span>
+                  </label>
+                  <div className="danmaku-color-picker" aria-label="弹幕颜色">
+                    {danmakuColorOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={danmakuColor === option.value ? 'active' : ''}
+                        style={{ '--danmaku-color': option.value } as CSSProperties}
+                        title={`${option.label}色弹幕`}
+                        onClick={() => setDanmakuColor(option.value)}
+                      >
+                        <span />
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="quality-switch">
                   <button type="button" className="active">
@@ -566,16 +620,21 @@ function PostDetailPage() {
                 </div>
               </section>
 
-              {canModerate ? (
-                <section className="side-card">
-                  <div className="side-card-title">弹幕管理</div>
-                  <div className="danmaku-admin-list">
-                    {(danmakuQuery.data ?? []).length > 0 ? (
-                      (danmakuQuery.data ?? []).map((item) => (
-                        <div className="danmaku-admin-item" key={item.id}>
-                          <span>
-                            {item.timeSeconds}s · {item.content}
-                          </span>
+              <section className="side-card danmaku-list-card">
+                <div className="side-card-title">
+                  <span>弹幕列表</span>
+                  <small>{formatMetric(danmakuItems.length)}</small>
+                </div>
+                <div className="danmaku-admin-list">
+                  {danmakuItems.length > 0 ? (
+                    danmakuItems.map((item) => (
+                      <div className="danmaku-admin-item" key={item.id}>
+                        <i style={{ background: item.color }} />
+                        <span>
+                          <b>{formatPlaybackTime(item.timeSeconds)}</b>
+                          {item.content}
+                        </span>
+                        {canModerate ? (
                           <Popconfirm title="删除这条弹幕？" onConfirm={() => deleteDanmakuMutation.mutate(item.id)}>
                             <Button
                               danger
@@ -585,14 +644,15 @@ function PostDetailPage() {
                               loading={deleteDanmakuMutation.variables === item.id && deleteDanmakuMutation.isPending}
                             />
                           </Popconfirm>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="muted-text">还没有弹幕。</p>
-                    )}
-                  </div>
-                </section>
-              ) : null}
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="muted-text">还没有弹幕。</p>
+                  )}
+                </div>
+              </section>
+
             </aside>
           </div>
         ) : null}

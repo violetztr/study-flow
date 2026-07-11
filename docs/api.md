@@ -283,6 +283,33 @@ DELETE /api/community/comments/{commentId}
 - 删除是软删除，评论状态变为 `DELETED`。
 - 评论会更新帖子评论数和最近活跃时间。
 
+### 弹幕
+
+```text
+GET /api/community/posts/{postId}/danmaku
+POST /api/community/posts/{postId}/danmaku
+DELETE /api/admin/community/danmaku/{danmakuId}
+```
+
+发送弹幕请求：
+
+```json
+{
+  "content": "前方名场面",
+  "timeSeconds": 36,
+  "color": "#66ccff"
+}
+```
+
+规则：
+
+- `GET /api/community/posts/{postId}/danmaku` 可公开读取，返回时按 `timeSeconds` 从小到大排序。
+- 只有视频内容可以发送弹幕，图文内容不能发送弹幕。
+- `timeSeconds` 表示弹幕绑定的视频时间点，不能小于 `0`。
+- `color` 支持 `#ffffff` 这种 6 位十六进制颜色；不传时后端默认使用白色。
+- 前端播放时按时间点让弹幕飘过，用户可以关闭弹幕显示。
+- ruru / 管理员可以通过管理接口删除不合适的弹幕，删除后不再出现在公开列表和弹幕数量里。
+
 ### 点赞
 
 ```text
@@ -371,6 +398,7 @@ POST /api/admin/community/posts/{postId}/hide
 POST /api/admin/community/posts/{postId}/restore
 POST /api/admin/community/comments/{commentId}/hide
 POST /api/admin/community/comments/{commentId}/restore
+DELETE /api/admin/community/danmaku/{danmakuId}
 POST /api/admin/community/members/{userId}/mute
 POST /api/admin/community/members/{userId}/unmute
 ```

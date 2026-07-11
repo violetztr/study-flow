@@ -7,6 +7,8 @@ import com.studyflow.community.member.CircleMember;
 import com.studyflow.community.member.CircleMemberMapper;
 import com.studyflow.community.moderation.CommunityModerationAction;
 import com.studyflow.community.moderation.CommunityModerationActionMapper;
+import com.studyflow.community.post.CommunityPost;
+import com.studyflow.community.post.CommunityPostMapper;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
 import org.junit.jupiter.api.Test;
@@ -48,6 +50,9 @@ class CommunityModerationControllerTest {
 
     @Autowired
     private CommunityModerationActionMapper moderationActionMapper;
+
+    @Autowired
+    private CommunityPostMapper communityPostMapper;
 
     @Test
     void memberCannotHidePost() throws Exception {
@@ -632,6 +637,8 @@ class CommunityModerationControllerTest {
     }
 
     private Long createDanmaku(String token, Long postId, String content) throws Exception {
+        markAsPublishedVideo(postId);
+
         MvcResult danmakuResult = mockMvc.perform(post("/api/community/posts/{postId}/danmaku", postId)
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -646,6 +653,13 @@ class CommunityModerationControllerTest {
 
         JsonNode response = objectMapper.readTree(danmakuResult.getResponse().getContentAsByteArray());
         return response.path("data").path("id").asLong();
+    }
+
+    private void markAsPublishedVideo(Long postId) {
+        CommunityPost post = communityPostMapper.selectById(postId);
+        post.setContentType("VIDEO");
+        post.setStatus("PUBLISHED");
+        communityPostMapper.updateById(post);
     }
 
     private Long prepareAndCompleteVideoUpload(String token) throws Exception {

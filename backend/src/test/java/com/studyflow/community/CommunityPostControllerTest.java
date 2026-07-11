@@ -70,6 +70,7 @@ class CommunityPostControllerTest {
         String token = registerAndLogin("post_danmaku_metric_alice", "post_danmaku_metric_alice@example.com");
         Long topicId = firstTopicId(token);
         Long postId = createPost(token, topicId, "带弹幕的视频", "首页卡片应该能直接看到弹幕数量。");
+        markAsPublishedVideo(postId);
 
         mockMvc.perform(post("/api/community/posts/{postId}/danmaku", postId)
                         .header("Authorization", "Bearer " + token)

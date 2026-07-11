@@ -1,6 +1,7 @@
 package com.studyflow.community.danmaku;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
 import com.studyflow.community.danmaku.dto.CommunityDanmakuRequest;
 import com.studyflow.community.danmaku.dto.CommunityDanmakuResponse;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 @Service
 public class CommunityDanmakuService {
     private static final String STATUS_PUBLISHED = "PUBLISHED";
+    private static final String CONTENT_TYPE_VIDEO = "VIDEO";
     private static final String DEFAULT_COLOR = "#ffffff";
 
     private final CommunityDanmakuMapper communityDanmakuMapper;
@@ -61,6 +63,9 @@ public class CommunityDanmakuService {
     public CommunityDanmakuResponse createDanmaku(Long userId, Long postId, CommunityDanmakuRequest request) {
         Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityPost post = communityPostService.requirePublishedPost(circle.getId(), postId);
+        if (!CONTENT_TYPE_VIDEO.equals(post.getContentType())) {
+            throw new BusinessException(400, "Only video posts can receive danmaku");
+        }
 
         CommunityDanmaku danmaku = new CommunityDanmaku();
         danmaku.setPostId(post.getId());
