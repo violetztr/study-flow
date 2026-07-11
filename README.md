@@ -133,6 +133,7 @@ sudo docker compose ps
 - 面试展示讲法：[docs/interview.md](docs/interview.md)
 - 生产级路线图：[docs/ruru-production-roadmap.md](docs/ruru-production-roadmap.md)
 - 生产级任务表：[docs/ruru-production-task-board.md](docs/ruru-production-task-board.md)
+- Redis 设计说明：[docs/redis.md](docs/redis.md)
 - 阶段 1-2 任务清单：[docs/superpowers/plans/2026-07-11-ruru-bilibili-stage-1-2.md](docs/superpowers/plans/2026-07-11-ruru-bilibili-stage-1-2.md)
 
 ## 已完成阶段
