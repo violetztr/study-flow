@@ -4,7 +4,10 @@ import {
   EyeOutlined,
   HeartFilled,
   HeartOutlined,
+  MessageOutlined,
+  ShareAltOutlined,
   SendOutlined,
+  StarOutlined,
   UserAddOutlined,
   UserDeleteOutlined,
 } from '@ant-design/icons'
@@ -56,6 +59,14 @@ function togglePostPig(post: CommunityPostResponse) {
 
 function hasVideo(post: CommunityPostResponse) {
   return post.contentType === 'VIDEO' || post.media.some((media) => media.fileType === 'VIDEO')
+}
+
+function formatMetric(value?: number | null) {
+  const safeValue = value ?? 0
+  if (safeValue >= 10000) {
+    return `${(safeValue / 10000).toFixed(safeValue >= 100000 ? 0 : 1).replace(/\.0$/, '')}万`
+  }
+  return `${safeValue}`
 }
 
 function firstVideo(post?: CommunityPostResponse) {
@@ -286,10 +297,13 @@ function PostDetailPage() {
                   <h1>{post.title}</h1>
                   <div className="watch-meta">
                     <TopicBadge name={post.topicName} />
-                    <span>{dayjs(post.createdAt).format('YYYY-MM-DD HH:mm')}</span>
                     <span>
-                      <EyeOutlined /> {post.viewCount}
+                      <EyeOutlined /> {formatMetric(post.viewCount)} 播放
                     </span>
+                    <span>
+                      <MessageOutlined /> {formatMetric(post.danmakuCount)} 弹幕
+                    </span>
+                    <span>{dayjs(post.createdAt).format('YYYY-MM-DD HH:mm')}</span>
                   </div>
                 </div>
               </div>
@@ -363,23 +377,29 @@ function PostDetailPage() {
               <div className="watch-actions">
                 <Button
                   type="text"
-                  className={`post-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
+                  className={`watch-action-button ${post.likedByCurrentUser ? 'liked' : ''}`}
                   icon={post.likedByCurrentUser ? <HeartFilled /> : <HeartOutlined />}
                   loading={likeMutation.isPending}
                   onClick={() => (user ? likeMutation.mutate() : requireLogin())}
                 >
-                  {post.likedByCurrentUser ? '已赞' : '点赞'} {post.reactionCount}
+                  {post.likedByCurrentUser ? '已赞' : '点赞'} {formatMetric(post.reactionCount)}
                 </Button>
                 <Button
                   type="text"
-                  className={`post-action-button pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
+                  className={`watch-action-button pig-action ${post.piggedByCurrentUser ? 'pigged' : ''}`}
                   loading={pigMutation.isPending}
                   onClick={() => (user ? pigMutation.mutate() : requireLogin())}
                 >
-                  🐖 {post.pigCount}
+                  🐖 投猪币 {formatMetric(post.pigCount)}
                 </Button>
-                <span>{post.commentCount} 条评论</span>
-                <span>{danmakuQuery.data?.length ?? 0} 条弹幕</span>
+                <Button type="text" className="watch-action-button" icon={<StarOutlined />} disabled>
+                  收藏
+                </Button>
+                <Button type="text" className="watch-action-button" icon={<ShareAltOutlined />} disabled>
+                  分享
+                </Button>
+                <span>{formatMetric(post.commentCount)} 评论</span>
+                <span>{formatMetric(post.danmakuCount)} 弹幕</span>
                 {canModerate ? (
                   <Popconfirm title="确认删除这个帖子/视频？" onConfirm={() => deletePostMutation.mutate()}>
                     <Button
@@ -403,7 +423,8 @@ function PostDetailPage() {
                 <div className="author-info">
                   <strong>{post.authorName}</strong>
                   <span>
-                    {authorQuery.data?.followerCount ?? 0} 粉丝 · {authorQuery.data?.followingCount ?? 0} 关注
+                    {formatMetric(authorQuery.data?.followerCount)} 粉丝 ·{' '}
+                    {formatMetric(authorQuery.data?.followingCount)} 关注
                   </span>
                 </div>
                 {canFollowAuthor ? (
@@ -428,17 +449,21 @@ function PostDetailPage() {
                 <div className="related-list">
                   {relatedVideos.length > 0 ? (
                     relatedVideos.map((item) => {
-                      const cover = item.media[0]
+                      const relatedVideo = firstVideo(item)
                       return (
                         <Link className="related-video" to={`/circle/posts/${item.id}`} key={item.id}>
                           <div className="related-cover">
-                            {cover?.fileType === 'VIDEO' && cover.coverUrl ? (
-                              <img alt={cover.originalFilename} src={cover.coverUrl} loading="lazy" />
-                            ) : null}
+                            {relatedVideo?.coverUrl ? (
+                              <img alt={relatedVideo.originalFilename} src={relatedVideo.coverUrl} loading="lazy" />
+                            ) : (
+                              <span>▶</span>
+                            )}
                           </div>
                           <div>
                             <strong>{item.title}</strong>
-                            <span>{item.authorName}</span>
+                            <span>
+                              {item.authorName} · {formatMetric(item.viewCount)} 播放
+                            </span>
                           </div>
                         </Link>
                       )
