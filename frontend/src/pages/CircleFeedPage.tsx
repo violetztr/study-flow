@@ -49,7 +49,7 @@ function CircleFeedPage() {
   const posts = feedQuery.data ?? []
   const visiblePosts = getChannelPosts(activeChannel, posts)
 
-  function goPublish() {
+  function goSubmit() {
     if (user) {
       navigate('/circle/posts/new')
       return
@@ -79,9 +79,12 @@ function CircleFeedPage() {
             ))}
           </nav>
 
-          <Button type="primary" icon={<PlusOutlined />} onClick={goPublish}>
-            发布
-          </Button>
+          <div className="discovery-actions">
+            {user ? <Button onClick={() => navigate('/circle/submissions')}>稿件</Button> : null}
+            <Button type="primary" icon={<PlusOutlined />} onClick={goSubmit}>
+              投稿
+            </Button>
+          </div>
         </header>
 
         <div className="notice-stack">
@@ -98,8 +101,8 @@ function CircleFeedPage() {
 
         {!feedQuery.isLoading && activeChannel !== 'live' && visiblePosts.length === 0 ? (
           <Empty description={activeChannel === 'video' ? '还没有视频' : '还没有图文'}>
-            <Button type="primary" onClick={goPublish}>
-              发布第一条
+            <Button type="primary" onClick={goSubmit}>
+              去投稿
             </Button>
           </Empty>
         ) : null}

@@ -132,7 +132,7 @@ function MemberProfilePage() {
                 <div className="member-actions">
                   {isSelf ? (
                     <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/circle/posts/new')}>
-                      发布作品
+                      投稿
                     </Button>
                   ) : null}
                   {canFollow ? (

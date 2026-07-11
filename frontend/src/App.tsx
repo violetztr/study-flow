@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import CircleFeedPage from './pages/CircleFeedPage'
 import CreatePostPage from './pages/CreatePostPage'
+import MySubmissionsPage from './pages/MySubmissionsPage'
 import PostDetailPage from './pages/PostDetailPage'
 import MembersPage from './pages/MembersPage'
 import MemberProfilePage from './pages/MemberProfilePage'
@@ -22,6 +23,7 @@ function App() {
         <Route path="/circle/members/:id" element={<MemberProfilePage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/circle/posts/new" element={<CreatePostPage />} />
+          <Route path="/circle/submissions" element={<MySubmissionsPage />} />
           <Route path="/circle/members" element={<MembersPage />} />
           <Route path="/admin/community" element={<CommunityAdminPage />} />
         </Route>

@@ -1,10 +1,20 @@
-import { LoadingOutlined, PaperClipOutlined, PictureOutlined } from '@ant-design/icons'
+import {
+  FileImageOutlined,
+  InboxOutlined,
+  LoadingOutlined,
+  PaperClipOutlined,
+  PictureOutlined,
+  VideoCameraOutlined,
+} from '@ant-design/icons'
 import { Button, Form, Input, Upload, message } from 'antd'
 import { useEffect, useState } from 'react'
 import type { UploadFile } from 'antd'
 import type { CommunityPostRequest } from '../../api/community'
 
+export type PostComposerMode = 'article' | 'video'
+
 export type CommunityPostFormValues = CommunityPostRequest & {
+  mode: PostComposerMode
   mediaFiles?: File[]
   videoCoverFile?: File | null
 }
@@ -15,20 +25,28 @@ type PostComposerProps = {
   onSubmit: (values: CommunityPostFormValues) => void
 }
 
-function limitMediaFiles(nextFileList: UploadFile[]) {
-  let videoCount = 0
+const IMAGE_SIZE_LIMIT = 10 * 1024 * 1024
+const VIDEO_SIZE_LIMIT = 200 * 1024 * 1024
 
-  return nextFileList
-    .filter((file) => {
-      const contentType = file.type || file.originFileObj?.type || ''
-      if (!contentType.startsWith('video/')) {
-        return true
-      }
-      videoCount += 1
-      return videoCount <= 1
-    })
-    .slice(0, 9)
-}
+const modeOptions: Array<{
+  key: PostComposerMode
+  title: string
+  description: string
+  icon: React.ReactNode
+}> = [
+  {
+    key: 'video',
+    title: '视频投稿',
+    description: '上传视频、封面和简介，提交后进入审核。',
+    icon: <VideoCameraOutlined />,
+  },
+  {
+    key: 'article',
+    title: '图文发布',
+    description: '发布文字和图片，适合日常动态和小发现。',
+    icon: <FileImageOutlined />,
+  },
+]
 
 function normalizeTopicName(topicName?: string | null) {
   const trimmedTopicName = topicName?.trim()
@@ -38,6 +56,11 @@ function normalizeTopicName(topicName?: string | null) {
 function isVideoUpload(file: UploadFile) {
   const contentType = file.type || file.originFileObj?.type || ''
   return contentType.startsWith('video/')
+}
+
+function isImageUpload(file: UploadFile) {
+  const contentType = file.type || file.originFileObj?.type || ''
+  return contentType.startsWith('image/')
 }
 
 function basename(filename: string) {
@@ -125,8 +148,15 @@ async function captureVideoCover(videoFile: File) {
   }
 }
 
+function getUploadFiles(fileList: UploadFile[]) {
+  return fileList
+    .map((file) => file.originFileObj)
+    .filter((file): file is NonNullable<UploadFile['originFileObj']> => Boolean(file))
+}
+
 function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
   const [messageApi, contextHolder] = message.useMessage()
+  const [mode, setMode] = useState<PostComposerMode>('video')
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [videoFileUid, setVideoFileUid] = useState<string | null>(null)
   const [videoCoverFile, setVideoCoverFile] = useState<File | null>(null)
@@ -134,7 +164,8 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
   const [coverGenerating, setCoverGenerating] = useState(false)
   const [coverSource, setCoverSource] = useState<'auto' | 'manual' | null>(null)
 
-  const hasVideo = fileList.some(isVideoUpload)
+  const isVideoMode = mode === 'video'
+  const currentMode = modeOptions.find((item) => item.key === mode) ?? modeOptions[0]
 
   useEffect(() => {
     if (!videoCoverFile) {
@@ -148,11 +179,65 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
     return () => URL.revokeObjectURL(nextPreviewUrl)
   }, [videoCoverFile])
 
-  async function handleMediaChange(nextFileList: UploadFile[]) {
-    const limitedFileList = limitMediaFiles(nextFileList)
-    setFileList(limitedFileList)
+  function resetMediaState() {
+    setFileList([])
+    setVideoFileUid(null)
+    setVideoCoverFile(null)
+    setCoverSource(null)
+    setCoverGenerating(false)
+  }
 
-    const nextVideoFile = limitedFileList.find(isVideoUpload)
+  function handleModeChange(nextMode: PostComposerMode) {
+    if (nextMode === mode) {
+      return
+    }
+    setMode(nextMode)
+    resetMediaState()
+  }
+
+  function validateMediaBeforeUpload(file: File) {
+    if (mode === 'article') {
+      if (!file.type.startsWith('image/')) {
+        void messageApi.warning('图文发布只能上传图片')
+        return Upload.LIST_IGNORE
+      }
+      if (file.size > IMAGE_SIZE_LIMIT) {
+        void messageApi.warning('单张图片不能超过 10MB')
+        return Upload.LIST_IGNORE
+      }
+      return false
+    }
+
+    if (!file.type.startsWith('video/')) {
+      void messageApi.warning('视频投稿只能上传视频文件')
+      return Upload.LIST_IGNORE
+    }
+    if (file.size > VIDEO_SIZE_LIMIT) {
+      void messageApi.warning('视频不能超过 200MB')
+      return Upload.LIST_IGNORE
+    }
+    if (fileList.some(isVideoUpload)) {
+      void messageApi.warning('一次投稿先上传一个视频')
+      return Upload.LIST_IGNORE
+    }
+    return false
+  }
+
+  async function handleMediaChange(nextFileList: UploadFile[]) {
+    const nextList = isVideoMode
+      ? nextFileList.filter(isVideoUpload).slice(-1)
+      : nextFileList.filter(isImageUpload).slice(0, 9)
+
+    setFileList(nextList)
+
+    if (!isVideoMode) {
+      setVideoFileUid(null)
+      setVideoCoverFile(null)
+      setCoverSource(null)
+      return
+    }
+
+    const nextVideoFile = nextList.find(isVideoUpload)
     const nextVideo = nextVideoFile?.originFileObj
     if (!nextVideoFile || !nextVideo) {
       setVideoFileUid(null)
@@ -183,7 +268,11 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
   function handleManualCover(file: File) {
     if (!file.type.startsWith('image/')) {
       void messageApi.warning('封面只能上传图片')
-      return false
+      return Upload.LIST_IGNORE
+    }
+    if (file.size > IMAGE_SIZE_LIMIT) {
+      void messageApi.warning('封面不能超过 10MB')
+      return Upload.LIST_IGNORE
     }
 
     setVideoCoverFile(file)
@@ -200,27 +289,50 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
         requiredMark={false}
         initialValues={initialValues}
         onFinish={(values) => {
-          const mediaFiles = fileList
-            .map((file) => file.originFileObj)
-            .filter((file): file is NonNullable<UploadFile['originFileObj']> => Boolean(file))
+          const mediaFiles = getUploadFiles(fileList)
 
-          const containsVideo = mediaFiles.some((file) => file.type.startsWith('video/'))
-          if (containsVideo && !videoCoverFile) {
-            void messageApi.warning('视频需要封面')
-            return
+          if (mode === 'video') {
+            const videoFile = mediaFiles.find((file) => file.type.startsWith('video/'))
+            if (!videoFile) {
+              void messageApi.warning('请先上传视频')
+              return
+            }
+            if (!videoCoverFile) {
+              void messageApi.warning('视频需要封面')
+              return
+            }
           }
 
           onSubmit({
             ...values,
+            mode,
             topicId: null,
             topicName: normalizeTopicName(values.topicName),
             mediaFiles,
-            videoCoverFile: containsVideo ? videoCoverFile : null,
+            videoCoverFile: mode === 'video' ? videoCoverFile : null,
           })
         }}
       >
+        <div className="composer-mode-switch" aria-label="投稿类型">
+          {modeOptions.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              className={mode === option.key ? 'composer-mode-card active' : 'composer-mode-card'}
+              onClick={() => handleModeChange(option.key)}
+            >
+              <span className="composer-mode-icon">{option.icon}</span>
+              <span>
+                <strong>{option.title}</strong>
+                <em>{option.description}</em>
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="composer-head">
-          <p>发布</p>
+          <p>{currentMode.title}</p>
+          <span>{isVideoMode ? '视频会先进入审核，通过后再公开。' : '图文会直接出现在社区里。'}</span>
         </div>
 
         <Form.Item
@@ -230,21 +342,25 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
             { max: 160, message: '标题不能超过 160 个字' },
           ]}
         >
-          <Input bordered={false} className="composer-title-input" placeholder="标题" />
+          <Input
+            bordered={false}
+            className="composer-title-input"
+            placeholder={isVideoMode ? '给视频起个标题' : '标题'}
+          />
         </Form.Item>
 
         <Form.Item
           name="content"
           rules={[
-            { required: true, message: '请输入内容' },
+            { required: true, message: isVideoMode ? '请输入简介' : '请输入内容' },
             { max: 10000, message: '内容不能超过 10000 个字' },
           ]}
         >
           <Input.TextArea
             bordered={false}
             className="composer-content-input"
-            placeholder="说点什么"
-            autoSize={{ minRows: 8, maxRows: 18 }}
+            placeholder={isVideoMode ? '写一段简介，让大家知道这个视频讲什么。' : '说点什么'}
+            autoSize={{ minRows: isVideoMode ? 4 : 8, maxRows: 18 }}
           />
         </Form.Item>
 
@@ -256,31 +372,34 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
           >
             <Input allowClear className="composer-topic-input" placeholder="输入话题" />
           </Form.Item>
-
-          <Upload
-            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
-            beforeUpload={() => false}
-            disabled={loading}
-            fileList={fileList}
-            maxCount={9}
-            multiple
-            onChange={({ fileList: nextFileList }) => {
-              void handleMediaChange(nextFileList)
-            }}
-          >
-            <Button icon={<PaperClipOutlined />} className="composer-media-button">
-              图片 / 视频
-            </Button>
-          </Upload>
         </div>
+
+        <Upload.Dragger
+          accept={isVideoMode ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp,image/gif'}
+          beforeUpload={validateMediaBeforeUpload}
+          disabled={loading}
+          fileList={fileList}
+          maxCount={isVideoMode ? 1 : 9}
+          multiple={!isVideoMode}
+          onChange={({ fileList: nextFileList }) => {
+            void handleMediaChange(nextFileList)
+          }}
+          className="composer-upload-zone"
+        >
+          <p className="ant-upload-drag-icon">{isVideoMode ? <InboxOutlined /> : <PaperClipOutlined />}</p>
+          <p className="ant-upload-text">{isVideoMode ? '拖入视频，或点击选择视频' : '拖入图片，或点击选择图片'}</p>
+          <p className="ant-upload-hint">
+            {isVideoMode ? '支持 MP4 / WebM / MOV，单个视频 200MB 内。' : '最多 9 张图片，单张 10MB 内。'}
+          </p>
+        </Upload.Dragger>
 
         {fileList.length > 0 ? (
           <p className="composer-media-note">
-            <PictureOutlined /> 已选 {fileList.length} 个文件。图片 10MB 内，视频 200MB 内。
+            <PictureOutlined /> 已选择 {fileList.length} 个文件
           </p>
         ) : null}
 
-        {hasVideo ? (
+        {isVideoMode ? (
           <div className="composer-cover-box">
             <div className="composer-cover-copy">
               <strong>视频封面</strong>
@@ -289,7 +408,9 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
                   ? '正在从视频中截取封面'
                   : coverSource === 'manual'
                     ? '已使用手动封面'
-                    : '已自动截取，可手动更换'}
+                    : coverSource === 'auto'
+                      ? '已自动截取，可手动更换'
+                      : '上传视频后自动截取，也可以手动上传'}
               </span>
             </div>
             <div className="composer-cover-preview">
@@ -318,7 +439,7 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
             loading={loading || coverGenerating}
             className="composer-submit"
           >
-            {loading ? '发布中' : '发布'}
+            {loading ? '提交中' : isVideoMode ? '提交审核' : '发布图文'}
           </Button>
         </div>
       </Form>
