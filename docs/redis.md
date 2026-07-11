@@ -79,6 +79,38 @@ ruru:{domain}:{action}:{identity}
 
 这些方法返回 `Optional` 或空结果，调用方可以根据 Redis 是否可用决定是否走 MySQL 回源或放行。
 
+## 播放量防刷
+
+播放量不是页面访问量，Ruru 当前只有在视频播放达到有效条件后才尝试计数：
+
+- 播放时间达到 10 秒。
+- 或者播放进度达到视频总时长的 20%。
+
+有效播放上报会先写入 Redis 去重 key：
+
+```text
+ruru:view:dedupe:{postId}:{viewerKey}
+```
+
+示例：
+
+```text
+ruru:view:dedupe:12:user_7
+```
+
+这个 key 使用 `setIfAbsent` 写入，TTL 为 6 小时。含义是：同一用户或同一游客在短时间内重复上报同一个视频，只允许第一次继续尝试增加播放量。
+
+当前播放链路：
+
+1. 前端播放器上报 `playedSeconds` 和 `durationSeconds`。
+2. 后端判断是否达到有效播放条件。
+3. 有效播放先写 Redis 去重 key。
+4. Redis 返回已存在时，本次不增加播放量。
+5. Redis 不可用时，回退到 MySQL 的 `community_post_views` 去重记录。
+6. MySQL 仍保存观看进度和观看历史，是最终可信来源。
+
+注意：为了保证“观看历史”和“最大播放进度”不丢，Ruru 当前没有因为 Redis 命中就完全跳过 MySQL。Redis 这一阶段主要负责挡住重复计数和减少写计数压力；后续 feed/detail 缓存和互动计数缓存会继续降低读取压力。
+
 ## 失败开放策略
 
 Redis 不应该成为当前阶段的单点故障。

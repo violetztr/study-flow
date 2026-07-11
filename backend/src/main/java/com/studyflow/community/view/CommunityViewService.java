@@ -11,34 +11,42 @@ import com.studyflow.community.post.dto.CommunityPostResponse;
 import com.studyflow.community.view.dto.CommunityViewReportRequest;
 import com.studyflow.community.view.dto.CommunityViewReportResponse;
 import com.studyflow.community.view.dto.CommunityWatchHistoryResponse;
+import com.studyflow.infrastructure.redis.RedisCacheService;
+import com.studyflow.infrastructure.redis.RedisKeys;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 public class CommunityViewService {
     private static final String CONTENT_TYPE_VIDEO = "VIDEO";
+    private static final Duration VIEW_DEDUPE_TTL = Duration.ofHours(6);
 
     private final CommunityPostViewMapper communityPostViewMapper;
     private final CommunityPostMapper communityPostMapper;
     private final CommunityPostService communityPostService;
     private final CommunityMemberService communityMemberService;
+    private final RedisCacheService redisCacheService;
 
     public CommunityViewService(
             CommunityPostViewMapper communityPostViewMapper,
             CommunityPostMapper communityPostMapper,
             CommunityPostService communityPostService,
-            CommunityMemberService communityMemberService
+            CommunityMemberService communityMemberService,
+            RedisCacheService redisCacheService
     ) {
         this.communityPostViewMapper = communityPostViewMapper;
         this.communityPostMapper = communityPostMapper;
         this.communityPostService = communityPostService;
         this.communityMemberService = communityMemberService;
+        this.redisCacheService = redisCacheService;
     }
 
     @Transactional
@@ -57,6 +65,7 @@ public class CommunityViewService {
         int playedSeconds = safeSeconds(request.playedSeconds());
         int durationSeconds = safeSeconds(request.durationSeconds());
         boolean qualified = isQualifiedPlayback(playedSeconds, durationSeconds);
+        boolean redisAllowsCounting = !qualified || canCountByRedisDedupe(postId, viewerKey);
         LocalDateTime now = LocalDateTime.now();
 
         CommunityPostView view = findView(circle.getId(), postId, viewerKey);
@@ -69,19 +78,19 @@ public class CommunityViewService {
             view.setViewerKey(viewerKey);
             view.setMaxProgressSeconds(playedSeconds);
             view.setDurationSeconds(durationSeconds);
-            view.setCounted(qualified);
+            view.setCounted(qualified && redisAllowsCounting);
             view.setFirstViewedAt(now);
             view.setLastViewedAt(now);
             view.setCreatedAt(now);
             view.setUpdatedAt(now);
             communityPostViewMapper.insert(view);
-            countedNow = qualified;
+            countedNow = qualified && redisAllowsCounting;
         } else {
-            countedNow = qualified && !Boolean.TRUE.equals(view.getCounted());
+            countedNow = qualified && redisAllowsCounting && !Boolean.TRUE.equals(view.getCounted());
             view.setUserId(userId == null ? view.getUserId() : userId);
             view.setMaxProgressSeconds(Math.max(view.getMaxProgressSeconds(), playedSeconds));
             view.setDurationSeconds(Math.max(view.getDurationSeconds(), durationSeconds));
-            view.setCounted(Boolean.TRUE.equals(view.getCounted()) || qualified);
+            view.setCounted(Boolean.TRUE.equals(view.getCounted()) || (qualified && redisAllowsCounting));
             view.setLastViewedAt(now);
             view.setUpdatedAt(now);
             communityPostViewMapper.updateById(view);
@@ -135,5 +144,14 @@ public class CommunityViewService {
 
     private boolean isQualifiedPlayback(int playedSeconds, int durationSeconds) {
         return playedSeconds >= 10 || (durationSeconds > 0 && playedSeconds * 5 >= durationSeconds);
+    }
+
+    private boolean canCountByRedisDedupe(Long postId, String viewerKey) {
+        Optional<Boolean> created = redisCacheService.setIfAbsent(
+                RedisKeys.viewDedupe(postId, viewerKey),
+                "1",
+                VIEW_DEDUPE_TTL
+        );
+        return created.orElse(true);
     }
 }

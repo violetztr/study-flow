@@ -7,10 +7,13 @@ import com.studyflow.community.post.CommunityPostMapper;
 import com.studyflow.community.member.CircleMember;
 import com.studyflow.community.member.CircleMemberMapper;
 import com.studyflow.community.topic.CommunityTopicMapper;
+import com.studyflow.infrastructure.redis.RedisCacheService;
+import com.studyflow.infrastructure.redis.RedisKeys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -18,11 +21,18 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
+import java.time.Duration;
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -48,6 +58,9 @@ class CommunityPostControllerTest {
 
     @Autowired
     private CommunityTopicMapper communityTopicMapper;
+
+    @SpyBean
+    private RedisCacheService redisCacheService;
 
     @Test
     void createPostReturnsPostAndFeedShowsIt() throws Exception {
@@ -149,6 +162,93 @@ class CommunityPostControllerTest {
                 .andExpect(jsonPath("$.data[0].post.id").value(postId))
                 .andExpect(jsonPath("$.data[0].maxProgressSeconds").value(30))
                 .andExpect(jsonPath("$.data[0].durationSeconds").value(60));
+    }
+
+    @Test
+    void qualifiedVideoPlaybackWritesRedisDedupeKeyBeforeCounting() throws Exception {
+        String token = registerAndLogin("post_view_redis_alice", "post_view_redis_alice@example.com");
+        Long userId = extractUserId(token);
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Redis playback", "Playback dedupe should use Redis first.");
+        markAsPublishedVideo(postId);
+        String redisKey = RedisKeys.viewDedupe(postId, "user:" + userId);
+        doReturn(Optional.of(true))
+                .doReturn(Optional.of(false))
+                .when(redisCacheService)
+                .setIfAbsent(eq(redisKey), eq("1"), eq(Duration.ofHours(6)));
+
+        mockMvc.perform(post("/api/community/posts/{id}/views", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "playedSeconds": 12,
+                                  "durationSeconds": 60
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.counted").value(true))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+
+        mockMvc.perform(post("/api/community/posts/{id}/views", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "playedSeconds": 30,
+                                  "durationSeconds": 60
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.counted").value(false))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+
+        verify(redisCacheService, times(2))
+                .setIfAbsent(eq(redisKey), eq("1"), eq(Duration.ofHours(6)));
+        assertThat(communityPostMapper.selectById(postId).getViewCount()).isEqualTo(1);
+    }
+
+    @Test
+    void redisDedupeFailureFallsBackToMysqlViewRecord() throws Exception {
+        String token = registerAndLogin("post_view_redis_fallback_alice", "post_view_redis_fallback_alice@example.com");
+        Long userId = extractUserId(token);
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "Redis fallback playback", "MySQL remains the final view record.");
+        markAsPublishedVideo(postId);
+        String redisKey = RedisKeys.viewDedupe(postId, "user:" + userId);
+        doReturn(Optional.empty())
+                .when(redisCacheService)
+                .setIfAbsent(eq(redisKey), eq("1"), eq(Duration.ofHours(6)));
+
+        mockMvc.perform(post("/api/community/posts/{id}/views", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "playedSeconds": 12,
+                                  "durationSeconds": 60
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.counted").value(true))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+
+        mockMvc.perform(post("/api/community/posts/{id}/views", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "playedSeconds": 30,
+                                  "durationSeconds": 60
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.counted").value(false))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+
+        verify(redisCacheService, times(2))
+                .setIfAbsent(eq(redisKey), eq("1"), eq(Duration.ofHours(6)));
+        assertThat(communityPostMapper.selectById(postId).getViewCount()).isEqualTo(1);
     }
 
     @Test
