@@ -2,15 +2,19 @@ package com.studyflow.community.moderation;
 
 import com.studyflow.common.ApiResponse;
 import com.studyflow.community.moderation.dto.ModerationRequest;
+import com.studyflow.community.post.dto.CommunityPostResponse;
 import com.studyflow.security.UserPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/community")
@@ -19,6 +23,32 @@ public class CommunityModerationController {
 
     public CommunityModerationController(CommunityModerationService communityModerationService) {
         this.communityModerationService = communityModerationService;
+    }
+
+    @GetMapping("/submissions/pending")
+    public ApiResponse<List<CommunityPostResponse>> listPendingSubmissions(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ApiResponse.success(communityModerationService.listPendingSubmissions(principal.userId()));
+    }
+
+    @PostMapping("/posts/{postId}/approve")
+    public ApiResponse<Void> approveSubmission(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId
+    ) {
+        communityModerationService.approveSubmission(principal.userId(), postId);
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/posts/{postId}/reject")
+    public ApiResponse<Void> rejectSubmission(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId,
+            @Valid @RequestBody(required = false) ModerationRequest request
+    ) {
+        communityModerationService.rejectSubmission(principal.userId(), postId, request);
+        return ApiResponse.success();
     }
 
     @PostMapping("/posts/{postId}/hide")

@@ -14,13 +14,17 @@ import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.moderation.dto.ModerationRequest;
 import com.studyflow.community.post.CommunityPost;
 import com.studyflow.community.post.CommunityPostMapper;
+import com.studyflow.community.post.CommunityPostService;
+import com.studyflow.community.post.dto.CommunityPostResponse;
 import com.studyflow.community.topic.CommunityTopicMapper;
+import com.studyflow.media.MediaService;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class CommunityModerationService {
@@ -29,6 +33,8 @@ public class CommunityModerationService {
     private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String STATUS_MUTED = "MUTED";
     private static final String STATUS_PUBLISHED = "PUBLISHED";
+    private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
+    private static final String STATUS_REJECTED = "REJECTED";
     private static final String STATUS_HIDDEN = "HIDDEN";
     private static final String STATUS_DELETED = "DELETED";
     private static final String TARGET_POST = "POST";
@@ -38,36 +44,73 @@ public class CommunityModerationService {
     private static final String ACTION_HIDE = "HIDE";
     private static final String ACTION_RESTORE = "RESTORE";
     private static final String ACTION_DELETE = "DELETE";
+    private static final String ACTION_APPROVE = "APPROVE";
+    private static final String ACTION_REJECT = "REJECT";
     private static final String ACTION_MUTE = "MUTE";
     private static final String ACTION_UNMUTE = "UNMUTE";
 
     private final CommunityMemberService communityMemberService;
     private final CommunityPostMapper communityPostMapper;
+    private final CommunityPostService communityPostService;
     private final CommunityCommentMapper communityCommentMapper;
     private final CommunityDanmakuMapper communityDanmakuMapper;
     private final CircleMemberMapper circleMemberMapper;
     private final CommunityTopicMapper communityTopicMapper;
     private final CommunityModerationActionMapper moderationActionMapper;
+    private final MediaService mediaService;
     private final UserMapper userMapper;
 
     public CommunityModerationService(
             CommunityMemberService communityMemberService,
             CommunityPostMapper communityPostMapper,
+            CommunityPostService communityPostService,
             CommunityCommentMapper communityCommentMapper,
             CommunityDanmakuMapper communityDanmakuMapper,
             CircleMemberMapper circleMemberMapper,
             CommunityTopicMapper communityTopicMapper,
             CommunityModerationActionMapper moderationActionMapper,
+            MediaService mediaService,
             UserMapper userMapper
     ) {
         this.communityMemberService = communityMemberService;
         this.communityPostMapper = communityPostMapper;
+        this.communityPostService = communityPostService;
         this.communityCommentMapper = communityCommentMapper;
         this.communityDanmakuMapper = communityDanmakuMapper;
         this.circleMemberMapper = circleMemberMapper;
         this.communityTopicMapper = communityTopicMapper;
         this.moderationActionMapper = moderationActionMapper;
+        this.mediaService = mediaService;
         this.userMapper = userMapper;
+    }
+
+    public List<CommunityPostResponse> listPendingSubmissions(Long adminUserId) {
+        Circle circle = requireAdmin(adminUserId);
+        return communityPostService.listPendingReviewSubmissions(adminUserId, circle.getId());
+    }
+
+    @Transactional
+    public void approveSubmission(Long adminUserId, Long postId) {
+        Circle circle = requireAdmin(adminUserId);
+        CommunityPost post = requirePost(circle.getId(), postId, STATUS_PENDING_REVIEW);
+        LocalDateTime now = LocalDateTime.now();
+        updatePostReviewStatus(post.getId(), STATUS_PENDING_REVIEW, STATUS_PUBLISHED, adminUserId, null, now);
+        mediaService.approveAttachedVideosForPost(post.getId(), now);
+        if (post.getTopicId() != null) {
+            communityTopicMapper.incrementPostCount(post.getTopicId());
+        }
+        recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_APPROVE, null, now);
+    }
+
+    @Transactional
+    public void rejectSubmission(Long adminUserId, Long postId, ModerationRequest request) {
+        Circle circle = requireAdmin(adminUserId);
+        CommunityPost post = requirePost(circle.getId(), postId, STATUS_PENDING_REVIEW);
+        LocalDateTime now = LocalDateTime.now();
+        String reason = requiredReason(request);
+        updatePostReviewStatus(post.getId(), STATUS_PENDING_REVIEW, STATUS_REJECTED, adminUserId, reason, now);
+        mediaService.rejectAttachedVideosForPost(post.getId(), now);
+        recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_REJECT, reason, now);
     }
 
     @Transactional
@@ -296,6 +339,27 @@ public class CommunityModerationService {
         }
     }
 
+    private void updatePostReviewStatus(
+            Long postId,
+            String expectedStatus,
+            String status,
+            Long reviewedBy,
+            String reviewReason,
+            LocalDateTime now
+    ) {
+        int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, postId)
+                .eq(CommunityPost::getStatus, expectedStatus)
+                .set(CommunityPost::getStatus, status)
+                .set(CommunityPost::getReviewedBy, reviewedBy)
+                .set(CommunityPost::getReviewedAt, now)
+                .set(CommunityPost::getReviewReason, reviewReason)
+                .set(CommunityPost::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(409, "Post status changed");
+        }
+    }
+
     private void updateCommentStatus(Long commentId, String expectedStatus, String status, LocalDateTime now) {
         int updated = communityCommentMapper.update(null, new LambdaUpdateWrapper<CommunityComment>()
                 .eq(CommunityComment::getId, commentId)
@@ -355,5 +419,13 @@ public class CommunityModerationService {
 
     private String reason(ModerationRequest request) {
         return request == null ? null : request.reason();
+    }
+
+    private String requiredReason(ModerationRequest request) {
+        String reason = reason(request);
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new BusinessException(400, "Reject reason is required");
+        }
+        return reason.trim();
     }
 }

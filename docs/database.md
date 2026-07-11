@@ -140,7 +140,10 @@ portfolio_projects
 | video_cover_media_file_id | BIGINT | 视频封面媒体 ID，仅视频内容使用 |
 | content_format | VARCHAR(30) | 内容格式，当前为 `TEXT` |
 | visibility | VARCHAR(30) | 可见范围，当前为 `CIRCLE` |
-| status | VARCHAR(30) | `PUBLISHED`、`HIDDEN`、`DELETED` |
+| status | VARCHAR(30) | `PENDING_REVIEW`、`PUBLISHED`、`REJECTED`、`HIDDEN`、`DELETED` |
+| reviewed_by | BIGINT | 审核管理员用户 ID，未审核时为空 |
+| reviewed_at | DATETIME | 审核时间，未审核时为空 |
+| review_reason | VARCHAR(500) | 驳回原因，通过或未审核时为空 |
 | pinned | BOOLEAN | 是否置顶 |
 | comment_count | INT | 评论数 |
 | reaction_count | INT | 点赞数 |
@@ -152,7 +155,7 @@ portfolio_projects
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |
 
-帖子图片和视频不直接存在 `community_posts`，而是通过 `community_post_media` 关联到 `media_files`。列表页根据 `content_type` 区分图文、视频和后续直播频道。
+帖子图片和视频不直接存在 `community_posts`，而是通过 `community_post_media` 关联到 `media_files`。列表页根据 `content_type` 区分图文、视频和后续直播频道。视频投稿默认进入 `PENDING_REVIEW`，管理员通过后才变为 `PUBLISHED` 并进入公开列表；驳回后变为 `REJECTED`，只在作者自己的稿件列表中可见。
 
 ## media_files
 
@@ -247,6 +250,6 @@ portfolio_projects
 | admin_user_id | BIGINT | 管理员用户 ID |
 | target_type | VARCHAR(30) | 目标类型：`POST`、`COMMENT`、`MEMBER` |
 | target_id | BIGINT | 目标 ID |
-| action_type | VARCHAR(40) | 操作类型：`HIDE`、`RESTORE`、`MUTE`、`UNMUTE` |
+| action_type | VARCHAR(40) | 操作类型：`APPROVE`、`REJECT`、`HIDE`、`RESTORE`、`DELETE`、`MUTE`、`UNMUTE` |
 | reason | VARCHAR(500) | 操作原因 |
 | created_at | DATETIME | 操作时间 |

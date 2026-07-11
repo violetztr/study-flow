@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
-import { Alert, Button } from 'antd'
+import { Alert, Button, message } from 'antd'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { communityApi } from '../api/community'
@@ -20,6 +20,7 @@ async function uploadMediaFile(file: File) {
 function CreatePostPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [messageApi, contextHolder] = message.useMessage()
 
   const createMutation = useMutation({
     mutationFn: async (values: CommunityPostFormValues) => {
@@ -43,6 +44,12 @@ function CreatePostPage() {
     },
     onSuccess: (post) => {
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+      queryClient.invalidateQueries({ queryKey: ['community-submissions-my'] })
+      if (post.status === 'PENDING_REVIEW') {
+        void messageApi.success('视频已提交审核，通过后会出现在首页')
+        navigate('/circle')
+        return
+      }
       navigate(`/circle/posts/${post.id}`)
     },
   })
@@ -53,6 +60,7 @@ function CreatePostPage() {
 
   return (
     <section className="page-section compose-page">
+      {contextHolder}
       <div className="compose-shell">
         <Button
           type="text"

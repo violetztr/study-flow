@@ -39,6 +39,9 @@ export type CommunityPostResponse = {
   content: string
   contentType: 'ARTICLE' | 'VIDEO' | 'LIVE' | string
   status: string
+  reviewedBy?: number | null
+  reviewedAt?: string | null
+  reviewReason?: string | null
   pinned: boolean
   commentCount: number
   danmakuCount: number
@@ -132,6 +135,9 @@ export const communityApi = {
   createPost(request: CommunityPostRequest) {
     return http.post<unknown, CommunityPostResponse>('/community/posts', request)
   },
+  listMySubmissions() {
+    return http.get<unknown, CommunityPostResponse[]>('/community/submissions/my')
+  },
   getPost(id: number) {
     return http.get<unknown, CommunityPostResponse>(`/community/posts/${id}`)
   },
@@ -197,6 +203,15 @@ export const communityApi = {
   },
   hidePost(postId: number, request: ModerationRequest) {
     return http.post<unknown, void>(`/admin/community/posts/${postId}/hide`, request)
+  },
+  listPendingSubmissions() {
+    return http.get<unknown, CommunityPostResponse[]>('/admin/community/submissions/pending')
+  },
+  approveSubmission(postId: number) {
+    return http.post<unknown, void>(`/admin/community/posts/${postId}/approve`)
+  },
+  rejectSubmission(postId: number, request: ModerationRequest) {
+    return http.post<unknown, void>(`/admin/community/posts/${postId}/reject`, request)
   },
   restorePost(postId: number, request: ModerationRequest) {
     return http.post<unknown, void>(`/admin/community/posts/${postId}/restore`, request)

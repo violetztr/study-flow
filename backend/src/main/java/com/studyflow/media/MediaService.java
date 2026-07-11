@@ -315,6 +315,49 @@ public class MediaService {
         return result;
     }
 
+    @Transactional
+    public void approveAttachedVideosForPost(Long postId, LocalDateTime now) {
+        updateAttachedVideoStatus(
+                postId,
+                List.of(STATUS_PENDING_REVIEW, STATUS_REJECTED, STATUS_APPROVED),
+                STATUS_APPROVED,
+                now
+        );
+    }
+
+    @Transactional
+    public void rejectAttachedVideosForPost(Long postId, LocalDateTime now) {
+        updateAttachedVideoStatus(
+                postId,
+                List.of(STATUS_PENDING_REVIEW, STATUS_APPROVED),
+                STATUS_REJECTED,
+                now
+        );
+    }
+
+    private void updateAttachedVideoStatus(
+            Long postId,
+            List<String> expectedStatuses,
+            String nextStatus,
+            LocalDateTime now
+    ) {
+        List<Long> mediaFileIds = communityPostMediaMapper.selectList(new LambdaQueryWrapper<CommunityPostMedia>()
+                        .eq(CommunityPostMedia::getPostId, postId))
+                .stream()
+                .map(CommunityPostMedia::getMediaFileId)
+                .toList();
+        if (mediaFileIds.isEmpty()) {
+            return;
+        }
+
+        mediaFileMapper.update(null, new LambdaUpdateWrapper<MediaFile>()
+                .in(MediaFile::getId, mediaFileIds)
+                .eq(MediaFile::getFileType, FILE_TYPE_VIDEO)
+                .in(MediaFile::getStatus, expectedStatuses)
+                .set(MediaFile::getStatus, nextStatus)
+                .set(MediaFile::getUpdatedAt, now));
+    }
+
     private Map<Long, MediaFile> ownAttachableMedia(Long userId, List<Long> mediaFileIds) {
         return mediaFileMapper.selectList(new LambdaQueryWrapper<MediaFile>()
                         .eq(MediaFile::getUploaderId, userId)

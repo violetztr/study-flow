@@ -21,6 +21,9 @@ public class CommunityPost {
     private String contentFormat;
     private String visibility;
     private String status;
+    private Long reviewedBy;
+    private LocalDateTime reviewedAt;
+    private String reviewReason;
     private Boolean pinned;
     private Integer commentCount;
     private Integer reactionCount;
@@ -126,6 +129,30 @@ public class CommunityPost {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Long getReviewedBy() {
+        return reviewedBy;
+    }
+
+    public void setReviewedBy(Long reviewedBy) {
+        this.reviewedBy = reviewedBy;
+    }
+
+    public LocalDateTime getReviewedAt() {
+        return reviewedAt;
+    }
+
+    public void setReviewedAt(LocalDateTime reviewedAt) {
+        this.reviewedAt = reviewedAt;
+    }
+
+    public String getReviewReason() {
+        return reviewReason;
+    }
+
+    public void setReviewReason(String reviewReason) {
+        this.reviewReason = reviewReason;
     }
 
     public Boolean getPinned() {

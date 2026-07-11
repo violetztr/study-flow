@@ -188,7 +188,7 @@ class MediaControllerTest {
     }
 
     @Test
-    void attachedVideoIsHiddenUntilRuruApprovesIt() throws Exception {
+    void videoSubmissionStaysHiddenWhenOnlyMediaIsApproved() throws Exception {
         String authorToken = registerAndLogin("media_video_author", "media_video_author@example.com");
         Long topicId = firstTopicId(authorToken);
         Long videoFileId = prepareAndCompleteVideoUpload(authorToken);
@@ -197,7 +197,7 @@ class MediaControllerTest {
 
         mockMvc.perform(get("/api/community/feed"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[?(@.id == %d)].media[*]".formatted(postId), empty()));
+                .andExpect(jsonPath("$.data[?(@.id == %d)]".formatted(postId), empty()));
 
         mockMvc.perform(post("/api/admin/media/{mediaFileId}/approve", videoFileId)
                         .header("Authorization", "Bearer " + authorToken))
@@ -216,10 +216,7 @@ class MediaControllerTest {
 
         mockMvc.perform(get("/api/community/feed"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].contentType").value("VIDEO"))
-                .andExpect(jsonPath("$.data[?(@.id == %d)].media[0].fileType".formatted(postId)).value("VIDEO"))
-                .andExpect(jsonPath("$.data[0].media[0].coverUrl",
-                        containsString("test-account.r2.cloudflarestorage.com")));
+                .andExpect(jsonPath("$.data[?(@.id == %d)]".formatted(postId), empty()));
     }
 
     @Test

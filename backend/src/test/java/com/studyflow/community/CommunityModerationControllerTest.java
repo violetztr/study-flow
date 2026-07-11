@@ -129,6 +129,80 @@ class CommunityModerationControllerTest {
     }
 
     @Test
+    void videoSubmissionStaysHiddenUntilAdminApprovesIt() throws Exception {
+        String adminToken = registerAdminAndLogin("submission_review_admin", "submission_review_admin@example.com");
+        String authorToken = registerAndLogin("submission_review_author", "submission_review_author@example.com");
+        Long topicId = firstTopicId(authorToken);
+        Long videoFileId = prepareAndCompleteVideoUpload(authorToken);
+        Long coverFileId = prepareAndCompleteImageUpload(authorToken);
+
+        Long postId = createVideoPost(authorToken, topicId, videoFileId, coverFileId);
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId)
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)]".formatted(postId), hasSize(0)));
+
+        mockMvc.perform(get("/api/community/submissions/my")
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)].status".formatted(postId)).value("PENDING_REVIEW"));
+
+        mockMvc.perform(get("/api/admin/community/submissions/pending")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)].contentType".formatted(postId)).value("VIDEO"));
+
+        mockMvc.perform(post("/api/admin/community/posts/{postId}/approve", postId)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)].status".formatted(postId)).value("PUBLISHED"))
+                .andExpect(jsonPath("$.data[?(@.id == %d)].media[0].fileType".formatted(postId)).value("VIDEO"));
+
+        assertThat(moderationActionCount("POST", postId, "APPROVE")).isEqualTo(1);
+    }
+
+    @Test
+    void rejectedVideoSubmissionStaysPrivateAndShowsReasonToAuthor() throws Exception {
+        String adminToken = registerAdminAndLogin("submission_reject_admin", "submission_reject_admin@example.com");
+        String authorToken = registerAndLogin("submission_reject_author", "submission_reject_author@example.com");
+        Long topicId = firstTopicId(authorToken);
+        Long videoFileId = prepareAndCompleteVideoUpload(authorToken);
+        Long coverFileId = prepareAndCompleteImageUpload(authorToken);
+
+        Long postId = createVideoPost(authorToken, topicId, videoFileId, coverFileId);
+
+        mockMvc.perform(post("/api/admin/community/posts/{postId}/reject", postId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "Video is too blurry. Please export again."
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)]".formatted(postId), hasSize(0)));
+
+        mockMvc.perform(get("/api/community/submissions/my")
+                        .header("Authorization", "Bearer " + authorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == %d)].status".formatted(postId)).value("REJECTED"))
+                .andExpect(jsonPath("$.data[?(@.id == %d)].reviewReason".formatted(postId))
+                        .value("Video is too blurry. Please export again."));
+
+        assertThat(moderationActionCount("POST", postId, "REJECT")).isEqualTo(1);
+    }
+
+    @Test
     void adminCanHideAndRestoreComment() throws Exception {
         String adminToken = registerAdminAndLogin("moderation_comment_admin", "moderation_comment_admin@example.com");
         String memberToken = registerAndLogin("moderation_comment_author", "moderation_comment_author@example.com");
@@ -571,6 +645,75 @@ class CommunityModerationControllerTest {
                 .andReturn();
 
         JsonNode response = objectMapper.readTree(danmakuResult.getResponse().getContentAsByteArray());
+        return response.path("data").path("id").asLong();
+    }
+
+    private Long prepareAndCompleteVideoUpload(String token) throws Exception {
+        MvcResult prepareResult = mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "submission-video.mp4",
+                                  "contentType": "video/mp4",
+                                  "fileSize": 4096
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Long mediaFileId = objectMapper.readTree(prepareResult.getResponse().getContentAsByteArray())
+                .path("data").path("mediaFileId").asLong();
+
+        mockMvc.perform(post("/api/media/uploads/{mediaFileId}/complete", mediaFileId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        return mediaFileId;
+    }
+
+    private Long prepareAndCompleteImageUpload(String token) throws Exception {
+        MvcResult prepareResult = mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "submission-cover.jpg",
+                                  "contentType": "image/jpeg",
+                                  "fileSize": 2048
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Long mediaFileId = objectMapper.readTree(prepareResult.getResponse().getContentAsByteArray())
+                .path("data").path("mediaFileId").asLong();
+
+        mockMvc.perform(post("/api/media/uploads/{mediaFileId}/complete", mediaFileId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        return mediaFileId;
+    }
+
+    private Long createVideoPost(String token, Long topicId, Long mediaFileId, Long coverFileId) throws Exception {
+        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "Video submission",
+                                  "content": "This video should wait for review.",
+                                  "mediaFileIds": [%d],
+                                  "videoCoverMediaFileId": %d
+                                }
+                                """.formatted(topicId, mediaFileId, coverFileId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PENDING_REVIEW"))
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
         return response.path("data").path("id").asLong();
     }
 

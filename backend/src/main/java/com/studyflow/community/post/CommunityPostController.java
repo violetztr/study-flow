@@ -31,6 +31,13 @@ public class CommunityPostController {
         return ApiResponse.success(communityPostService.listFeed(currentUserId(principal)));
     }
 
+    @GetMapping("/submissions/my")
+    public ApiResponse<List<CommunityPostResponse>> listMySubmissions(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ApiResponse.success(communityPostService.listMySubmissions(principal.userId()));
+    }
+
     @PostMapping("/posts")
     public ApiResponse<CommunityPostResponse> createPost(
             @AuthenticationPrincipal UserPrincipal principal,

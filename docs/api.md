@@ -100,6 +100,7 @@ share          分享
 
 ```text
 POST /api/community/posts
+GET /api/community/submissions/my
 GET /api/community/posts/{postId}
 PUT /api/community/posts/{postId}
 DELETE /api/community/posts/{postId}
@@ -124,6 +125,8 @@ DELETE /api/community/posts/{postId}
 - `mediaFileIds` 可为空，最多 9 个，必须是当前用户已经上传完成的图片或视频文件。
 - 后端会根据媒体自动返回 `contentType`：普通图文为 `ARTICLE`，带视频为 `VIDEO`，`LIVE` 为后续直播预留。
 - 视频帖子必须传 `videoCoverMediaFileId`，封面必须是当前用户已经上传完成的图片。
+- 图文发布后默认 `PUBLISHED`，视频发布后默认 `PENDING_REVIEW`，管理员通过后才会进入公开动态流。
+- `GET /api/community/submissions/my` 返回当前登录用户自己的稿件，包含 `PENDING_REVIEW`、`REJECTED`、`PUBLISHED` 状态，用于后续“我的稿件”页面。
 
 返回的帖子数据会包含 `media` 媒体列表：
 
@@ -132,6 +135,10 @@ DELETE /api/community/posts/{postId}
   "id": 1,
   "title": "第一条社区帖子",
   "contentType": "ARTICLE",
+  "status": "PUBLISHED",
+  "reviewedBy": null,
+  "reviewedAt": null,
+  "reviewReason": null,
   "commentCount": 0,
   "danmakuCount": 0,
   "reactionCount": 0,
@@ -311,6 +318,9 @@ GET /api/community/profiles/{userId}
 ### 管理接口
 
 ```text
+GET /api/admin/community/submissions/pending
+POST /api/admin/community/posts/{postId}/approve
+POST /api/admin/community/posts/{postId}/reject
 POST /api/admin/community/posts/{postId}/hide
 POST /api/admin/community/posts/{postId}/restore
 POST /api/admin/community/comments/{commentId}/hide
@@ -331,6 +341,9 @@ POST /api/admin/community/members/{userId}/unmute
 
 - 只有 `ADMIN` 或 `OWNER` 可以访问管理接口。
 - 管理操作会写入 `community_moderation_actions`。
+- `GET /api/admin/community/submissions/pending` 返回待审稿件列表，当前主要用于视频投稿审核。
+- `POST /api/admin/community/posts/{postId}/approve` 会把稿件从 `PENDING_REVIEW` 改为 `PUBLISHED`，并同步把绑定的视频媒体改为 `APPROVED`。
+- `POST /api/admin/community/posts/{postId}/reject` 会把稿件从 `PENDING_REVIEW` 改为 `REJECTED`，请求体必须传 `reason`，作者可在自己的稿件列表看到 `reviewReason`。
 - 管理员不能禁言自己、圈主或同级管理员；圈主可以处理管理员和普通成员。
 - 被禁言成员仍可浏览内容，但不能发帖、评论、点赞、取消点赞或修改社区资料。
 - 被禁用用户不能登录，已有 Token 也不能继续访问业务接口。

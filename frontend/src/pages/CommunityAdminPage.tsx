@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi, type ModerationRequest } from '../api/community'
-import { mediaApi } from '../api/media'
 
 type AdminAction =
   | 'hide-post'
@@ -32,10 +31,6 @@ const actionLabels: Record<AdminAction, string> = {
 
 function isCommunityAdmin(role?: string) {
   return role === 'ADMIN' || role === 'OWNER'
-}
-
-function isRuru(user?: ReturnType<typeof getStoredUser>) {
-  return user?.username === 'ruru'
 }
 
 function buildModerationRequest(reason?: string): ModerationRequest {
@@ -68,7 +63,6 @@ function CommunityAdminPage() {
   const queryClient = useQueryClient()
   const user = getStoredUser()
   const canModerateCommunity = isCommunityAdmin(user?.role)
-  const canReviewVideo = isRuru(user)
 
   const moderationMutation = useMutation({
     mutationFn: runModerationAction,
@@ -85,30 +79,42 @@ function CommunityAdminPage() {
     },
   })
 
-  const pendingMediaQuery = useQuery({
-    queryKey: ['admin-pending-media'],
-    queryFn: mediaApi.listPendingReviewMedia,
-    enabled: canReviewVideo,
+  const pendingSubmissionsQuery = useQuery({
+    queryKey: ['admin-pending-submissions'],
+    queryFn: communityApi.listPendingSubmissions,
+    enabled: canModerateCommunity,
   })
 
-  const approveMutation = useMutation({
-    mutationFn: mediaApi.approveMedia,
+  const approveSubmissionMutation = useMutation({
+    mutationFn: communityApi.approveSubmission,
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['admin-pending-media'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-pending-submissions'] }),
         queryClient.invalidateQueries({ queryKey: ['community-feed'] }),
       ])
     },
   })
 
-  const rejectMutation = useMutation({
-    mutationFn: mediaApi.rejectMedia,
+  const rejectSubmissionMutation = useMutation({
+    mutationFn: ({ postId, reason }: { postId: number; reason: string }) =>
+      communityApi.rejectSubmission(postId, { reason }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['admin-pending-media'] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-pending-submissions'] }),
+      ])
     },
   })
 
-  if (!canModerateCommunity && !canReviewVideo) {
+  function handleRejectSubmission(postId: number) {
+    const reason = window.prompt('\u8bf7\u8f93\u5165\u9a73\u56de\u539f\u56e0')
+    const trimmedReason = reason?.trim()
+    if (!trimmedReason) {
+      return
+    }
+    rejectSubmissionMutation.mutate({ postId, reason: trimmedReason })
+  }
+
+  if (!canModerateCommunity) {
     return <Navigate to="/circle" replace />
   }
 
@@ -118,52 +124,58 @@ function CommunityAdminPage() {
         <SafetyOutlined style={{ color: 'var(--sf-primary)', fontSize: 24 }} />
       </div>
 
-      {canReviewVideo ? (
-        <Card className="profile-card" title="视频审核">
+      {canModerateCommunity ? (
+        <Card className="profile-card" title="稿件审核">
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Alert
               showIcon
               type="info"
-              message="只有 ruru 可以审核视频"
-              description="视频通过前不会在公开动态里显示。通过后，帖子列表和详情页才会返回播放地址。"
+              message="视频投稿先进入待审"
+              description="通过后会进入首页和用户主页；驳回后作者能在自己的稿件列表看到原因。"
             />
-            {pendingMediaQuery.isError ? (
-              <Alert showIcon type="error" message={pendingMediaQuery.error.message} />
+            {pendingSubmissionsQuery.isError ? (
+              <Alert showIcon type="error" message={pendingSubmissionsQuery.error.message} />
             ) : null}
-            {approveMutation.isError ? (
-              <Alert showIcon type="error" message={approveMutation.error.message} />
+            {approveSubmissionMutation.isError ? (
+              <Alert showIcon type="error" message={approveSubmissionMutation.error.message} />
             ) : null}
-            {rejectMutation.isError ? (
-              <Alert showIcon type="error" message={rejectMutation.error.message} />
+            {rejectSubmissionMutation.isError ? (
+              <Alert showIcon type="error" message={rejectSubmissionMutation.error.message} />
             ) : null}
             <List
-              loading={pendingMediaQuery.isLoading}
-              dataSource={pendingMediaQuery.data ?? []}
-              locale={{ emptyText: <Empty description="暂无待审核视频" /> }}
-              renderItem={(media) => (
+              loading={pendingSubmissionsQuery.isLoading}
+              dataSource={pendingSubmissionsQuery.data ?? []}
+              locale={{ emptyText: <Empty description="暂无待审稿件" /> }}
+              renderItem={(submission) => (
                 <List.Item
                   actions={[
                     <Button
-                      key="approve"
+                      key="approve-submission"
                       type="primary"
-                      loading={approveMutation.isPending && approveMutation.variables === media.id}
-                      onClick={() => approveMutation.mutate(media.id)}
+                      loading={
+                        approveSubmissionMutation.isPending &&
+                        approveSubmissionMutation.variables === submission.id
+                      }
+                      onClick={() => approveSubmissionMutation.mutate(submission.id)}
                     >
                       通过
                     </Button>,
                     <Button
-                      key="reject"
+                      key="reject-submission"
                       danger
-                      loading={rejectMutation.isPending && rejectMutation.variables === media.id}
-                      onClick={() => rejectMutation.mutate(media.id)}
+                      loading={
+                        rejectSubmissionMutation.isPending &&
+                        rejectSubmissionMutation.variables?.postId === submission.id
+                      }
+                      onClick={() => handleRejectSubmission(submission.id)}
                     >
-                      拒绝
+                      驳回
                     </Button>,
                   ]}
                 >
                   <List.Item.Meta
-                    title={`${media.originalFilename} #${media.id}`}
-                    description={`${media.contentType} · ${(media.fileSize / 1024 / 1024).toFixed(2)}MB · ${media.status}`}
+                    title={`${submission.title} #${submission.id}`}
+                    description={`${submission.authorName} · ${submission.contentType} · ${submission.status}`}
                   />
                 </List.Item>
               )}

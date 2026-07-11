@@ -37,8 +37,11 @@ import static com.studyflow.community.member.CommunityMemberService.STATUS_ACTIV
 @Service
 public class CommunityPostService {
     private static final String STATUS_PUBLISHED = "PUBLISHED";
+    private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
+    private static final String STATUS_REJECTED = "REJECTED";
     private static final String STATUS_DELETED = "DELETED";
     private static final String CONTENT_TYPE_ARTICLE = "ARTICLE";
+    private static final String CONTENT_TYPE_VIDEO = "VIDEO";
     private static final String CONTENT_FORMAT_TEXT = "TEXT";
     private static final String VISIBILITY_CIRCLE = "CIRCLE";
 
@@ -115,6 +118,26 @@ public class CommunityPostService {
         return toResponses(posts, userId);
     }
 
+    public List<CommunityPostResponse> listMySubmissions(Long userId) {
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
+        List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getAuthorId, userId)
+                .in(CommunityPost::getStatus, List.of(STATUS_PENDING_REVIEW, STATUS_REJECTED, STATUS_PUBLISHED))
+                .orderByDesc(CommunityPost::getCreatedAt)
+                .orderByDesc(CommunityPost::getId));
+        return toResponses(posts, userId);
+    }
+
+    public List<CommunityPostResponse> listPendingReviewSubmissions(Long currentUserId, Long circleId) {
+        List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getCircleId, circleId)
+                .eq(CommunityPost::getStatus, STATUS_PENDING_REVIEW)
+                .orderByAsc(CommunityPost::getCreatedAt)
+                .orderByAsc(CommunityPost::getId));
+        return toResponses(posts, currentUserId);
+    }
+
     public List<CommunityPostResponse> listAuthorPosts(Long currentUserId, Long authorId) {
         Circle circle = communityMemberService.getDefaultCircle();
         List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
@@ -182,7 +205,7 @@ public class CommunityPostService {
         post.setContentType(contentType);
         post.setContentFormat(CONTENT_FORMAT_TEXT);
         post.setVisibility(VISIBILITY_CIRCLE);
-        post.setStatus(STATUS_PUBLISHED);
+        post.setStatus(initialStatus(contentType));
         post.setPinned(false);
         post.setCommentCount(0);
         post.setReactionCount(0);
@@ -193,7 +216,7 @@ public class CommunityPostService {
         post.setCreatedAt(now);
         post.setUpdatedAt(now);
         communityPostMapper.insert(post);
-        if (post.getTopicId() != null) {
+        if (STATUS_PUBLISHED.equals(post.getStatus()) && post.getTopicId() != null) {
             communityTopicMapper.incrementPostCount(post.getTopicId());
         }
         mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), request.videoCoverMediaFileId(), now);
@@ -287,6 +310,10 @@ public class CommunityPostService {
         }
         String trimmedTopicName = topicName.trim();
         return trimmedTopicName.isEmpty() ? null : trimmedTopicName;
+    }
+
+    private String initialStatus(String contentType) {
+        return CONTENT_TYPE_VIDEO.equals(contentType) ? STATUS_PENDING_REVIEW : STATUS_PUBLISHED;
     }
 
     private CommunityPost requireOwnedPost(Long circleId, Long userId, Long postId) {
@@ -383,6 +410,9 @@ public class CommunityPostService {
                 post.getContent(),
                 post.getContentType() == null ? CONTENT_TYPE_ARTICLE : post.getContentType(),
                 post.getStatus(),
+                post.getReviewedBy(),
+                post.getReviewedAt(),
+                post.getReviewReason(),
                 post.getPinned(),
                 post.getCommentCount(),
                 danmakuCounts.getOrDefault(post.getId(), 0),
