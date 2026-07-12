@@ -417,3 +417,34 @@ sudo docker compose logs -f backend
 sudo docker compose build --no-cache
 sudo docker compose up -d
 ```
+
+### Docker build 下载依赖失败
+
+如果构建后端镜像时看到类似错误：
+
+```text
+Could not transfer artifact ... from/to central (https://repo.maven.apache.org/maven2)
+Remote host terminated the handshake
+```
+
+这通常不是 Java 代码问题，而是服务器访问 Maven Central 不稳定。当前 Dockerfile 已经在构建阶段使用：
+
+```text
+backend/docker/maven-settings.xml
+```
+
+它会把 Maven Central 请求切到 Maven 镜像源。可以重新执行：
+
+```bash
+sudo docker compose build --no-cache backend
+sudo docker compose up -d backend frontend
+```
+
+如果还是失败，先测试服务器网络：
+
+```bash
+curl -I https://maven.aliyun.com/repository/public/
+curl -I https://repo.maven.apache.org/maven2/
+```
+
+能访问 Maven 镜像源但不能访问 Maven Central 时，优先继续使用 Dockerfile 内置镜像源；两个都不能访问时，说明服务器网络本身需要处理。
