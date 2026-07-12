@@ -83,6 +83,35 @@ class CommunityFoundationControllerTest {
     }
 
     @Test
+    void updateProfileSavesAvatarAndProfileBackground() throws Exception {
+        String token = registerAndLogin("circle_profile_visual", "circle_profile_visual@example.com");
+
+        mockMvc.perform(put("/api/community/members/me/profile")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "displayName": "Visual Profile",
+                                  "bio": "头像和空间背景都可以换。",
+                                  "avatarUrl": "https://cdn.example.com/avatar.png",
+                                  "profileBackgroundUrl": "/system-backgrounds/profile/silhouette.mp4",
+                                  "profileBackgroundType": "VIDEO"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatarUrl").value("https://cdn.example.com/avatar.png"))
+                .andExpect(jsonPath("$.data.profileBackgroundUrl").value("/system-backgrounds/profile/silhouette.mp4"))
+                .andExpect(jsonPath("$.data.profileBackgroundType").value("VIDEO"));
+
+        mockMvc.perform(get("/api/community/members/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatarUrl").value("https://cdn.example.com/avatar.png"))
+                .andExpect(jsonPath("$.data.profileBackgroundUrl").value("/system-backgrounds/profile/silhouette.mp4"))
+                .andExpect(jsonPath("$.data.profileBackgroundType").value("VIDEO"));
+    }
+
+    @Test
     void mutedMemberCannotUpdateProfile() throws Exception {
         String token = registerAndLogin("circle_muted_profile", "circle_muted_profile@example.com");
         Long userId = extractUserId(token);

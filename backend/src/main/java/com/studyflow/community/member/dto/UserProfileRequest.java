@@ -10,6 +10,10 @@ public record UserProfileRequest(
         @Size(max = 500)
         String avatarUrl,
         @Size(max = 500)
+        String profileBackgroundUrl,
+        @Size(max = 20)
+        String profileBackgroundType,
+        @Size(max = 500)
         String skills,
         @Size(max = 300)
         String githubUrl,

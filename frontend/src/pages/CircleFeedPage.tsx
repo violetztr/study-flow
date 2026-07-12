@@ -75,6 +75,16 @@ function CircleFeedPage() {
 
   return (
     <section className="page-section feed-page discovery-page">
+      <video
+        className="site-home-bg-video"
+        src="/system-backgrounds/site/home-hero.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        aria-hidden="true"
+      />
+      <div className="site-home-bg-overlay" />
       <div className="discovery-shell">
         <header className="discovery-topbar">
           <button className="discovery-logo" type="button" onClick={() => setActiveChannel('article')}>

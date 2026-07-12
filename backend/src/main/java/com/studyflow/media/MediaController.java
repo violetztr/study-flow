@@ -102,4 +102,11 @@ public class MediaController {
                 .location(URI.create(mediaService.presignHlsSegmentUrl(mediaFileId, quality, segmentIndex)))
                 .build();
     }
+
+    @GetMapping("/media/files/{mediaFileId}")
+    public ResponseEntity<Void> publicMediaFile(@PathVariable Long mediaFileId) {
+        return ResponseEntity.status(302)
+                .location(URI.create(mediaService.presignPublicMediaUrl(mediaFileId)))
+                .build();
+    }
 }

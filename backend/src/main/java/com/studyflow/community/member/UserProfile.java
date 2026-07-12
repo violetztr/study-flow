@@ -14,6 +14,8 @@ public class UserProfile {
     private String displayName;
     private String bio;
     private String avatarUrl;
+    private String profileBackgroundUrl;
+    private String profileBackgroundType;
     private String skills;
     private String githubUrl;
     private String websiteUrl;
@@ -58,6 +60,22 @@ public class UserProfile {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public String getProfileBackgroundUrl() {
+        return profileBackgroundUrl;
+    }
+
+    public void setProfileBackgroundUrl(String profileBackgroundUrl) {
+        this.profileBackgroundUrl = profileBackgroundUrl;
+    }
+
+    public String getProfileBackgroundType() {
+        return profileBackgroundType;
+    }
+
+    public void setProfileBackgroundType(String profileBackgroundType) {
+        this.profileBackgroundType = profileBackgroundType;
     }
 
     public String getSkills() {

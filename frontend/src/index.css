@@ -359,8 +359,32 @@ textarea {
 }
 
 .feed-page.discovery-page {
+  position: relative;
+  overflow: hidden;
   padding: 0 18px 32px;
-  background: #fff;
+  background: #f8faf7;
+}
+
+.site-home-bg-video,
+.site-home-bg-overlay {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+}
+
+.site-home-bg-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.18;
+  filter: saturate(0.86) contrast(0.96);
+}
+
+.site-home-bg-overlay {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(248, 250, 247, 0.94) 38%, #fff 78%),
+    radial-gradient(circle at 12% 2%, rgba(67, 125, 107, 0.18), transparent 32%);
 }
 
 .detail-shell,
@@ -370,6 +394,8 @@ textarea {
 }
 
 .discovery-shell {
+  position: relative;
+  z-index: 1;
   width: min(1560px, 100%);
   margin: 0 auto;
 }
@@ -1772,7 +1798,20 @@ textarea {
   border-radius: 30px;
   padding: 30px;
   background: rgba(255, 255, 252, 0.9);
+  background-position: center;
+  background-size: cover;
   box-shadow: 0 24px 80px rgba(29, 37, 34, 0.1);
+}
+
+.member-hero-video-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.58;
+  filter: saturate(0.9) contrast(0.94);
+  pointer-events: none;
 }
 
 .member-hero-glow {
@@ -1880,6 +1919,126 @@ textarea {
   border-radius: 24px;
   padding: 44px 16px;
   background: rgba(255, 255, 255, 0.72);
+}
+
+.profile-editor-card {
+  width: min(1180px, 100%);
+  margin: -8px auto 24px;
+  border: 1px solid rgba(29, 37, 34, 0.08);
+  border-radius: 28px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 60px rgba(29, 37, 34, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.profile-editor-layout {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.profile-avatar-editor {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  border: 1px solid rgba(29, 37, 34, 0.08);
+  border-radius: 22px;
+  padding: 18px 14px;
+  background: rgba(248, 250, 247, 0.72);
+}
+
+.profile-avatar-editor .ant-avatar {
+  border: 4px solid #fff;
+  box-shadow: 0 16px 36px rgba(29, 37, 34, 0.14);
+}
+
+.profile-editor-fields {
+  display: grid;
+  gap: 4px;
+}
+
+.profile-background-editor {
+  display: grid;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.profile-editor-heading,
+.profile-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-editor-heading strong {
+  color: var(--sf-primary);
+  font-size: 17px;
+}
+
+.profile-editor-heading span {
+  color: var(--sf-muted);
+  font-size: 13px;
+}
+
+.profile-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-preset-grid button {
+  position: relative;
+  overflow: hidden;
+  min-height: 116px;
+  border: 1px solid rgba(29, 37, 34, 0.08);
+  border-radius: 20px;
+  padding: 0;
+  background: #f5f6f2;
+  box-shadow: 0 12px 30px rgba(29, 37, 34, 0.08);
+  cursor: pointer;
+}
+
+.profile-preset-grid button.active {
+  border-color: rgba(49, 107, 90, 0.88);
+  box-shadow: 0 0 0 3px rgba(49, 107, 90, 0.14);
+}
+
+.profile-preset-grid img,
+.profile-preset-grid video,
+.profile-background-preview img,
+.profile-background-preview video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-preset-grid span {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #fff;
+  font-size: 12px;
+  background: rgba(13, 27, 23, 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.profile-background-preview {
+  overflow: hidden;
+  height: 150px;
+  border: 1px solid rgba(29, 37, 34, 0.08);
+  border-radius: 22px;
+  background: #f5f6f2;
+}
+
+.profile-editor-actions {
+  justify-content: flex-end;
 }
 
 .profile-self-note {
@@ -2731,6 +2890,28 @@ textarea {
     grid-template-columns: 1fr;
     gap: 16px;
     padding: 22px;
+  }
+
+  .profile-editor-card {
+    padding: 16px;
+  }
+
+  .profile-editor-layout,
+  .profile-preset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-avatar-editor {
+    justify-items: start;
+    grid-template-columns: auto 1fr;
+  }
+
+  .profile-background-preview {
+    height: 120px;
+  }
+
+  .profile-editor-actions {
+    justify-content: flex-start;
   }
 
   .member-title-row {

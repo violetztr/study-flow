@@ -23,6 +23,7 @@ export type MediaUploadCompleteResponse = {
   contentType: string
   originalFilename: string
   fileSize: number
+  url: string
   status: string
   transcodeStatus?: string | null
   transcodeError?: string | null

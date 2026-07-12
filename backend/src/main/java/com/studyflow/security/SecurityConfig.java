@@ -46,6 +46,7 @@ public class SecurityConfig {
                                 "/api/community/posts/*",
                                 "/api/community/posts/*/comments",
                                 "/api/community/posts/*/danmaku",
+                                "/api/media/files/*",
                                 "/api/media/videos/*/hls/**"
                         ).permitAll()
                         .requestMatchers("/api/**").authenticated()

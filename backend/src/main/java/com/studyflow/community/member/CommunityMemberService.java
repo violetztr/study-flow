@@ -23,6 +23,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class CommunityMemberService {
+    private static final String PROFILE_BACKGROUND_IMAGE = "IMAGE";
+    private static final String PROFILE_BACKGROUND_VIDEO = "VIDEO";
+
     public static final String DEFAULT_CIRCLE_SLUG = "ruru-community";
     public static final String ROLE_MEMBER = "MEMBER";
     public static final String STATUS_ACTIVE = "ACTIVE";
@@ -150,6 +153,8 @@ public class CommunityMemberService {
         profile.setDisplayName(request.displayName());
         profile.setBio(request.bio());
         profile.setAvatarUrl(request.avatarUrl());
+        profile.setProfileBackgroundUrl(request.profileBackgroundUrl());
+        profile.setProfileBackgroundType(normalizeProfileBackgroundType(request.profileBackgroundType()));
         profile.setSkills(request.skills());
         profile.setGithubUrl(request.githubUrl());
         profile.setWebsiteUrl(request.websiteUrl());
@@ -250,6 +255,8 @@ public class CommunityMemberService {
                 displayName,
                 profile != null ? profile.getBio() : null,
                 profile != null ? profile.getAvatarUrl() : null,
+                profile != null ? profile.getProfileBackgroundUrl() : null,
+                profile != null ? normalizeProfileBackgroundType(profile.getProfileBackgroundType()) : PROFILE_BACKGROUND_IMAGE,
                 profile != null ? profile.getSkills() : null,
                 profile != null ? profile.getGithubUrl() : null,
                 profile != null ? profile.getWebsiteUrl() : null,
@@ -262,6 +269,13 @@ public class CommunityMemberService {
     private Integer followerCount(Long userId) {
         return Math.toIntExact(userFollowMapper.selectCount(new LambdaQueryWrapper<UserFollow>()
                 .eq(UserFollow::getFollowingId, userId)));
+    }
+
+    private String normalizeProfileBackgroundType(String profileBackgroundType) {
+        if (PROFILE_BACKGROUND_VIDEO.equalsIgnoreCase(profileBackgroundType)) {
+            return PROFILE_BACKGROUND_VIDEO;
+        }
+        return PROFILE_BACKGROUND_IMAGE;
     }
 
     private Integer followingCount(Long userId) {

@@ -134,12 +134,25 @@ export type CommunityMemberResponse = {
   displayName?: string | null
   bio?: string | null
   avatarUrl?: string | null
+  profileBackgroundUrl?: string | null
+  profileBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
   skills?: string | null
   githubUrl?: string | null
   websiteUrl?: string | null
   followerCount: number
   followingCount: number
   followedByCurrentUser: boolean
+}
+
+export type UserProfileRequest = {
+  displayName?: string | null
+  bio?: string | null
+  avatarUrl?: string | null
+  profileBackgroundUrl?: string | null
+  profileBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
+  skills?: string | null
+  githubUrl?: string | null
+  websiteUrl?: string | null
 }
 
 export type CommunityMemberProfileResponse = {
@@ -231,6 +244,9 @@ export const communityApi = {
   },
   getMe() {
     return http.get<unknown, CommunityMemberResponse>('/community/members/me')
+  },
+  updateProfile(request: UserProfileRequest) {
+    return http.put<unknown, CommunityMemberResponse>('/community/members/me/profile', request)
   },
   listMembers() {
     return http.get<unknown, CommunityMemberResponse[]>('/community/members')

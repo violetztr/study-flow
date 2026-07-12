@@ -262,6 +262,15 @@ public class MediaService {
         return presignGetUrl(mediaFile.getBucketName(), segment.getObjectKey(), HLS_SEGMENT_CONTENT_TYPE);
     }
 
+    @Transactional(readOnly = true)
+    public String presignPublicMediaUrl(Long mediaFileId) {
+        MediaFile mediaFile = mediaFileMapper.selectById(mediaFileId);
+        if (mediaFile == null || !isPubliclyVisible(mediaFile)) {
+            throw new BusinessException(404, "媒体文件不存在");
+        }
+        return presignGetUrl(mediaFile);
+    }
+
     @Transactional
     public MediaUploadCompleteResponse approveVideo(Long adminUserId, Long mediaFileId) {
         requireRuruAdmin(adminUserId);
@@ -878,9 +887,14 @@ public class MediaService {
                 mediaFile.getContentType(),
                 mediaFile.getOriginalFilename(),
                 mediaFile.getFileSize(),
+                publicMediaUrl(mediaFile.getId()),
                 mediaFile.getStatus(),
                 mediaFile.getTranscodeStatus(),
                 mediaFile.getTranscodeError()
         );
+    }
+
+    private String publicMediaUrl(Long mediaFileId) {
+        return "/api/media/files/%d".formatted(mediaFileId);
     }
 }

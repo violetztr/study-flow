@@ -96,7 +96,20 @@ class MediaControllerTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(mediaFileId))
+                .andExpect(jsonPath("$.data.url").value("/api/media/files/%d".formatted(mediaFileId)))
                 .andExpect(jsonPath("$.data.status").value("UPLOADED"));
+    }
+
+    @Test
+    void publicMediaFileUrlRedirectsToShortLivedSignedR2Url() throws Exception {
+        String token = registerAndLogin("media_public_file", "media_public_file@example.com");
+        Long mediaFileId = prepareAndCompleteImageUpload(token);
+
+        mockMvc.perform(get("/api/media/files/{mediaFileId}", mediaFileId))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", containsString("test-account.r2.cloudflarestorage.com")))
+                .andExpect(header().string("Location", containsString("community/images/")))
+                .andExpect(header().string("Location", containsString("X-Amz-Signature")));
     }
 
     @Test
