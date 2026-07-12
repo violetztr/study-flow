@@ -3,17 +3,26 @@ package com.studyflow.community;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyflow.infrastructure.redis.RedisCacheService;
+import com.studyflow.infrastructure.redis.RedisKeys;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.Duration;
+
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,6 +42,9 @@ class CommunityReactionControllerTest {
     @Autowired
     private UserMapper userMapper;
 
+    @SpyBean
+    private RedisCacheService redisCacheService;
+
     @Test
     void likePostIsIdempotentAndUpdatesCount() throws Exception {
         String token = registerAndLogin("reaction_alice", "reaction_alice@example.com");
@@ -47,6 +59,22 @@ class CommunityReactionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.reactionCount").value(1))
                 .andExpect(jsonPath("$.data.likedByCurrentUser").value(true));
+    }
+
+    @Test
+    void likePostRefreshesRedisCounter() throws Exception {
+        String token = registerAndLogin("reaction_counter_alice", "reaction_counter_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "点赞计数缓存", "点赞后刷新 Redis 计数。");
+        clearInvocations(redisCacheService);
+
+        likePost(token, postId);
+
+        verify(redisCacheService).set(
+                eq(RedisKeys.postCounter(postId)),
+                contains("\"reactionCount\":1"),
+                eq(Duration.ofHours(6))
+        );
     }
 
     @Test

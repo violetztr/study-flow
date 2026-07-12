@@ -6,7 +6,7 @@ import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
 import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.post.CommunityPost;
-import com.studyflow.community.post.CommunityPostCacheService;
+import com.studyflow.community.post.CommunityPostCounterService;
 import com.studyflow.community.post.CommunityPostMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -26,18 +26,18 @@ public class CommunityFavoriteService {
     private final CommunityFavoriteMapper communityFavoriteMapper;
     private final CommunityPostMapper communityPostMapper;
     private final CommunityMemberService communityMemberService;
-    private final CommunityPostCacheService communityPostCacheService;
+    private final CommunityPostCounterService communityPostCounterService;
 
     public CommunityFavoriteService(
             CommunityFavoriteMapper communityFavoriteMapper,
             CommunityPostMapper communityPostMapper,
             CommunityMemberService communityMemberService,
-            CommunityPostCacheService communityPostCacheService
+            CommunityPostCounterService communityPostCounterService
     ) {
         this.communityFavoriteMapper = communityFavoriteMapper;
         this.communityPostMapper = communityPostMapper;
         this.communityMemberService = communityMemberService;
-        this.communityPostCacheService = communityPostCacheService;
+        this.communityPostCounterService = communityPostCounterService;
     }
 
     @Transactional
@@ -134,7 +134,7 @@ public class CommunityFavoriteService {
         if (updated != 1) {
             throw new BusinessException(404, "帖子不存在");
         }
-        communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.refreshPostCounter(postId);
     }
 
     private void decrementPostFavoriteCount(Long postId, LocalDateTime now) {
@@ -143,6 +143,6 @@ public class CommunityFavoriteService {
                 .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
                 .setSql("favorite_count = CASE WHEN favorite_count > 0 THEN favorite_count - 1 ELSE 0 END")
                 .set(CommunityPost::getUpdatedAt, now));
-        communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.refreshPostCounter(postId);
     }
 }

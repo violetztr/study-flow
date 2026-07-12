@@ -2,15 +2,24 @@ package com.studyflow.community;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.studyflow.infrastructure.redis.RedisCacheService;
+import com.studyflow.infrastructure.redis.RedisKeys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.Duration;
+
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,6 +35,9 @@ class CommunityFavoriteControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @SpyBean
+    private RedisCacheService redisCacheService;
 
     @Test
     void favoritePostIsIdempotentAndAppearsInMyFavorites() throws Exception {
@@ -47,6 +59,21 @@ class CommunityFavoriteControllerTest {
                 .andExpect(jsonPath("$.data[0].id").value(postId))
                 .andExpect(jsonPath("$.data[0].favoriteCount").value(1))
                 .andExpect(jsonPath("$.data[0].favoritedByCurrentUser").value(true));
+    }
+
+    @Test
+    void favoritePostRefreshesRedisCounter() throws Exception {
+        String token = registerAndLogin("favorite_counter_alice", "favorite_counter_alice@example.com");
+        Long postId = createPost(token, firstTopicId(token), "收藏计数缓存", "收藏后刷新 Redis 计数。");
+        clearInvocations(redisCacheService);
+
+        favoritePost(token, postId);
+
+        verify(redisCacheService).set(
+                eq(RedisKeys.postCounter(postId)),
+                contains("\"favoriteCount\":1"),
+                eq(Duration.ofHours(6))
+        );
     }
 
     @Test

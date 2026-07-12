@@ -14,6 +14,7 @@ import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.moderation.dto.ModerationRequest;
 import com.studyflow.community.post.CommunityPost;
 import com.studyflow.community.post.CommunityPostCacheService;
+import com.studyflow.community.post.CommunityPostCounterService;
 import com.studyflow.community.post.CommunityPostMapper;
 import com.studyflow.community.post.CommunityPostService;
 import com.studyflow.community.post.dto.CommunityPostResponse;
@@ -61,6 +62,7 @@ public class CommunityModerationService {
     private final MediaService mediaService;
     private final UserMapper userMapper;
     private final CommunityPostCacheService communityPostCacheService;
+    private final CommunityPostCounterService communityPostCounterService;
 
     public CommunityModerationService(
             CommunityMemberService communityMemberService,
@@ -73,7 +75,8 @@ public class CommunityModerationService {
             CommunityModerationActionMapper moderationActionMapper,
             MediaService mediaService,
             UserMapper userMapper,
-            CommunityPostCacheService communityPostCacheService
+            CommunityPostCacheService communityPostCacheService,
+            CommunityPostCounterService communityPostCounterService
     ) {
         this.communityMemberService = communityMemberService;
         this.communityPostMapper = communityPostMapper;
@@ -86,6 +89,7 @@ public class CommunityModerationService {
         this.mediaService = mediaService;
         this.userMapper = userMapper;
         this.communityPostCacheService = communityPostCacheService;
+        this.communityPostCounterService = communityPostCounterService;
     }
 
     public List<CommunityPostResponse> listPendingSubmissions(Long adminUserId) {
@@ -105,6 +109,7 @@ public class CommunityModerationService {
         }
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_APPROVE, null, now);
         communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.refreshPostCounter(postId);
     }
 
     @Transactional
@@ -117,6 +122,7 @@ public class CommunityModerationService {
         mediaService.rejectAttachedVideosForPost(post.getId(), now);
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_REJECT, reason, now);
         communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.evictPostCounter(postId);
     }
 
     @Transactional
@@ -130,6 +136,7 @@ public class CommunityModerationService {
         }
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_HIDE, reason(request), now);
         communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.evictPostCounter(postId);
     }
 
     @Transactional
@@ -143,6 +150,7 @@ public class CommunityModerationService {
         }
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_RESTORE, reason(request), now);
         communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.refreshPostCounter(postId);
     }
 
     @Transactional
@@ -165,6 +173,7 @@ public class CommunityModerationService {
         }
         recordAction(circle.getId(), adminUserId, TARGET_POST, postId, ACTION_DELETE, null, now);
         communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.evictPostCounter(postId);
     }
 
     @Transactional

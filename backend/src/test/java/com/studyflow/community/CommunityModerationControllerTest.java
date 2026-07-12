@@ -9,22 +9,31 @@ import com.studyflow.community.moderation.CommunityModerationAction;
 import com.studyflow.community.moderation.CommunityModerationActionMapper;
 import com.studyflow.community.post.CommunityPost;
 import com.studyflow.community.post.CommunityPostMapper;
+import com.studyflow.infrastructure.redis.RedisCacheService;
+import com.studyflow.infrastructure.redis.RedisKeys;
 import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.hasItem;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -54,6 +63,9 @@ class CommunityModerationControllerTest {
     @Autowired
     private CommunityPostMapper communityPostMapper;
 
+    @SpyBean
+    private RedisCacheService redisCacheService;
+
     @Test
     void memberCannotHidePost() throws Exception {
         String aliceToken = registerAndLogin("moderation_member_alice", "moderation_member_alice@example.com");
@@ -78,6 +90,8 @@ class CommunityModerationControllerTest {
         Long topicId = firstTopicId(memberToken);
         Long postId = createPost(memberToken, topicId, "管理员审核", "这条帖子会被隐藏再恢复。");
 
+        clearInvocations(redisCacheService);
+
         mockMvc.perform(post("/api/admin/community/posts/{postId}/hide", postId)
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -88,10 +102,14 @@ class CommunityModerationControllerTest {
                                 """))
                 .andExpect(status().isOk());
 
+        verify(redisCacheService).delete(RedisKeys.postCounter(postId));
+
         mockMvc.perform(get("/api/community/feed")
                         .header("Authorization", "Bearer " + memberToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(0)));
+                .andExpect(jsonPath("$.data[?(@.id == %d)]".formatted(postId), hasSize(0)));
+
+        clearInvocations(redisCacheService);
 
         mockMvc.perform(post("/api/admin/community/posts/{postId}/restore", postId)
                         .header("Authorization", "Bearer " + adminToken)
@@ -103,10 +121,16 @@ class CommunityModerationControllerTest {
                                 """))
                 .andExpect(status().isOk());
 
+        verify(redisCacheService).set(
+                eq(RedisKeys.postCounter(postId)),
+                contains("\"reactionCount\":0"),
+                eq(Duration.ofHours(6))
+        );
+
         mockMvc.perform(get("/api/community/feed")
                         .header("Authorization", "Bearer " + memberToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data", hasSize(1)));
+                .andExpect(jsonPath("$.data[?(@.id == %d)]".formatted(postId), hasSize(1)));
     }
 
     @Test

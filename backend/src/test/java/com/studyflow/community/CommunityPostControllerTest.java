@@ -33,6 +33,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
@@ -118,6 +119,35 @@ class CommunityPostControllerTest {
                 .andExpect(jsonPath("$.data.likedByCurrentUser").value(true))
                 .andExpect(jsonPath("$.data.piggedByCurrentUser").value(false))
                 .andExpect(jsonPath("$.data.favoritedByCurrentUser").value(false));
+    }
+
+    @Test
+    void cachedFeedOverlaysHotCountersFromRedis() throws Exception {
+        String token = registerAndLogin("post_feed_counter_author", "post_feed_counter_author@example.com");
+        Long postId = createPost(token, firstTopicId(token), "Counter cached title", "Cached feed should still show hot counters.");
+        String feedKey = RedisKeys.feed("all", 0);
+        String counterKey = RedisKeys.postCounter(postId);
+        doReturn(Optional.of(objectMapper.writeValueAsString(List.of(cachedGuestPost(postId, "Cached feed title")))))
+                .when(redisCacheService)
+                .get(eq(feedKey));
+        doReturn(Optional.of("""
+                {
+                  "reactionCount": 7,
+                  "pigCount": 2,
+                  "favoriteCount": 3,
+                  "viewCount": 11
+                }
+                """))
+                .when(redisCacheService)
+                .get(eq(counterKey));
+
+        mockMvc.perform(get("/api/community/feed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].title").value("Cached feed title"))
+                .andExpect(jsonPath("$.data[0].reactionCount").value(7))
+                .andExpect(jsonPath("$.data[0].pigCount").value(2))
+                .andExpect(jsonPath("$.data[0].favoriteCount").value(3))
+                .andExpect(jsonPath("$.data[0].viewCount").value(11));
     }
 
     @Test
@@ -210,6 +240,7 @@ class CommunityPostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.counted").value(true))
                 .andExpect(jsonPath("$.data.viewCount").value(1));
+        verify(redisCacheService).set(eq(RedisKeys.postCounter(postId)), contains("\"viewCount\":1"), eq(Duration.ofHours(6)));
 
         mockMvc.perform(post("/api/community/posts/{id}/views", postId)
                         .header("Authorization", "Bearer " + token)

@@ -55,6 +55,7 @@ public class CommunityPostService {
     private final CommunityDanmakuMapper communityDanmakuMapper;
     private final CommunityFavoriteService communityFavoriteService;
     private final CommunityPostCacheService communityPostCacheService;
+    private final CommunityPostCounterService communityPostCounterService;
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
@@ -66,7 +67,8 @@ public class CommunityPostService {
             MediaService mediaService,
             CommunityDanmakuMapper communityDanmakuMapper,
             CommunityFavoriteService communityFavoriteService,
-            CommunityPostCacheService communityPostCacheService
+            CommunityPostCacheService communityPostCacheService,
+            CommunityPostCounterService communityPostCounterService
     ) {
         this.communityPostMapper = communityPostMapper;
         this.communityTopicMapper = communityTopicMapper;
@@ -78,11 +80,13 @@ public class CommunityPostService {
         this.communityDanmakuMapper = communityDanmakuMapper;
         this.communityFavoriteService = communityFavoriteService;
         this.communityPostCacheService = communityPostCacheService;
+        this.communityPostCounterService = communityPostCounterService;
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
         if (userId == null) {
             return communityPostCacheService.getFeed()
+                    .map(posts -> withDynamicFields(posts, null))
                     .orElseGet(() -> {
                         List<CommunityPostResponse> posts = listFeedFromDatabase(null);
                         communityPostCacheService.cacheFeed(posts);
@@ -90,7 +94,7 @@ public class CommunityPostService {
                     });
         }
         return communityPostCacheService.getFeed()
-                .map(posts -> personalizeResponses(posts, userId))
+                .map(posts -> withDynamicFields(posts, userId))
                 .orElseGet(() -> {
                     List<CommunityPostResponse> posts = listFeedFromDatabase(null);
                     communityPostCacheService.cacheFeed(posts);
@@ -112,6 +116,7 @@ public class CommunityPostService {
     public CommunityPostResponse getPost(Long userId, Long postId) {
         if (userId == null) {
             return communityPostCacheService.getPostDetail(postId)
+                    .map(post -> withDynamicFields(List.of(post), null).get(0))
                     .orElseGet(() -> {
                         CommunityPostResponse post = getPostFromDatabase(null, postId);
                         communityPostCacheService.cachePostDetail(postId, post);
@@ -119,7 +124,7 @@ public class CommunityPostService {
                     });
         }
         return communityPostCacheService.getPostDetail(postId)
-                .map(post -> personalizeResponse(post, userId))
+                .map(post -> withDynamicFields(List.of(post), userId).get(0))
                 .orElseGet(() -> {
                     CommunityPostResponse post = getPostFromDatabase(null, postId);
                     communityPostCacheService.cachePostDetail(postId, post);
@@ -246,7 +251,7 @@ public class CommunityPostService {
                 .setSql("view_count = view_count + 1")
                 .set(CommunityPost::getUpdatedAt, now));
         if (updated > 0) {
-            communityPostCacheService.evictFeedAndPost(postId);
+            communityPostCounterService.refreshPostCounter(postId);
         }
     }
 
@@ -348,6 +353,7 @@ public class CommunityPostService {
             communityTopicMapper.decrementPostCount(post.getTopicId());
         }
         communityPostCacheService.evictFeedAndPost(post.getId());
+        communityPostCounterService.evictPostCounter(post.getId());
     }
 
     private CommunityTopic findActiveTopic(Long circleId, Long topicId) {
@@ -449,6 +455,10 @@ public class CommunityPostService {
                         mediaByPostId
                 ))
                 .toList();
+    }
+
+    private List<CommunityPostResponse> withDynamicFields(List<CommunityPostResponse> posts, Long userId) {
+        return personalizeResponses(communityPostCounterService.applyCounters(posts), userId);
     }
 
     private List<CommunityPostResponse> personalizeResponses(List<CommunityPostResponse> posts, Long userId) {

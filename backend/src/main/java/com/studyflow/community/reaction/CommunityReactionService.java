@@ -6,7 +6,7 @@ import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
 import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.post.CommunityPost;
-import com.studyflow.community.post.CommunityPostCacheService;
+import com.studyflow.community.post.CommunityPostCounterService;
 import com.studyflow.community.post.CommunityPostMapper;
 import com.studyflow.wallet.PigWalletService;
 import org.springframework.dao.DuplicateKeyException;
@@ -30,20 +30,20 @@ public class CommunityReactionService {
     private final CommunityPostMapper communityPostMapper;
     private final CommunityMemberService communityMemberService;
     private final PigWalletService pigWalletService;
-    private final CommunityPostCacheService communityPostCacheService;
+    private final CommunityPostCounterService communityPostCounterService;
 
     public CommunityReactionService(
             CommunityReactionMapper communityReactionMapper,
             CommunityPostMapper communityPostMapper,
             CommunityMemberService communityMemberService,
             PigWalletService pigWalletService,
-            CommunityPostCacheService communityPostCacheService
+            CommunityPostCounterService communityPostCounterService
     ) {
         this.communityReactionMapper = communityReactionMapper;
         this.communityPostMapper = communityPostMapper;
         this.communityMemberService = communityMemberService;
         this.pigWalletService = pigWalletService;
-        this.communityPostCacheService = communityPostCacheService;
+        this.communityPostCounterService = communityPostCounterService;
     }
 
     @Transactional
@@ -187,7 +187,7 @@ public class CommunityReactionService {
         if (updated != 1) {
             throw new BusinessException(404, "帖子不存在");
         }
-        communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.refreshPostCounter(postId);
     }
 
     private void decrementPostReactionCount(Long postId, LocalDateTime now) {
@@ -196,7 +196,7 @@ public class CommunityReactionService {
                 .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
                 .setSql("reaction_count = CASE WHEN reaction_count > 0 THEN reaction_count - 1 ELSE 0 END")
                 .set(CommunityPost::getUpdatedAt, now));
-        communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.refreshPostCounter(postId);
     }
 
     private void incrementPostPigCount(Long postId, LocalDateTime now) {
@@ -208,6 +208,6 @@ public class CommunityReactionService {
         if (updated != 1) {
             throw new BusinessException(404, "帖子不存在");
         }
-        communityPostCacheService.evictFeedAndPost(postId);
+        communityPostCounterService.refreshPostCounter(postId);
     }
 }
