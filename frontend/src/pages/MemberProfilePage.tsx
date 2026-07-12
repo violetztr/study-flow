@@ -15,33 +15,16 @@ import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
-import type { CommunityPostResponse, UserProfileRequest } from '../api/community'
+import type {
+  BackgroundPlacement,
+  BackgroundPresetResponse,
+  CommunityPostResponse,
+  UserProfileRequest,
+} from '../api/community'
 import { mediaApi } from '../api/media'
 import PostCard from '../components/community/PostCard'
 
 type ProfileBackgroundType = 'IMAGE' | 'VIDEO'
-
-const profileBackgroundPresets: Array<{
-  name: string
-  url: string
-  type: ProfileBackgroundType
-}> = [
-  {
-    name: '公路',
-    url: '/system-backgrounds/profile/road.png',
-    type: 'IMAGE',
-  },
-  {
-    name: '剪影',
-    url: '/system-backgrounds/profile/silhouette.mp4',
-    type: 'VIDEO',
-  },
-  {
-    name: '小屋',
-    url: '/system-backgrounds/profile/cabin.mp4',
-    type: 'VIDEO',
-  },
-]
 
 function splitProfileSkills(skills?: string | null) {
   return (skills ?? '')
@@ -91,6 +74,72 @@ async function uploadProfileImage(file: File, onStatus: (status: string) => void
   return completeResponse.url
 }
 
+async function uploadBackgroundAsset(
+  file: File,
+  onStatus: (status: string) => void,
+  allowVideo: boolean,
+) {
+  const isImage = file.type.startsWith('image/')
+  const isVideo = file.type.startsWith('video/')
+  if (!isImage && !(allowVideo && isVideo)) {
+    throw new Error(allowVideo ? '只支持上传图片或视频背景' : '这里只支持上传图片背景')
+  }
+
+  onStatus('准备上传')
+  const prepareResponse = await mediaApi.prepareUpload({
+    filename: file.name,
+    contentType: file.type || 'application/octet-stream',
+    fileSize: file.size,
+  })
+
+  onStatus('正在上传')
+  await mediaApi.uploadToSignedUrl(prepareResponse.uploadUrl, file, prepareResponse.headers)
+
+  onStatus('正在确认')
+  return mediaApi.completeUpload(prepareResponse.mediaFileId)
+}
+
+function backgroundMediaTypeFromFile(file: File): ProfileBackgroundType {
+  return file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE'
+}
+
+function presetNameFromFile(file: File) {
+  return file.name.replace(/\.[^.]+$/, '').trim() || 'background'
+}
+
+function renderBackgroundPresetGrid(
+  presets: BackgroundPresetResponse[] | undefined,
+  selectedUrl: string | undefined,
+  onSelect: (url: string, type: ProfileBackgroundType) => void,
+) {
+  if (!presets?.length) {
+    return <Empty className="profile-background-empty" description="还没有可选背景" />
+  }
+
+  return (
+    <div className="profile-preset-grid">
+      {presets.map((preset) => {
+        const active = selectedUrl === preset.url
+        return (
+          <button
+            key={preset.id}
+            type="button"
+            className={active ? 'active' : ''}
+            onClick={() => onSelect(preset.url, preset.mediaType)}
+          >
+            {preset.mediaType === 'VIDEO' ? (
+              <video src={preset.url} autoPlay muted loop playsInline />
+            ) : (
+              <img src={preset.url} alt={preset.name} />
+            )}
+            <span>{preset.name}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function renderPostGrid(
   posts: CommunityPostResponse[],
   emptyText: string,
@@ -118,9 +167,14 @@ function MemberProfilePage() {
   const [messageApi, contextHolder] = message.useMessage()
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const backgroundInputRef = useRef<HTMLInputElement | null>(null)
+  const homeBackgroundInputRef = useRef<HTMLInputElement | null>(null)
+  const profileSystemInputRef = useRef<HTMLInputElement | null>(null)
+  const homeSystemInputRef = useRef<HTMLInputElement | null>(null)
   const [profileEditorOpen, setProfileEditorOpen] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
-  const [uploadingTarget, setUploadingTarget] = useState<'avatar' | 'background' | null>(null)
+  const [uploadingTarget, setUploadingTarget] = useState<
+    'avatar' | 'profile-background' | 'home-background' | 'profile-system' | 'home-system' | null
+  >(null)
   const userId = Number(id)
   const profileQueryKey = ['community-profile', userId] as const
 
@@ -128,6 +182,16 @@ function MemberProfilePage() {
     queryKey: profileQueryKey,
     queryFn: () => communityApi.getProfile(userId),
     enabled: Number.isFinite(userId),
+  })
+
+  const profilePresetQuery = useQuery({
+    queryKey: ['background-presets', 'PROFILE'],
+    queryFn: () => communityApi.listBackgroundPresets('PROFILE'),
+  })
+
+  const homePresetQuery = useQuery({
+    queryKey: ['background-presets', 'HOME'],
+    queryFn: () => communityApi.listBackgroundPresets('HOME'),
   })
 
   const profile = profileQuery.data
@@ -140,9 +204,12 @@ function MemberProfilePage() {
   const skillTags = splitProfileSkills(member?.skills)
   const selectedBackgroundUrl = Form.useWatch('profileBackgroundUrl', form)
   const selectedBackgroundType = Form.useWatch('profileBackgroundType', form)
+  const selectedHomeBackgroundUrl = Form.useWatch('homeBackgroundUrl', form)
+  const selectedHomeBackgroundType = Form.useWatch('homeBackgroundType', form)
   const selectedAvatarUrl = Form.useWatch('avatarUrl', form)
   const profileBackgroundUrl = member?.profileBackgroundUrl || ''
   const profileBackgroundType = normalizeBackgroundType(member?.profileBackgroundType)
+  const isRuruAdmin = user?.username === 'ruru'
   const heroStyle =
     profileBackgroundUrl && profileBackgroundType === 'IMAGE'
       ? {
@@ -161,6 +228,8 @@ function MemberProfilePage() {
       avatarUrl: member.avatarUrl ?? '',
       profileBackgroundUrl: member.profileBackgroundUrl ?? '',
       profileBackgroundType: normalizeBackgroundType(member.profileBackgroundType),
+      homeBackgroundUrl: member.homeBackgroundUrl ?? '',
+      homeBackgroundType: normalizeBackgroundType(member.homeBackgroundType),
       skills: member.skills ?? '',
       githubUrl: member.githubUrl ?? '',
       websiteUrl: member.websiteUrl ?? '',
@@ -187,6 +256,8 @@ function MemberProfilePage() {
         avatarUrl: cleanNullableText(values.avatarUrl),
         profileBackgroundUrl: cleanNullableText(values.profileBackgroundUrl),
         profileBackgroundType: normalizeBackgroundType(values.profileBackgroundType),
+        homeBackgroundUrl: cleanNullableText(values.homeBackgroundUrl),
+        homeBackgroundType: normalizeBackgroundType(values.homeBackgroundType),
         skills: member?.skills ?? null,
         githubUrl: member?.githubUrl ?? null,
         websiteUrl: member?.websiteUrl ?? null,
@@ -215,7 +286,7 @@ function MemberProfilePage() {
 
   async function handleProfileImageChange(
     event: ChangeEvent<HTMLInputElement>,
-    target: 'avatar' | 'background',
+    target: 'avatar' | 'profile-background' | 'home-background',
   ) {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -225,13 +296,21 @@ function MemberProfilePage() {
 
     try {
       setUploadingTarget(target)
-      const url = await uploadProfileImage(file, setUploadStatus)
       if (target === 'avatar') {
+        const url = await uploadProfileImage(file, setUploadStatus)
         form.setFieldValue('avatarUrl', url)
         void messageApi.success('头像已上传，记得保存')
-      } else {
+      } else if (target === 'home-background') {
+        const media = await uploadBackgroundAsset(file, setUploadStatus, false)
         form.setFieldsValue({
-          profileBackgroundUrl: url,
+          homeBackgroundUrl: media.url,
+          homeBackgroundType: 'IMAGE',
+        })
+        void messageApi.success('主页背景已上传，记得保存')
+      } else {
+        const media = await uploadBackgroundAsset(file, setUploadStatus, false)
+        form.setFieldsValue({
+          profileBackgroundUrl: media.url,
           profileBackgroundType: 'IMAGE',
         })
         void messageApi.success('背景图已上传，记得保存')
@@ -249,6 +328,56 @@ function MemberProfilePage() {
       profileBackgroundUrl: url,
       profileBackgroundType: type,
     })
+  }
+
+  function handleSelectHomePreset(url: string, type: ProfileBackgroundType) {
+    form.setFieldsValue({
+      homeBackgroundUrl: url,
+      homeBackgroundType: type,
+    })
+  }
+
+  async function handleSystemPresetUpload(
+    event: ChangeEvent<HTMLInputElement>,
+    placement: BackgroundPlacement,
+  ) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+
+    try {
+      const target = placement === 'PROFILE' ? 'profile-system' : 'home-system'
+      setUploadingTarget(target)
+      const media = await uploadBackgroundAsset(file, setUploadStatus, true)
+      const mediaType = backgroundMediaTypeFromFile(file)
+
+      if (mediaType === 'VIDEO') {
+        setUploadStatus('正在审核视频')
+        await mediaApi.approveMedia(media.id)
+      }
+
+      const preset = await communityApi.createBackgroundPreset({
+        placement,
+        name: presetNameFromFile(file),
+        url: media.url,
+        mediaType,
+      })
+
+      queryClient.invalidateQueries({ queryKey: ['background-presets', placement] })
+      if (placement === 'PROFILE') {
+        handleSelectPreset(preset.url, preset.mediaType)
+      } else {
+        handleSelectHomePreset(preset.url, preset.mediaType)
+      }
+      void messageApi.success('系统背景已添加，所有人都能选择')
+    } catch (error) {
+      void messageApi.error(error instanceof Error ? error.message : '添加系统背景失败')
+    } finally {
+      setUploadingTarget(null)
+      setUploadStatus(null)
+    }
   }
 
   if (!Number.isFinite(userId)) {
@@ -363,6 +492,12 @@ function MemberProfilePage() {
                 <Form.Item name="profileBackgroundType" hidden>
                   <Input />
                 </Form.Item>
+                <Form.Item name="homeBackgroundUrl" hidden>
+                  <Input />
+                </Form.Item>
+                <Form.Item name="homeBackgroundType" hidden>
+                  <Input />
+                </Form.Item>
 
                 {updateProfileMutation.isError ? (
                   <Alert showIcon type="error" message={updateProfileMutation.error.message} />
@@ -398,47 +533,121 @@ function MemberProfilePage() {
                 </div>
 
                 <div className="profile-background-editor">
-                  <div className="profile-editor-heading">
-                    <strong>空间背景</strong>
-                    <span>{uploadStatus ? `${uploadStatus}...` : '可选系统背景，也可以上传自己的图片'}</span>
-                  </div>
+                  <div className="background-setting-block">
+                    <div className="profile-editor-heading">
+                      <strong>空间背景</strong>
+                      <span>{uploadStatus ? `${uploadStatus}...` : '个人空间顶部展示，自己上传只支持图片'}</span>
+                    </div>
 
-                  <div className="profile-preset-grid">
-                    {profileBackgroundPresets.map((preset) => {
-                      const active = selectedBackgroundUrl === preset.url
-                      return (
-                        <button
-                          key={preset.url}
-                          type="button"
-                          className={active ? 'active' : ''}
-                          onClick={() => handleSelectPreset(preset.url, preset.type)}
+                    {renderBackgroundPresetGrid(
+                      profilePresetQuery.data,
+                      selectedBackgroundUrl ?? undefined,
+                      handleSelectPreset,
+                    )}
+
+                    <input
+                      ref={backgroundInputRef}
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(event) => void handleProfileImageChange(event, 'profile-background')}
+                    />
+                    <input
+                      ref={profileSystemInputRef}
+                      type="file"
+                      accept="image/*,video/mp4,video/webm"
+                      hidden
+                      onChange={(event) => void handleSystemPresetUpload(event, 'PROFILE')}
+                    />
+
+                    <div className="background-setting-actions">
+                      <Button
+                        icon={<UploadOutlined />}
+                        loading={uploadingTarget === 'profile-background'}
+                        onClick={() => backgroundInputRef.current?.click()}
+                      >
+                        上传自己的图片
+                      </Button>
+                      {isRuruAdmin ? (
+                        <Button
+                          icon={<PlusOutlined />}
+                          loading={uploadingTarget === 'profile-system'}
+                          onClick={() => profileSystemInputRef.current?.click()}
                         >
-                          {preset.type === 'VIDEO' ? (
-                            <video src={preset.url} autoPlay muted loop playsInline />
-                          ) : (
-                            <img src={preset.url} alt={preset.name} />
-                          )}
-                          <span>{preset.name}</span>
-                        </button>
-                      )
-                    })}
+                          添加系统背景
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    {selectedBackgroundUrl ? (
+                      <div className="profile-background-preview">
+                        {normalizeBackgroundType(selectedBackgroundType) === 'VIDEO' ? (
+                          <video src={selectedBackgroundUrl} autoPlay muted loop playsInline />
+                        ) : (
+                          <img src={selectedBackgroundUrl} alt="空间背景预览" />
+                        )}
+                      </div>
+                    ) : null}
                   </div>
 
-                  <input
-                    ref={backgroundInputRef}
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={(event) => void handleProfileImageChange(event, 'background')}
-                  />
+                  <div className="background-setting-block">
+                    <div className="profile-editor-heading">
+                      <strong>主页背景</strong>
+                      <span>影响 ruru 首页最外层背景，自己上传只支持图片</span>
+                    </div>
+
+                    {renderBackgroundPresetGrid(
+                      homePresetQuery.data,
+                      selectedHomeBackgroundUrl ?? undefined,
+                      handleSelectHomePreset,
+                    )}
+
+                    <input
+                      ref={homeBackgroundInputRef}
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(event) => void handleProfileImageChange(event, 'home-background')}
+                    />
+                    <input
+                      ref={homeSystemInputRef}
+                      type="file"
+                      accept="image/*,video/mp4,video/webm"
+                      hidden
+                      onChange={(event) => void handleSystemPresetUpload(event, 'HOME')}
+                    />
+
+                    <div className="background-setting-actions">
+                      <Button
+                        icon={<UploadOutlined />}
+                        loading={uploadingTarget === 'home-background'}
+                        onClick={() => homeBackgroundInputRef.current?.click()}
+                      >
+                        上传主页图片
+                      </Button>
+                      {isRuruAdmin ? (
+                        <Button
+                          icon={<PlusOutlined />}
+                          loading={uploadingTarget === 'home-system'}
+                          onClick={() => homeSystemInputRef.current?.click()}
+                        >
+                          添加系统主页背景
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    {selectedHomeBackgroundUrl ? (
+                      <div className="profile-background-preview">
+                        {normalizeBackgroundType(selectedHomeBackgroundType) === 'VIDEO' ? (
+                          <video src={selectedHomeBackgroundUrl} autoPlay muted loop playsInline />
+                        ) : (
+                          <img src={selectedHomeBackgroundUrl} alt="主页背景预览" />
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+
                   <div className="profile-editor-actions">
-                    <Button
-                      icon={<UploadOutlined />}
-                      loading={uploadingTarget === 'background'}
-                      onClick={() => backgroundInputRef.current?.click()}
-                    >
-                      上传背景图
-                    </Button>
                     <Button onClick={() => setProfileEditorOpen(false)}>取消</Button>
                     <Button
                       type="primary"
@@ -449,16 +658,6 @@ function MemberProfilePage() {
                       保存
                     </Button>
                   </div>
-
-                  {selectedBackgroundUrl ? (
-                    <div className="profile-background-preview">
-                      {normalizeBackgroundType(selectedBackgroundType) === 'VIDEO' ? (
-                        <video src={selectedBackgroundUrl} autoPlay muted loop playsInline />
-                      ) : (
-                        <img src={selectedBackgroundUrl} alt="空间背景预览" />
-                      )}
-                    </div>
-                  ) : null}
                 </div>
               </Form>
             </section>

@@ -38,6 +38,7 @@ public class SecurityConfig {
                                 "/api/community/posts/*/views"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
+                                "/api/background-presets",
                                 "/api/community/topics",
                                 "/api/community/feed",
                                 "/api/community/search",

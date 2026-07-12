@@ -136,6 +136,8 @@ export type CommunityMemberResponse = {
   avatarUrl?: string | null
   profileBackgroundUrl?: string | null
   profileBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
+  homeBackgroundUrl?: string | null
+  homeBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
   skills?: string | null
   githubUrl?: string | null
   websiteUrl?: string | null
@@ -150,6 +152,8 @@ export type UserProfileRequest = {
   avatarUrl?: string | null
   profileBackgroundUrl?: string | null
   profileBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
+  homeBackgroundUrl?: string | null
+  homeBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
   skills?: string | null
   githubUrl?: string | null
   websiteUrl?: string | null
@@ -170,7 +174,37 @@ export type ModerationRequest = {
   reason?: string
 }
 
+export type BackgroundPlacement = 'HOME' | 'PROFILE'
+
+export type BackgroundMediaType = 'IMAGE' | 'VIDEO'
+
+export type BackgroundPresetResponse = {
+  id: number
+  placement: BackgroundPlacement
+  name: string
+  url: string
+  mediaType: BackgroundMediaType
+  systemProvided: boolean
+  sortOrder: number
+  createdAt: string
+}
+
+export type BackgroundPresetRequest = {
+  placement: BackgroundPlacement
+  name: string
+  url: string
+  mediaType: BackgroundMediaType
+}
+
 export const communityApi = {
+  listBackgroundPresets(placement: BackgroundPlacement) {
+    return http.get<unknown, BackgroundPresetResponse[]>('/background-presets', {
+      params: { placement },
+    })
+  },
+  createBackgroundPreset(request: BackgroundPresetRequest) {
+    return http.post<unknown, BackgroundPresetResponse>('/admin/background-presets', request)
+  },
   listFeed() {
     return http.get<unknown, CommunityPostResponse[]>('/community/feed')
   },

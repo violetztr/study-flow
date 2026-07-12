@@ -36,6 +36,10 @@ function getChannelCount(channel: FeedChannel, posts: CommunityPostResponse[]) {
   return getChannelPosts(channel, posts).length
 }
 
+function normalizeBackgroundType(type?: string | null) {
+  return type === 'IMAGE' ? 'IMAGE' : 'VIDEO'
+}
+
 function CircleFeedPage() {
   const navigate = useNavigate()
   const user = getStoredUser()
@@ -47,6 +51,17 @@ function CircleFeedPage() {
   const feedQuery = useQuery({
     queryKey: ['community-feed'],
     queryFn: communityApi.listFeed,
+  })
+
+  const meQuery = useQuery({
+    queryKey: ['community-me'],
+    queryFn: communityApi.getMe,
+    enabled: Boolean(user),
+  })
+
+  const homePresetQuery = useQuery({
+    queryKey: ['background-presets', 'HOME'],
+    queryFn: () => communityApi.listBackgroundPresets('HOME'),
   })
 
   const hotQuery = useQuery({
@@ -64,6 +79,14 @@ function CircleFeedPage() {
   const activeQuery = deferredKeyword.length > 0 ? searchQuery : showHot ? hotQuery : feedQuery
   const posts = activeQuery.data ?? []
   const visiblePosts = getChannelPosts(activeChannel, posts)
+  const defaultHomePreset = homePresetQuery.data?.[0]
+  const homeBackgroundUrl =
+    (user ? meQuery.data?.homeBackgroundUrl : null) ||
+    defaultHomePreset?.url ||
+    '/system-backgrounds/site/home-hero.mp4'
+  const homeBackgroundType = normalizeBackgroundType(
+    (user ? meQuery.data?.homeBackgroundType : null) || defaultHomePreset?.mediaType,
+  )
 
   function goSubmit() {
     if (user) {
@@ -75,15 +98,23 @@ function CircleFeedPage() {
 
   return (
     <section className="page-section feed-page discovery-page">
-      <video
-        className="site-home-bg-video"
-        src="/system-backgrounds/site/home-hero.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        aria-hidden="true"
-      />
+      {homeBackgroundType === 'IMAGE' ? (
+        <div
+          className="site-home-bg-image"
+          style={{ backgroundImage: `url("${homeBackgroundUrl}")` }}
+          aria-hidden="true"
+        />
+      ) : (
+        <video
+          className="site-home-bg-video"
+          src={homeBackgroundUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden="true"
+        />
+      )}
       <div className="site-home-bg-overlay" />
       <div className="discovery-shell">
         <header className="discovery-topbar">
