@@ -27,6 +27,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/api/health",
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/doc.html",
@@ -39,10 +40,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/community/topics",
                                 "/api/community/feed",
+                                "/api/community/search",
+                                "/api/community/rankings/hot",
                                 "/api/community/profiles/*",
                                 "/api/community/posts/*",
                                 "/api/community/posts/*/comments",
-                                "/api/community/posts/*/danmaku"
+                                "/api/community/posts/*/danmaku",
+                                "/api/media/videos/*/hls/**"
                         ).permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()

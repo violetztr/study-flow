@@ -32,6 +32,22 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: study-flow-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-ruru}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-ruru-rabbitmq-change-me}
+      TZ: Asia/Shanghai
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -43,6 +59,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER:-ruru}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-ruru-rabbitmq-change-me}
       STUDY_FLOW_JWT_SECRET: ${STUDY_FLOW_JWT_SECRET:?Set STUDY_FLOW_JWT_SECRET in .env}
       STUDY_FLOW_JWT_EXPIRATION_MINUTES: ${STUDY_FLOW_JWT_EXPIRATION_MINUTES:-1440}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
@@ -53,12 +73,29 @@ services:
       R2_READ_URL_TTL: ${R2_READ_URL_TTL:-1h}
       R2_MAX_IMAGE_BYTES: ${R2_MAX_IMAGE_BYTES:-10485760}
       R2_MAX_VIDEO_BYTES: ${R2_MAX_VIDEO_BYTES:-209715200}
+      MEDIA_TRANSCODE_ENABLED: ${MEDIA_TRANSCODE_ENABLED:-false}
+      MEDIA_TRANSCODE_FFMPEG_PATH: ${MEDIA_TRANSCODE_FFMPEG_PATH:-ffmpeg}
+      MEDIA_TRANSCODE_WORK_DIR: ${MEDIA_TRANSCODE_WORK_DIR:-/tmp/ruru-transcode}
+      MEDIA_TRANSCODE_TIMEOUT: ${MEDIA_TRANSCODE_TIMEOUT:-30m}
+      MEDIA_QUEUE_ENABLED: ${MEDIA_QUEUE_ENABLED:-false}
+      MEDIA_QUEUE_EXCHANGE: ${MEDIA_QUEUE_EXCHANGE:-ruru.media}
+      MEDIA_QUEUE_TRANSCODE_QUEUE: ${MEDIA_QUEUE_TRANSCODE_QUEUE:-ruru.media.transcode}
+      MEDIA_QUEUE_TRANSCODE_ROUTING_KEY: ${MEDIA_QUEUE_TRANSCODE_ROUTING_KEY:-media.transcode.requested}
+      MEDIA_QUEUE_FALLBACK_TO_LOCAL_EVENT: ${MEDIA_QUEUE_FALLBACK_TO_LOCAL_EVENT:-true}
       TZ: Asia/Shanghai
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   frontend:
     build:
@@ -69,7 +106,14 @@ services:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   mysql_data:
   redis_data:
+  rabbitmq_data:

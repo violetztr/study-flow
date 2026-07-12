@@ -1,7 +1,7 @@
 import { PlusOutlined } from '@ant-design/icons'
-import { Alert, Button, Empty, Skeleton } from 'antd'
+import { Alert, Button, Empty, Input, Skeleton } from 'antd'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
@@ -40,13 +40,29 @@ function CircleFeedPage() {
   const navigate = useNavigate()
   const user = getStoredUser()
   const [activeChannel, setActiveChannel] = useState<FeedChannel>('article')
+  const [showHot, setShowHot] = useState(false)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const deferredKeyword = useDeferredValue(searchKeyword.trim())
 
   const feedQuery = useQuery({
     queryKey: ['community-feed'],
     queryFn: communityApi.listFeed,
   })
 
-  const posts = feedQuery.data ?? []
+  const hotQuery = useQuery({
+    queryKey: ['community-rankings-hot'],
+    queryFn: communityApi.listHotRanking,
+    enabled: showHot && deferredKeyword.length === 0,
+  })
+
+  const searchQuery = useQuery({
+    queryKey: ['community-search', deferredKeyword],
+    queryFn: () => communityApi.searchPosts(deferredKeyword),
+    enabled: deferredKeyword.length > 0,
+  })
+
+  const activeQuery = deferredKeyword.length > 0 ? searchQuery : showHot ? hotQuery : feedQuery
+  const posts = activeQuery.data ?? []
   const visiblePosts = getChannelPosts(activeChannel, posts)
 
   function goSubmit() {
@@ -80,6 +96,23 @@ function CircleFeedPage() {
           </nav>
 
           <div className="discovery-actions">
+            <Input.Search
+              allowClear
+              className="discovery-search"
+              placeholder="搜索视频、图文、话题或作者"
+              value={searchKeyword}
+              onChange={(event) => setSearchKeyword(event.target.value)}
+              onSearch={(value) => setSearchKeyword(value)}
+            />
+            <Button
+              type={showHot && deferredKeyword.length === 0 ? 'primary' : 'default'}
+              onClick={() => {
+                setShowHot((current) => !current)
+                setSearchKeyword('')
+              }}
+            >
+              {showHot && deferredKeyword.length === 0 ? '热门' : '最新'}
+            </Button>
             {user ? <Button onClick={() => navigate('/circle/history')}>历史</Button> : null}
             {user ? <Button onClick={() => navigate('/circle/submissions')}>稿件</Button> : null}
             <Button type="primary" icon={<PlusOutlined />} onClick={goSubmit}>
@@ -90,17 +123,19 @@ function CircleFeedPage() {
 
         <div className="notice-stack">
           {feedQuery.isError ? <Alert showIcon type="error" message={feedQuery.error.message} /> : null}
+          {hotQuery.isError ? <Alert showIcon type="error" message={hotQuery.error.message} /> : null}
+          {searchQuery.isError ? <Alert showIcon type="error" message={searchQuery.error.message} /> : null}
         </div>
 
-        {feedQuery.isLoading ? <Skeleton active /> : null}
+        {activeQuery.isLoading ? <Skeleton active /> : null}
 
-        {!feedQuery.isLoading && activeChannel === 'live' ? (
+        {!activeQuery.isLoading && activeChannel === 'live' ? (
           <div className="channel-empty-card">
             <strong>直播准备中</strong>
           </div>
         ) : null}
 
-        {!feedQuery.isLoading && activeChannel !== 'live' && visiblePosts.length === 0 ? (
+        {!activeQuery.isLoading && activeChannel !== 'live' && visiblePosts.length === 0 ? (
           <Empty description={activeChannel === 'video' ? '还没有视频' : '还没有图文'}>
             <Button type="primary" onClick={goSubmit}>
               去投稿

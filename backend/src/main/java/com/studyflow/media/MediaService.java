@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.studyflow.common.BusinessException;
 import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.media.dto.MediaAttachmentResponse;
+import com.studyflow.media.dto.MediaTranscodeVariantResponse;
 import com.studyflow.media.dto.MediaUploadCompleteResponse;
 import com.studyflow.media.dto.MediaUploadPrepareRequest;
 import com.studyflow.media.dto.MediaUploadPrepareResponse;
@@ -23,10 +24,14 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 import java.net.URI;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -50,6 +55,11 @@ public class MediaService {
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_REJECTED = "REJECTED";
     private static final String STATUS_ATTACHED = "ATTACHED";
+    private static final String TRANSCODE_WAITING = "WAITING";
+    private static final String TRANSCODE_READY = "READY";
+    private static final String PLAYBACK_TYPE_HLS = "HLS";
+    private static final String VARIANT_STATUS_READY = "READY";
+    private static final String HLS_SEGMENT_CONTENT_TYPE = "video/mp2t";
     private static final String RURU_ADMIN_USERNAME = "ruru";
     private static final int MAX_POST_MEDIA_COUNT = 9;
 
@@ -67,6 +77,9 @@ public class MediaService {
 
     private final MediaFileMapper mediaFileMapper;
     private final CommunityPostMediaMapper communityPostMediaMapper;
+    private final MediaTranscodeVariantMapper mediaTranscodeVariantMapper;
+    private final MediaTranscodeSegmentMapper mediaTranscodeSegmentMapper;
+    private final MediaTranscodeService mediaTranscodeService;
     private final CommunityMemberService communityMemberService;
     private final R2StorageProperties r2StorageProperties;
     private final UserMapper userMapper;
@@ -74,12 +87,18 @@ public class MediaService {
     public MediaService(
             MediaFileMapper mediaFileMapper,
             CommunityPostMediaMapper communityPostMediaMapper,
+            MediaTranscodeVariantMapper mediaTranscodeVariantMapper,
+            MediaTranscodeSegmentMapper mediaTranscodeSegmentMapper,
+            MediaTranscodeService mediaTranscodeService,
             CommunityMemberService communityMemberService,
             R2StorageProperties r2StorageProperties,
             UserMapper userMapper
     ) {
         this.mediaFileMapper = mediaFileMapper;
         this.communityPostMediaMapper = communityPostMediaMapper;
+        this.mediaTranscodeVariantMapper = mediaTranscodeVariantMapper;
+        this.mediaTranscodeSegmentMapper = mediaTranscodeSegmentMapper;
+        this.mediaTranscodeService = mediaTranscodeService;
         this.communityMemberService = communityMemberService;
         this.r2StorageProperties = r2StorageProperties;
         this.userMapper = userMapper;
@@ -107,6 +126,9 @@ public class MediaService {
         mediaFile.setFileType(fileType);
         mediaFile.setFileSize(request.fileSize());
         mediaFile.setStatus(STATUS_PENDING);
+        if (FILE_TYPE_VIDEO.equals(fileType)) {
+            mediaFile.setTranscodeStatus(TRANSCODE_WAITING);
+        }
         mediaFile.setCreatedAt(now);
         mediaFile.setUpdatedAt(now);
         mediaFileMapper.insert(mediaFile);
@@ -162,6 +184,84 @@ public class MediaService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public String buildHlsMasterPlaylist(Long mediaFileId) {
+        MediaFile mediaFile = mediaFileMapper.selectById(mediaFileId);
+        if (mediaFile == null
+                || !FILE_TYPE_VIDEO.equals(mediaFile.getFileType())
+                || !STATUS_APPROVED.equals(mediaFile.getStatus())
+                || !TRANSCODE_READY.equals(mediaFile.getTranscodeStatus())
+                || !hasText(mediaFile.getHlsMasterObjectKey())) {
+            throw new BusinessException(404, "视频播放清单不存在");
+        }
+
+        List<MediaTranscodeVariant> variants = readyTranscodeVariants(mediaFileId);
+        if (variants.isEmpty()) {
+            throw new BusinessException(404, "视频清晰度还没有准备好");
+        }
+
+        StringBuilder playlist = new StringBuilder();
+        playlist.append("#EXTM3U\n");
+        playlist.append("#EXT-X-VERSION:3\n");
+        for (MediaTranscodeVariant variant : variants) {
+            playlist.append("#EXT-X-STREAM-INF:BANDWIDTH=")
+                    .append(resolveBandwidth(variant))
+                    .append(",RESOLUTION=")
+                    .append(variant.getWidth())
+                    .append("x")
+                    .append(variant.getHeight())
+                    .append("\n");
+            playlist.append(hlsVariantUrl(mediaFileId, variant.getQualityLabel())).append("\n");
+        }
+        return playlist.toString();
+    }
+
+    @Transactional(readOnly = true)
+    public String buildHlsVariantPlaylist(Long mediaFileId, String qualityPath) {
+        requireReadyHlsVideo(mediaFileId);
+        MediaTranscodeVariant variant = requireReadyVariant(mediaFileId, qualityPath);
+        List<MediaTranscodeSegment> segments = readySegments(mediaFileId, variant.getQualityLabel());
+        if (segments.isEmpty()) {
+            throw new BusinessException(404, "视频分片还没有准备好");
+        }
+
+        int targetDuration = segments.stream()
+                .map(MediaTranscodeSegment::getDurationSeconds)
+                .filter(duration -> duration != null)
+                .map(duration -> duration.setScale(0, RoundingMode.CEILING).intValue())
+                .max(Integer::compareTo)
+                .orElse(1);
+
+        String normalizedQuality = normalizeQualityPath(variant.getQualityLabel());
+        StringBuilder playlist = new StringBuilder();
+        playlist.append("#EXTM3U\n");
+        playlist.append("#EXT-X-VERSION:3\n");
+        playlist.append("#EXT-X-TARGETDURATION:").append(targetDuration).append("\n");
+        playlist.append("#EXT-X-MEDIA-SEQUENCE:").append(segments.get(0).getSegmentIndex()).append("\n");
+        for (MediaTranscodeSegment segment : segments) {
+            playlist.append("#EXTINF:")
+                    .append(formatDuration(segment.getDurationSeconds()))
+                    .append(",\n");
+            playlist.append(hlsSegmentUrl(mediaFileId, normalizedQuality, segment.getSegmentIndex())).append("\n");
+        }
+        playlist.append("#EXT-X-ENDLIST\n");
+        return playlist.toString();
+    }
+
+    @Transactional(readOnly = true)
+    public String presignHlsSegmentUrl(Long mediaFileId, String qualityPath, Integer segmentIndex) {
+        MediaFile mediaFile = requireReadyHlsVideo(mediaFileId);
+        MediaTranscodeVariant variant = requireReadyVariant(mediaFileId, qualityPath);
+        MediaTranscodeSegment segment = mediaTranscodeSegmentMapper.selectOne(new LambdaQueryWrapper<MediaTranscodeSegment>()
+                .eq(MediaTranscodeSegment::getMediaFileId, mediaFileId)
+                .eq(MediaTranscodeSegment::getQualityLabel, variant.getQualityLabel())
+                .eq(MediaTranscodeSegment::getSegmentIndex, segmentIndex));
+        if (segment == null) {
+            throw new BusinessException(404, "视频分片不存在");
+        }
+        return presignGetUrl(mediaFile.getBucketName(), segment.getObjectKey(), HLS_SEGMENT_CONTENT_TYPE);
+    }
+
     @Transactional
     public MediaUploadCompleteResponse approveVideo(Long adminUserId, Long mediaFileId) {
         requireRuruAdmin(adminUserId);
@@ -170,6 +270,7 @@ public class MediaService {
         updateReviewStatus(mediaFile.getId(), STATUS_APPROVED, now);
         mediaFile.setStatus(STATUS_APPROVED);
         mediaFile.setUpdatedAt(now);
+        mediaTranscodeService.requestTranscode(mediaFile.getId());
         return toCompleteResponse(mediaFile);
     }
 
@@ -181,6 +282,43 @@ public class MediaService {
         updateReviewStatus(mediaFile.getId(), STATUS_REJECTED, now);
         mediaFile.setStatus(STATUS_REJECTED);
         mediaFile.setUpdatedAt(now);
+        return toCompleteResponse(mediaFile);
+    }
+
+    @Transactional
+    public MediaUploadCompleteResponse retryVideoTranscode(Long adminUserId, Long mediaFileId) {
+        requireRuruAdmin(adminUserId);
+        MediaFile mediaFile = mediaFileMapper.selectById(mediaFileId);
+        if (mediaFile == null || !FILE_TYPE_VIDEO.equals(mediaFile.getFileType())) {
+            throw new BusinessException(404, "视频不存在");
+        }
+        if (!STATUS_APPROVED.equals(mediaFile.getStatus())) {
+            throw new BusinessException(400, "只有已审核通过的视频才能重新转码");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        mediaTranscodeSegmentMapper.delete(new LambdaQueryWrapper<MediaTranscodeSegment>()
+                .eq(MediaTranscodeSegment::getMediaFileId, mediaFileId));
+        mediaTranscodeVariantMapper.delete(new LambdaQueryWrapper<MediaTranscodeVariant>()
+                .eq(MediaTranscodeVariant::getMediaFileId, mediaFileId));
+        mediaFileMapper.update(null, new LambdaUpdateWrapper<MediaFile>()
+                .eq(MediaFile::getId, mediaFileId)
+                .set(MediaFile::getTranscodeStatus, TRANSCODE_WAITING)
+                .set(MediaFile::getTranscodeError, null)
+                .set(MediaFile::getTranscodeStartedAt, null)
+                .set(MediaFile::getTranscodeCompletedAt, null)
+                .set(MediaFile::getHlsMasterObjectKey, null)
+                .set(MediaFile::getDurationSeconds, null)
+                .set(MediaFile::getUpdatedAt, now));
+
+        mediaFile.setTranscodeStatus(TRANSCODE_WAITING);
+        mediaFile.setTranscodeError(null);
+        mediaFile.setTranscodeStartedAt(null);
+        mediaFile.setTranscodeCompletedAt(null);
+        mediaFile.setHlsMasterObjectKey(null);
+        mediaFile.setDurationSeconds(null);
+        mediaFile.setUpdatedAt(now);
+        mediaTranscodeService.requestTranscode(mediaFile.getId());
         return toCompleteResponse(mediaFile);
     }
 
@@ -298,6 +436,12 @@ public class MediaService {
         Map<Long, MediaFile> mediaById = mediaFileMapper.selectBatchIds(mediaFileIds)
                 .stream()
                 .collect(Collectors.toMap(MediaFile::getId, Function.identity()));
+        Map<Long, List<MediaTranscodeVariantResponse>> variantsByMediaFileId = transcodeVariantsByMediaFileIds(
+                mediaById.values().stream()
+                        .filter(mediaFile -> FILE_TYPE_VIDEO.equals(mediaFile.getFileType()))
+                        .map(MediaFile::getId)
+                        .toList()
+        );
 
         Map<Long, List<MediaAttachmentResponse>> result = new LinkedHashMap<>();
         for (CommunityPostMedia postMedia : postMediaRows) {
@@ -310,7 +454,11 @@ public class MediaService {
                 coverMediaFile = mediaById.get(videoCoverMediaFileIds.get(postMedia.getPostId()));
             }
             result.computeIfAbsent(postMedia.getPostId(), ignored -> new ArrayList<>())
-                    .add(toAttachmentResponse(mediaFile, coverMediaFile));
+                    .add(toAttachmentResponse(
+                            mediaFile,
+                            coverMediaFile,
+                            variantsByMediaFileId.getOrDefault(mediaFile.getId(), Collections.emptyList())
+                    ));
         }
         return result;
     }
@@ -549,11 +697,15 @@ public class MediaService {
     }
 
     private String presignGetUrl(MediaFile mediaFile) {
+        return presignGetUrl(mediaFile.getBucketName(), mediaFile.getObjectKey(), mediaFile.getContentType());
+    }
+
+    private String presignGetUrl(String bucketName, String objectKey, String contentType) {
         try (S3Presigner presigner = createPresigner()) {
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(mediaFile.getBucketName())
-                    .key(mediaFile.getObjectKey())
-                    .responseContentType(mediaFile.getContentType())
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .responseContentType(contentType)
                     .build();
             PresignedGetObjectRequest request = presigner.presignGetObject(builder -> builder
                     .signatureDuration(r2StorageProperties.getReadUrlTtl())
@@ -577,7 +729,103 @@ public class MediaService {
                 .build();
     }
 
-    private MediaAttachmentResponse toAttachmentResponse(MediaFile mediaFile, MediaFile coverMediaFile) {
+    private Map<Long, List<MediaTranscodeVariantResponse>> transcodeVariantsByMediaFileIds(Collection<Long> mediaFileIds) {
+        if (mediaFileIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return mediaTranscodeVariantMapper.selectList(new LambdaQueryWrapper<MediaTranscodeVariant>()
+                        .in(MediaTranscodeVariant::getMediaFileId, mediaFileIds)
+                        .eq(MediaTranscodeVariant::getStatus, VARIANT_STATUS_READY)
+                        .orderByAsc(MediaTranscodeVariant::getHeight)
+                        .orderByAsc(MediaTranscodeVariant::getId))
+                .stream()
+                .map(this::toVariantResponse)
+                .collect(Collectors.groupingBy(
+                        MediaTranscodeVariantResponseWithMediaId::mediaFileId,
+                        LinkedHashMap::new,
+                        Collectors.mapping(MediaTranscodeVariantResponseWithMediaId::response, Collectors.toList())
+                ));
+    }
+
+    private List<MediaTranscodeVariant> readyTranscodeVariants(Long mediaFileId) {
+        return mediaTranscodeVariantMapper.selectList(new LambdaQueryWrapper<MediaTranscodeVariant>()
+                .eq(MediaTranscodeVariant::getMediaFileId, mediaFileId)
+                .eq(MediaTranscodeVariant::getStatus, VARIANT_STATUS_READY)
+                .isNotNull(MediaTranscodeVariant::getWidth)
+                .isNotNull(MediaTranscodeVariant::getHeight)
+                .orderByAsc(MediaTranscodeVariant::getHeight)
+                .orderByAsc(MediaTranscodeVariant::getId));
+    }
+
+    private MediaFile requireReadyHlsVideo(Long mediaFileId) {
+        MediaFile mediaFile = mediaFileMapper.selectById(mediaFileId);
+        if (mediaFile == null
+                || !FILE_TYPE_VIDEO.equals(mediaFile.getFileType())
+                || !STATUS_APPROVED.equals(mediaFile.getStatus())
+                || !TRANSCODE_READY.equals(mediaFile.getTranscodeStatus())
+                || !hasText(mediaFile.getHlsMasterObjectKey())) {
+            throw new BusinessException(404, "视频播放清单不存在");
+        }
+        return mediaFile;
+    }
+
+    private MediaTranscodeVariant requireReadyVariant(Long mediaFileId, String qualityPath) {
+        String normalizedQuality = normalizeQualityPath(qualityPath);
+        return readyTranscodeVariants(mediaFileId).stream()
+                .filter(variant -> normalizedQuality.equals(normalizeQualityPath(variant.getQualityLabel())))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(404, "视频清晰度不存在"));
+    }
+
+    private List<MediaTranscodeSegment> readySegments(Long mediaFileId, String qualityLabel) {
+        return mediaTranscodeSegmentMapper.selectList(new LambdaQueryWrapper<MediaTranscodeSegment>()
+                .eq(MediaTranscodeSegment::getMediaFileId, mediaFileId)
+                .eq(MediaTranscodeSegment::getQualityLabel, qualityLabel)
+                .orderByAsc(MediaTranscodeSegment::getSegmentIndex)
+                .orderByAsc(MediaTranscodeSegment::getId));
+    }
+
+    private int resolveBandwidth(MediaTranscodeVariant variant) {
+        if (variant.getBitrateKbps() != null && variant.getBitrateKbps() > 0) {
+            return variant.getBitrateKbps() * 1000;
+        }
+        return Math.max(variant.getHeight(), 1) * 4000;
+    }
+
+    private String formatDuration(BigDecimal durationSeconds) {
+        if (durationSeconds == null) {
+            return "0.000";
+        }
+        return durationSeconds.setScale(3, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private MediaTranscodeVariantResponseWithMediaId toVariantResponse(MediaTranscodeVariant variant) {
+        MediaTranscodeVariantResponse response = new MediaTranscodeVariantResponse(
+                variant.getQualityLabel(),
+                variant.getWidth(),
+                variant.getHeight(),
+                variant.getBitrateKbps(),
+                hlsVariantUrl(variant.getMediaFileId(), variant.getQualityLabel())
+        );
+        return new MediaTranscodeVariantResponseWithMediaId(variant.getMediaFileId(), response);
+    }
+
+    private MediaAttachmentResponse toAttachmentResponse(
+            MediaFile mediaFile,
+            MediaFile coverMediaFile,
+            List<MediaTranscodeVariantResponse> variants
+    ) {
+        List<MediaTranscodeVariantResponse> sortedVariants = variants.stream()
+                .sorted(Comparator.comparing(MediaTranscodeVariantResponse::height, Comparator.nullsLast(Integer::compareTo)))
+                .toList();
+        String playbackUrl = null;
+        String playbackType = null;
+        if (FILE_TYPE_VIDEO.equals(mediaFile.getFileType())
+                && TRANSCODE_READY.equals(mediaFile.getTranscodeStatus())
+                && hasText(mediaFile.getHlsMasterObjectKey())) {
+            playbackUrl = hlsMasterUrl(mediaFile.getId());
+            playbackType = PLAYBACK_TYPE_HLS;
+        }
         return new MediaAttachmentResponse(
                 mediaFile.getId(),
                 mediaFile.getFileType(),
@@ -585,8 +833,42 @@ public class MediaService {
                 mediaFile.getOriginalFilename(),
                 mediaFile.getFileSize(),
                 presignGetUrl(mediaFile),
-                coverMediaFile == null || !isPubliclyVisible(coverMediaFile) ? null : presignGetUrl(coverMediaFile)
+                coverMediaFile == null || !isPubliclyVisible(coverMediaFile) ? null : presignGetUrl(coverMediaFile),
+                playbackUrl,
+                playbackType,
+                mediaFile.getTranscodeStatus(),
+                mediaFile.getTranscodeError(),
+                sortedVariants
         );
+    }
+
+    private String hlsMasterUrl(Long mediaFileId) {
+        return "/api/media/videos/%d/hls/master.m3u8".formatted(mediaFileId);
+    }
+
+    private String hlsVariantUrl(Long mediaFileId, String qualityLabel) {
+        return "/api/media/videos/%d/hls/%s/index.m3u8".formatted(mediaFileId, normalizeQualityPath(qualityLabel));
+    }
+
+    private String hlsSegmentUrl(Long mediaFileId, String qualityPath, Integer segmentIndex) {
+        return "/api/media/videos/%d/hls/%s/segments/%d.ts".formatted(mediaFileId, qualityPath, segmentIndex);
+    }
+
+    private String normalizeQualityPath(String qualityLabel) {
+        if (qualityLabel == null || qualityLabel.isBlank()) {
+            return "unknown";
+        }
+        return qualityLabel.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private record MediaTranscodeVariantResponseWithMediaId(
+            Long mediaFileId,
+            MediaTranscodeVariantResponse response
+    ) {
     }
 
     private MediaUploadCompleteResponse toCompleteResponse(MediaFile mediaFile) {
@@ -596,7 +878,9 @@ public class MediaService {
                 mediaFile.getContentType(),
                 mediaFile.getOriginalFilename(),
                 mediaFile.getFileSize(),
-                mediaFile.getStatus()
+                mediaFile.getStatus(),
+                mediaFile.getTranscodeStatus(),
+                mediaFile.getTranscodeError()
         );
     }
 }

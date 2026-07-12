@@ -408,6 +408,10 @@ textarea {
   justify-content: flex-end;
 }
 
+.discovery-search {
+  width: min(320px, 34vw);
+}
+
 .feed-channel-tabs {
   display: flex;
   gap: 28px;
@@ -1696,6 +1700,32 @@ textarea {
   font-size: 13px;
 }
 
+.admin-transcode-box {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(49, 107, 90, 0.12);
+  border-radius: 14px;
+  background: rgba(247, 250, 247, 0.82);
+}
+
+.admin-transcode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--sf-muted);
+  font-size: 12px;
+}
+
+.admin-transcode-box p {
+  margin: 0;
+  color: #a43d3d;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 .admin-reject-box {
   display: grid;
   gap: 10px;
@@ -2556,7 +2586,13 @@ textarea {
   }
 
   .discovery-actions {
+    flex-wrap: wrap;
     justify-content: flex-end;
+  }
+
+  .discovery-search {
+    width: min(100%, 360px);
+    flex: 1 1 220px;
   }
 
   .feed-channel-tabs {

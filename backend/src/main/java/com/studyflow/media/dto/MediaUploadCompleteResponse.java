@@ -6,6 +6,8 @@ public record MediaUploadCompleteResponse(
         String contentType,
         String originalFilename,
         Long fileSize,
-        String status
+        String status,
+        String transcodeStatus,
+        String transcodeError
 ) {
 }

@@ -24,6 +24,8 @@ export type MediaUploadCompleteResponse = {
   originalFilename: string
   fileSize: number
   status: string
+  transcodeStatus?: string | null
+  transcodeError?: string | null
 }
 
 export const mediaApi = {
@@ -46,6 +48,11 @@ export const mediaApi = {
   rejectMedia(mediaFileId: number) {
     return http.post<unknown, MediaUploadCompleteResponse>(
       `/admin/media/${mediaFileId}/reject`,
+    )
+  },
+  retryTranscode(mediaFileId: number) {
+    return http.post<unknown, MediaUploadCompleteResponse>(
+      `/admin/media/${mediaFileId}/transcode/retry`,
     )
   },
   async uploadToSignedUrl(uploadUrl: string, file: File, headers: Record<string, string>) {

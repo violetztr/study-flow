@@ -1,6 +1,7 @@
 package com.studyflow.community.post;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -111,6 +113,55 @@ public class CommunityPostService {
                         .orderByDesc(CommunityPost::getLastActivityAt)
                         .orderByDesc(CommunityPost::getCreatedAt));
         return toResponses(posts, userId);
+    }
+
+    public List<CommunityPostResponse> searchPosts(Long userId, String keyword) {
+        String normalizedKeyword = normalizeSearchKeyword(keyword);
+        if (normalizedKeyword == null) {
+            return Collections.emptyList();
+        }
+
+        Circle circle = communityMemberService.getDefaultCircle();
+        Set<Long> authorIds = searchAuthorIds(normalizedKeyword);
+        LambdaQueryWrapper<CommunityPost> wrapper = new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .and(query -> {
+                    query.like(CommunityPost::getTitle, normalizedKeyword)
+                            .or()
+                            .like(CommunityPost::getContent, normalizedKeyword)
+                            .or()
+                            .like(CommunityPost::getTopicName, normalizedKeyword);
+                    if (!authorIds.isEmpty()) {
+                        query.or().in(CommunityPost::getAuthorId, authorIds);
+                    }
+                })
+                .orderByDesc(CommunityPost::getPinned)
+                .orderByDesc(CommunityPost::getLastActivityAt)
+                .orderByDesc(CommunityPost::getId)
+                .last("LIMIT 50");
+        return toResponses(communityPostMapper.selectList(wrapper), userId);
+    }
+
+    public List<CommunityPostResponse> listHotRanking(Long userId) {
+        Circle circle = communityMemberService.getDefaultCircle();
+        QueryWrapper<CommunityPost> wrapper = new QueryWrapper<CommunityPost>()
+                .eq("circle_id", circle.getId())
+                .eq("status", STATUS_PUBLISHED)
+                .last("""
+                        ORDER BY pinned DESC,
+                        (
+                          COALESCE(view_count, 0)
+                          + COALESCE(reaction_count, 0) * 3
+                          + COALESCE(comment_count, 0) * 2
+                          + COALESCE(pig_count, 0) * 5
+                          + COALESCE(favorite_count, 0) * 4
+                        ) DESC,
+                        last_activity_at DESC,
+                        id DESC
+                        LIMIT 20
+                        """);
+        return toResponses(communityPostMapper.selectList(wrapper), userId);
     }
 
     public CommunityPostResponse getPost(Long userId, Long postId) {
@@ -253,6 +304,25 @@ public class CommunityPostService {
         if (updated > 0) {
             communityPostCounterService.refreshPostCounter(postId);
         }
+    }
+
+    private Set<Long> searchAuthorIds(String keyword) {
+        Set<Long> authorIds = new HashSet<>();
+        userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .like(User::getUsername, keyword))
+                .forEach(user -> authorIds.add(user.getId()));
+        userProfileMapper.selectList(new LambdaQueryWrapper<UserProfile>()
+                        .like(UserProfile::getDisplayName, keyword))
+                .forEach(profile -> authorIds.add(profile.getUserId()));
+        return authorIds;
+    }
+
+    private String normalizeSearchKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String trimmed = keyword.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Transactional

@@ -42,6 +42,7 @@ study-flow-frontend   前端 Nginx，暴露主机端口 8088
 study-flow-backend    后端 Spring Boot
 study-flow-mysql      MySQL
 study-flow-redis      Redis
+study-flow-rabbitmq   RabbitMQ，后续承载视频转码等异步任务
 Cloudflare R2         图片/视频对象存储，不在服务器硬盘保存媒体文件
 ```
 
@@ -104,6 +105,8 @@ MYSQL_ROOT_PASSWORD=change-this-mysql-root-password
 STUDY_FLOW_JWT_SECRET=change-this-to-a-long-random-secret-at-least-32-characters
 STUDY_FLOW_JWT_EXPIRATION_MINUTES=1440
 FRONTEND_PORT=8088
+RABBITMQ_DEFAULT_USER=ruru
+RABBITMQ_DEFAULT_PASS=change-this-rabbitmq-password
 R2_ACCOUNT_ID=your-cloudflare-account-id
 R2_ACCESS_KEY_ID=your-r2-access-key-id
 R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
@@ -112,9 +115,22 @@ R2_UPLOAD_URL_TTL=10m
 R2_READ_URL_TTL=1h
 R2_MAX_IMAGE_BYTES=10485760
 R2_MAX_VIDEO_BYTES=209715200
+MEDIA_TRANSCODE_ENABLED=false
+MEDIA_TRANSCODE_FFMPEG_PATH=ffmpeg
+MEDIA_TRANSCODE_WORK_DIR=/tmp/ruru-transcode
+MEDIA_TRANSCODE_TIMEOUT=30m
+MEDIA_QUEUE_ENABLED=false
+MEDIA_QUEUE_FALLBACK_TO_LOCAL_EVENT=true
 ```
 
 不要把 `.env` 提交到 GitHub。
+
+说明：
+
+- `MEDIA_TRANSCODE_ENABLED=false`：默认不跑真实 FFmpeg，避免服务器还没准备好时误触发转码。
+- `MEDIA_TRANSCODE_ENABLED=true`：开启真实转码，后端 Docker 镜像内已安装 FFmpeg。
+- `MEDIA_QUEUE_ENABLED=false`：默认使用本地异步事件触发转码。
+- `MEDIA_QUEUE_ENABLED=true`：使用 RabbitMQ 发布和消费转码任务。
 
 ## Cloudflare R2 配置
 
@@ -160,10 +176,11 @@ sudo docker compose ps
 正常状态应该看到：
 
 ```text
-study-flow-frontend   Up   0.0.0.0:8088->80/tcp
-study-flow-backend    Up
+study-flow-frontend   Up   healthy   0.0.0.0:8088->80/tcp
+study-flow-backend    Up   healthy
 study-flow-mysql      Up   healthy
 study-flow-redis      Up   healthy
+study-flow-rabbitmq   Up   healthy
 ```
 
 查看日志：
@@ -171,7 +188,16 @@ study-flow-redis      Up   healthy
 ```bash
 sudo docker compose logs -f backend
 sudo docker compose logs -f frontend
+sudo docker compose logs -f rabbitmq
 ```
+
+检查后端健康接口：
+
+```bash
+curl -fsS http://127.0.0.1:8088/api/health
+```
+
+正常会返回 `status` 为 `UP` 的 JSON。这个接口也被 Docker healthcheck 使用。
 
 停止服务：
 
@@ -270,6 +296,47 @@ sudo docker compose ps
 
 Flyway 会在后端启动时自动迁移数据库。
 
+## GitHub Actions
+
+项目已经加入 `.github/workflows/ci.yml`。每次 push 到 `main` 或创建 PR 时会自动执行：
+
+- 后端：`mvn -B test`
+- 前端：`npm ci`
+- 前端：`npm run build`
+- 前端：`npm run lint`
+
+如果 Actions 失败，不要急着部署服务器。先在本地或服务器修复失败项，再重新推送。
+
+## FFmpeg / HLS 上线验证
+
+第一次开启真实转码建议按小步来：
+
+```bash
+nano .env
+```
+
+先设置：
+
+```env
+MEDIA_TRANSCODE_ENABLED=true
+MEDIA_QUEUE_ENABLED=false
+```
+
+然后：
+
+```bash
+sudo docker compose up -d --build
+sudo docker compose logs -f backend
+```
+
+用一个较小的视频投稿，管理员审核通过后观察日志。确认 HLS 播放正常后，再考虑开启：
+
+```env
+MEDIA_QUEUE_ENABLED=true
+```
+
+这样做的原因是：先验证 FFmpeg、R2、HLS 主链路，再验证 RabbitMQ 异步队列，排查问题会简单很多。
+
 ## 本次 Ruru 化迁移说明
 
 当前版本新增 `V8__remove_legacy_modules.sql`：
@@ -292,6 +359,7 @@ Flyway 会在后端启动时自动迁移数据库。
 - `V15__add_post_favorites.sql`：新增收藏表和收藏计数。
 - `V16__add_submission_review_fields.sql`：新增投稿审核状态、审核人、审核时间和驳回原因。
 - `V17__add_post_view_history.sql`：新增播放上报和观看历史表。
+- `V18__add_video_transcode_state.sql`：新增视频转码状态、HLS 清晰度和分片表。
 
 图片和视频真实文件不进 MySQL，也不占服务器硬盘。
 

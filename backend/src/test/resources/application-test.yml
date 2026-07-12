@@ -33,3 +33,11 @@ study-flow:
       read-url-ttl: 1h
       max-image-bytes: 10485760
       max-video-bytes: 209715200
+    transcode:
+      enabled: false
+      ffmpeg-path: ffmpeg
+      work-dir: ${java.io.tmpdir}/ruru-transcode-test
+      timeout: 1m
+    queue:
+      enabled: false
+      fallback-to-local-event: true

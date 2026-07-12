@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,6 +30,21 @@ public class CommunityPostController {
     @GetMapping("/feed")
     public ApiResponse<List<CommunityPostResponse>> listFeed(@AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.success(communityPostService.listFeed(currentUserId(principal)));
+    }
+
+    @GetMapping("/search")
+    public ApiResponse<List<CommunityPostResponse>> searchPosts(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam String keyword
+    ) {
+        return ApiResponse.success(communityPostService.searchPosts(currentUserId(principal), keyword));
+    }
+
+    @GetMapping("/rankings/hot")
+    public ApiResponse<List<CommunityPostResponse>> listHotRanking(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ApiResponse.success(communityPostService.listHotRanking(currentUserId(principal)));
     }
 
     @GetMapping("/submissions/my")

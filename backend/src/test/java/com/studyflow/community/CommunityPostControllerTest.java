@@ -16,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -64,6 +65,9 @@ class CommunityPostControllerTest {
 
     @Autowired
     private CommunityTopicMapper communityTopicMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @SpyBean
     private RedisCacheService redisCacheService;
@@ -148,6 +152,49 @@ class CommunityPostControllerTest {
                 .andExpect(jsonPath("$.data[0].pigCount").value(2))
                 .andExpect(jsonPath("$.data[0].favoriteCount").value(3))
                 .andExpect(jsonPath("$.data[0].viewCount").value(11));
+    }
+
+    @Test
+    void searchPostsFindsTitleTopicAndAuthor() throws Exception {
+        String token = registerAndLogin("phase6_author_unique", "phase6_author_unique@example.com");
+        Long titlePostId = createPost(token, firstTopicId(token), "phase6_apex_title", "Search should match title.");
+        Long authorPostId = createPost(token, firstTopicId(token), "No keyword here", "Search should match author username.");
+        Long topicPostId = createPostWithTopicName(token, "phase6top", "Topic search title", "Search should match manual topic.");
+        Long unrelatedPostId = createPost(token, firstTopicId(token), "plain title", "plain content");
+
+        mockMvc.perform(get("/api/community/search")
+                        .param("keyword", "phase6_apex_title")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", hasItem(titlePostId.intValue())))
+                .andExpect(jsonPath("$.data[*].id", not(hasItem(unrelatedPostId.intValue()))));
+
+        mockMvc.perform(get("/api/community/search")
+                        .param("keyword", "phase6_author_unique")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", hasItem(authorPostId.intValue())));
+
+        mockMvc.perform(get("/api/community/search")
+                        .param("keyword", "phase6top")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", hasItem(topicPostId.intValue())));
+    }
+
+    @Test
+    void hotRankingUsesWeightedInteractionSignals() throws Exception {
+        String token = registerAndLogin("phase6_hot_author", "phase6_hot_author@example.com");
+        Long topicId = firstTopicId(token);
+        Long hotPostId = createPost(token, topicId, "phase6 hot post", "This one should rank first.");
+        Long coldPostId = createPost(token, topicId, "phase6 cold post", "This one is newer but colder.");
+        overwriteCounters(hotPostId, 9000, 100, 50, 20, 10);
+        overwriteCounters(coldPostId, 1, 0, 0, 0, 0);
+
+        mockMvc.perform(get("/api/community/rankings/hot")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(hotPostId));
     }
 
     @Test
@@ -405,6 +452,26 @@ class CommunityPostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].id").value(postId))
                 .andExpect(jsonPath("$.data[0].media[0].id").value(mediaFileId));
+    }
+
+    @Test
+    void videoAttachmentIncludesHlsPlaybackMetadataWhenTranscodeReady() throws Exception {
+        String token = registerAndLogin("post_hls_video_alice", "post_hls_video_alice@example.com");
+        Long topicId = firstTopicId(token);
+        Long videoMediaFileId = prepareAndCompleteVideoUpload(token);
+        Long coverMediaFileId = prepareAndCompleteImageUpload(token);
+        Long postId = createVideoPost(token, topicId, videoMediaFileId, coverMediaFileId);
+        markVideoPostReady(postId, videoMediaFileId);
+
+        mockMvc.perform(get("/api/community/posts/{id}", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.media[0].id").value(videoMediaFileId))
+                .andExpect(jsonPath("$.data.media[0].transcodeStatus").value("READY"))
+                .andExpect(jsonPath("$.data.media[0].playbackType").value("HLS"))
+                .andExpect(jsonPath("$.data.media[0].playbackUrl")
+                        .value("/api/media/videos/%d/hls/master.m3u8".formatted(videoMediaFileId)))
+                .andExpect(jsonPath("$.data.media[0].qualities[0].qualityLabel").value("720P"))
+                .andExpect(jsonPath("$.data.media[0].qualities[0].height").value(720));
     }
 
     @Test
@@ -832,6 +899,41 @@ class CommunityPostControllerTest {
         return response.path("data").path("id").asLong();
     }
 
+    private Long createPostWithTopicName(String token, String topicName, String title, String content) throws Exception {
+        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicName": "%s",
+                                  "title": "%s",
+                                  "content": "%s"
+                                }
+                                """.formatted(topicName, title, content)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
+        return response.path("data").path("id").asLong();
+    }
+
+    private void overwriteCounters(
+            Long postId,
+            int viewCount,
+            int reactionCount,
+            int commentCount,
+            int pigCount,
+            int favoriteCount
+    ) {
+        CommunityPost post = communityPostMapper.selectById(postId);
+        post.setViewCount(viewCount);
+        post.setReactionCount(reactionCount);
+        post.setCommentCount(commentCount);
+        post.setPigCount(pigCount);
+        post.setFavoriteCount(favoriteCount);
+        communityPostMapper.updateById(post);
+    }
+
     private void markAsPublishedVideo(Long postId) {
         CommunityPost post = communityPostMapper.selectById(postId);
         post.setContentType("VIDEO");
@@ -861,6 +963,77 @@ class CommunityPostControllerTest {
                 .andExpect(status().isOk());
 
         return mediaFileId;
+    }
+
+    private Long prepareAndCompleteVideoUpload(String token) throws Exception {
+        MvcResult prepareResult = mockMvc.perform(post("/api/media/uploads/presign")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "filename": "feed-video.mp4",
+                                  "contentType": "video/mp4",
+                                  "fileSize": 4096
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode prepareResponse = objectMapper.readTree(prepareResult.getResponse().getContentAsByteArray());
+        Long mediaFileId = prepareResponse.path("data").path("mediaFileId").asLong();
+
+        mockMvc.perform(post("/api/media/uploads/{mediaFileId}/complete", mediaFileId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        return mediaFileId;
+    }
+
+    private Long createVideoPost(String token, Long topicId, Long videoMediaFileId, Long coverMediaFileId) throws Exception {
+        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "HLS video",
+                                  "content": "Video should expose HLS playback metadata.",
+                                  "mediaFileIds": [%d],
+                                  "videoCoverMediaFileId": %d
+                                }
+                                """.formatted(topicId, videoMediaFileId, coverMediaFileId)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
+        return response.path("data").path("id").asLong();
+    }
+
+    private void markVideoPostReady(Long postId, Long videoMediaFileId) {
+        CommunityPost post = communityPostMapper.selectById(postId);
+        post.setContentType("VIDEO");
+        post.setStatus("PUBLISHED");
+        communityPostMapper.updateById(post);
+
+        jdbcTemplate.update("""
+                UPDATE media_files
+                SET status = 'APPROVED',
+                    transcode_status = 'READY',
+                    hls_master_object_key = 'community/videos/%d/hls/master.m3u8'
+                WHERE id = ?
+                """.formatted(videoMediaFileId), videoMediaFileId);
+        jdbcTemplate.update("""
+                INSERT INTO media_transcode_variants (
+                    media_file_id,
+                    quality_label,
+                    width,
+                    height,
+                    bitrate_kbps,
+                    playlist_object_key,
+                    status
+                )
+                VALUES (?, '720P', 1280, 720, 2800, 'community/videos/%d/hls/720p/index.m3u8', 'READY')
+                """.formatted(videoMediaFileId), videoMediaFileId);
     }
 
     private JsonNode getPost(String token, Long postId) throws Exception {

@@ -26,6 +26,19 @@ export type MediaAttachmentResponse = {
   fileSize: number
   url: string
   coverUrl?: string | null
+  playbackUrl?: string | null
+  playbackType?: string | null
+  transcodeStatus?: string | null
+  transcodeError?: string | null
+  qualities?: MediaTranscodeVariantResponse[]
+}
+
+export type MediaTranscodeVariantResponse = {
+  qualityLabel: string
+  width?: number | null
+  height?: number | null
+  bitrateKbps?: number | null
+  playlistUrl: string
 }
 
 export type CommunityPostResponse = {
@@ -146,6 +159,14 @@ export type ModerationRequest = {
 export const communityApi = {
   listFeed() {
     return http.get<unknown, CommunityPostResponse[]>('/community/feed')
+  },
+  searchPosts(keyword: string) {
+    return http.get<unknown, CommunityPostResponse[]>('/community/search', {
+      params: { keyword },
+    })
+  },
+  listHotRanking() {
+    return http.get<unknown, CommunityPostResponse[]>('/community/rankings/hot')
   },
   listTopics() {
     return http.get<unknown, CommunityTopicResponse[]>('/community/topics')

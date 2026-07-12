@@ -16,8 +16,9 @@ Ruru 社区是一个面向朋友小圈子的 B 站式全栈社区项目。它不
 - 前端：React、TypeScript、Vite、Ant Design、React Router、TanStack Query、Axios
 - 后端：Java 17、Spring Boot 3、Spring Security、JWT、MyBatis-Plus、Flyway、Knife4j、JUnit
 - 数据：MySQL 8、Redis
-- 媒体：Cloudflare R2 对象存储，S3 兼容预签名 URL 上传和读取
-- 部署：Docker、Docker Compose、Nginx、Linux 云服务器
+- 异步任务：RabbitMQ，当前用于视频转码任务队列骨架
+- 媒体：Cloudflare R2 对象存储，S3 兼容预签名 URL 上传和读取，FFmpeg/HLS 转码播放链路
+- 部署：Docker、Docker Compose、Nginx、Linux 云服务器、GitHub Actions
 
 ## 当前核心功能
 
@@ -41,7 +42,7 @@ study-flow/
   backend/              Spring Boot 后端服务
   frontend/             React 前端应用
   docs/                 中文文档：接口、数据库、部署、面试说明
-  docker-compose.yml    MySQL、Redis、后端、前端容器编排
+  docker-compose.yml    MySQL、Redis、RabbitMQ、后端、前端容器编排
   .env.example          服务器环境变量模板
 ```
 
@@ -114,6 +115,10 @@ R2_UPLOAD_URL_TTL=10m
 R2_READ_URL_TTL=1h
 R2_MAX_IMAGE_BYTES=10485760
 R2_MAX_VIDEO_BYTES=209715200
+RABBITMQ_DEFAULT_USER=ruru
+RABBITMQ_DEFAULT_PASS=change-this-rabbitmq-password
+MEDIA_TRANSCODE_ENABLED=false
+MEDIA_QUEUE_ENABLED=false
 ```
 
 启动：
@@ -130,21 +135,23 @@ sudo docker compose ps
 - 接口文档：[docs/api.md](docs/api.md)
 - 数据库设计：[docs/database.md](docs/database.md)
 - 部署说明：[docs/deploy.md](docs/deploy.md)
+- 运维手册：[docs/operations.md](docs/operations.md)
 - 面试展示讲法：[docs/interview.md](docs/interview.md)
 - 生产级路线图：[docs/ruru-production-roadmap.md](docs/ruru-production-roadmap.md)
 - 生产级任务表：[docs/ruru-production-task-board.md](docs/ruru-production-task-board.md)
 - Redis 设计说明：[docs/redis.md](docs/redis.md)
+- 视频转码说明：[docs/media-transcode.md](docs/media-transcode.md)
 - 阶段 1-2 任务清单：[docs/superpowers/plans/2026-07-11-ruru-bilibili-stage-1-2.md](docs/superpowers/plans/2026-07-11-ruru-bilibili-stage-1-2.md)
 
 ## 已完成阶段
 
-阶段 1-2 已完成：B 站式基础体验和视频投稿系统。
+阶段 1-3 已完成：B 站式基础体验、视频投稿系统和 Redis 高并发基础。
 
-下一阶段适合继续做：
+当前正在推进：
 
-- FFmpeg 异步转码和 HLS 播放。
-- Redis 计数缓存、限流、防刷播放/点赞。
-- 搜索、推荐、榜单。
+- FFmpeg/HLS 转码链路的线上真实视频验证。
+- RabbitMQ 异步转码任务、失败重试和任务状态治理。
+- 搜索、热门榜单、推荐雏形。
 - 通知系统和消息队列。
 - 直播模块和 WebSocket 实时弹幕。
-- 用户设置、头像、个人资料编辑。
+- 监控、日志、备份、CI/CD。

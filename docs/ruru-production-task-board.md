@@ -18,11 +18,11 @@
 | 阶段 1 | DONE | B 站式基础体验 | React、Spring Boot、MySQL |
 | 阶段 2 | DONE | 视频投稿和审核闭环 | R2、审核流、播放详情、弹幕 |
 | 阶段 3 | DONE | Redis 高并发基础 | Redis 限流、缓存、防刷、计数 |
-| 阶段 4 | NEXT | FFmpeg 转码和 HLS 播放 | FFmpeg、HLS、对象存储 |
-| 阶段 5 | TODO | 消息队列和异步任务 | RabbitMQ、异步转码、任务重试 |
-| 阶段 6 | TODO | 搜索、榜单和推荐雏形 | MySQL 搜索、Redis ZSet、Elasticsearch |
+| 阶段 4 | IN_PROGRESS | FFmpeg 转码和 HLS 播放 | FFmpeg、HLS、对象存储 |
+| 阶段 5 | IN_PROGRESS | 消息队列和异步任务 | RabbitMQ、异步转码、任务重试 |
+| 阶段 6 | IN_PROGRESS | 搜索、榜单和推荐雏形 | MySQL 搜索、Redis ZSet、Elasticsearch |
 | 阶段 7 | TODO | 直播基础 | SRS、RTMP、HTTP-FLV、WebSocket |
-| 阶段 8 | TODO | 监控、日志、备份、CI/CD | Prometheus、Grafana、GitHub Actions |
+| 阶段 8 | IN_PROGRESS | 监控、日志、备份、CI/CD | Prometheus、Grafana、GitHub Actions |
 | 阶段 9 | TODO | 模块化单体升级 | 领域边界、模块隔离、测试拆分 |
 | 阶段 10 | LATER | 微服务拆分 | Gateway、Nacos、服务通信、链路追踪 |
 | 阶段 11 | LATER | 生产级高可用 | CDN、防盗链、审计、回滚、备份演练 |
@@ -224,7 +224,7 @@
 
 ## 阶段 4：FFmpeg 转码和 HLS 播放
 
-状态：`NEXT`
+状态：`IN_PROGRESS`
 
 目标：
 
@@ -232,17 +232,18 @@
 
 任务：
 
-- [ ] 增加视频转码状态：WAITING、TRANSCODING、READY、FAILED。
-- [ ] 安装并接入 FFmpeg。
-- [ ] 审核通过后触发转码。
+- [x] 增加视频转码状态：WAITING、TRANSCODING、READY、FAILED。
+- [x] 安装并接入 FFmpeg。
+- [x] 审核通过后触发转码。
+- [x] 生成 720P 视频版本。
+- [x] 生成 1080P 视频版本。
+- [x] 生成 HLS 分片。
+- [x] 将 HLS 文件上传到 R2。
+- [x] 前端播放器支持 HLS。
+- [x] 播放页增加清晰度选择。
+- [x] 管理员可以查看转码失败原因并重新转码。
 - [ ] 生成视频封面截图能力。
-- [ ] 生成 720P 视频版本。
-- [ ] 生成 1080P 视频版本。
-- [ ] 生成 HLS 分片。
-- [ ] 将 HLS 文件上传到 R2。
-- [ ] 前端播放器支持 HLS。
-- [ ] 播放页增加清晰度选择。
-- [ ] 管理员可以查看转码失败原因并重新转码。
+- [ ] 在线上用真实 R2 视频跑一次完整 FFmpeg 验证。
 
 验收标准：
 
@@ -259,7 +260,7 @@
 
 ## 阶段 5：消息队列和异步任务
 
-状态：`TODO`
+状态：`IN_PROGRESS`
 
 目标：
 
@@ -267,12 +268,13 @@
 
 任务：
 
-- [ ] 引入 RabbitMQ。
-- [ ] 视频审核通过后发送转码任务消息。
-- [ ] 转码服务消费消息并执行 FFmpeg。
-- [ ] 失败任务支持重试。
+- [x] 引入 RabbitMQ。
+- [x] 视频审核通过后发送转码任务消息。
+- [x] 转码服务消费消息并执行 FFmpeg。
+- [x] 管理后台展示任务状态。
+- [x] 失败任务支持手动重试。
+- [ ] 失败任务支持自动重试。
 - [ ] 重试失败进入失败队列。
-- [ ] 管理后台展示任务状态。
 - [ ] 评论、点赞、投币后预留通知消息。
 - [ ] 任务消费必须幂等，重复消费不能产生脏数据。
 
@@ -291,7 +293,7 @@
 
 ## 阶段 6：搜索、榜单和推荐雏形
 
-状态：`TODO`
+状态：`IN_PROGRESS`
 
 目标：
 
@@ -299,8 +301,10 @@
 
 任务：
 
-- [ ] 先做 MySQL 简单搜索。
-- [ ] 支持按标题、简介、话题、作者搜索。
+- [x] 先做 MySQL 简单搜索。
+- [x] 支持按标题、简介、话题、作者搜索。
+- [x] 增加热门榜单接口雏形。
+- [x] 前端支持搜索和最新/热门切换。
 - [ ] Redis ZSet 实现热门榜单。
 - [ ] 榜单按播放、点赞、投币、收藏加权。
 - [ ] 新增关注流，只看关注用户内容。
@@ -322,7 +326,7 @@
 
 ## 阶段 7：直播基础
 
-状态：`TODO`
+状态：`IN_PROGRESS`
 
 目标：
 
@@ -364,17 +368,17 @@
 
 任务：
 
-- [ ] 增加后端健康检查接口。
-- [ ] 增加 Docker healthcheck。
+- [x] 增加后端健康检查接口。
+- [x] 增加 Docker healthcheck。
 - [ ] 接入 Prometheus。
 - [ ] 接入 Grafana。
 - [ ] 监控后端接口、MySQL、Redis、容器状态。
 - [ ] 增加请求 traceId。
 - [ ] 规范后端日志格式。
-- [ ] 编写 MySQL 自动备份脚本。
-- [ ] 编写恢复数据库说明。
-- [ ] GitHub Actions 自动跑后端测试。
-- [ ] GitHub Actions 自动跑前端 build 和 lint。
+- [x] 编写 MySQL 自动备份脚本。
+- [x] 编写恢复数据库说明。
+- [x] GitHub Actions 自动跑后端测试。
+- [x] GitHub Actions 自动跑前端 build 和 lint。
 - [ ] 编写部署回滚说明。
 
 验收标准：
@@ -504,10 +508,11 @@
 
 接下来按这个顺序做：
 
-1. 阶段 4：FFmpeg 转码和 HLS 播放。
-2. 阶段 5：消息队列和异步任务。
-3. 阶段 6：搜索、榜单和推荐雏形。
-4. 阶段 7：直播基础。
+1. 阶段 4：在线上用真实 R2 视频验证 FFmpeg/HLS。
+2. 阶段 5：补 RabbitMQ 自动重试、失败队列和任务幂等。
+3. 阶段 6：把热门榜单从 MySQL 加权升级到 Redis ZSet，并做相关推荐。
+4. 阶段 8：补数据库备份、恢复文档、日志 traceId 和基础监控。
+5. 阶段 7：直播基础。
 
 已完成：
 
@@ -516,6 +521,10 @@
 - 阶段 3.3：播放量防刷升级。
 - 阶段 3.4：首页 feed 和视频详情短缓存。
 - 阶段 3.5：互动计数缓存雏形。
+- 阶段 4：FFmpeg/HLS 代码链路、前端 HLS 播放、管理员重试接口和后台入口。
+- 阶段 5：RabbitMQ 队列骨架、转码任务生产者/消费者、本地事件降级。
+- 阶段 6：MySQL 搜索、热门榜单接口、前端搜索和最新/热门切换。
+- 阶段 8：后端健康检查、Docker healthcheck、GitHub Actions CI。
 
 每个阶段交付前的判断标准：
 
@@ -524,6 +533,36 @@
 - 前端 lint 通过。
 - 文档更新完成。
 - 本地 git 工作区干净。
+
+## 2026-07-12 阶段 5 / 6 / 8 进展记录
+
+状态：`IN_PROGRESS`
+
+本次已经完成：
+
+- [x] RabbitMQ 加入 Docker Compose，并配置健康检查。
+- [x] 后端加入 AMQP 依赖和 JSON 消息转换。
+- [x] 新增转码任务消息、生产者、消费者和队列配置。
+- [x] 队列未开启时继续使用本地 Spring 事件，方便开发。
+- [x] RabbitMQ 临时不可用时可以回退本地事件，避免小流量阶段被队列拖垮。
+- [x] 新增 `/api/community/search`，支持标题、正文、话题、作者搜索。
+- [x] 新增 `/api/community/rankings/hot`，先用 MySQL 加权实现热门榜单雏形。
+- [x] 前端首页加入搜索框和“最新/热门”切换。
+- [x] 新增 `/api/health` 健康检查接口。
+- [x] Docker Compose 为后端和前端增加 healthcheck。
+- [x] 新增 GitHub Actions：后端测试、前端构建、前端 lint。
+- [x] 新增 MySQL 备份脚本和恢复脚本。
+- [x] 新增 `docs/operations.md` 运维手册。
+- [x] 更新 `.env.example`、部署说明和转码说明文档。
+
+还不能标记为全部完成的原因：
+
+- [ ] 本地 Windows 环境没有 Docker，Compose 健康检查需要在线上服务器验证。
+- [ ] RabbitMQ 还没有自动重试次数、失败队列和死信队列。
+- [ ] 热门榜单还没有迁移到 Redis ZSet，当前是 MySQL 加权查询。
+- [ ] 还没有 Elasticsearch 全文搜索。
+- [ ] 还没有 Prometheus、Grafana 和恢复演练。
+- [ ] 还没有把备份脚本接入 crontab 自动定时执行。
 
 ## 开发纪律
 
@@ -538,3 +577,30 @@
 - 当前阶段用不到的复杂技术先不接。
 
 如果不知道下一步做什么，就看本文件的“当前优先级”。
+
+## 2026-07-12 阶段 4 进展记录
+
+状态：`IN_PROGRESS`
+
+本次已经完成：
+
+- [x] `media_files` 增加转码状态、错误原因、开始/完成时间、HLS master key、视频时长字段。
+- [x] 新增 `media_transcode_variants`，记录 720P、1080P 等清晰度结果。
+- [x] 新增 `media_transcode_segments`，记录 HLS ts 分片、时长和 R2 object key。
+- [x] 后端新增 HLS master playlist 接口。
+- [x] 后端新增具体清晰度 playlist 接口。
+- [x] 后端新增 HLS 分片短期签名跳转接口，R2 可以继续保持私有。
+- [x] 前端接入 `hls.js`，Chrome/Edge 可以播放 HLS。
+- [x] 视频详情页可以显示并切换后端返回的清晰度列表。
+- [x] 后端新增 FFmpeg 转码服务雏形：下载原视频、生成 720P/1080P HLS、上传 R2、写入数据库、失败落库。
+- [x] 后端 Docker 镜像安装 FFmpeg。
+- [x] 新增管理员转码失败重试接口。
+- [x] 后台页面展示转码状态、失败原因和重新转码按钮。
+- [x] 新增视频转码说明文档：`docs/media-transcode.md`。
+
+还不能标记为 `DONE` 的原因：
+
+- [ ] 还没有自动截取视频封面。
+- [ ] RabbitMQ 还没有自动重试和失败队列。
+- [ ] 还没有接 CDN、防盗链和更细的上传配额。
+- [ ] 还没有在线上用真实 R2 视频跑一次完整 FFmpeg 验证。

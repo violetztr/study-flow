@@ -21,6 +21,7 @@ import { getStoredUser, getStoredWallet, saveStoredWallet } from '../api/auth'
 import { communityApi } from '../api/community'
 import type { CommunityPostResponse } from '../api/community'
 import CommentList from '../components/community/CommentList'
+import RuruVideoPlayer from '../components/community/RuruVideoPlayer'
 import TopicBadge from '../components/community/TopicBadge'
 
 type CommentFormValues = {
@@ -127,6 +128,7 @@ function PostDetailPage() {
   const [danmakuColor, setDanmakuColor] = useState(danmakuColorOptions[0].value)
   const [danmakuVisible, setDanmakuVisible] = useState(true)
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
+  const [selectedQualityUrl, setSelectedQualityUrl] = useState<string | null>(null)
   const viewReportedRef = useRef(false)
   const user = getStoredUser()
   const canModerate = canModerateCommunity(user)
@@ -171,6 +173,12 @@ function PostDetailPage() {
     viewReportedRef.current = false
     setCurrentSecond(0)
   }, [postId])
+
+  const activeVideo = firstVideo(postQuery.data)
+
+  useEffect(() => {
+    setSelectedQualityUrl(null)
+  }, [activeVideo?.id, activeVideo?.playbackUrl])
 
   const reportViewMutation = useMutation({
     mutationFn: (values: { playedSeconds: number; durationSeconds: number }) =>
@@ -362,6 +370,8 @@ function PostDetailPage() {
 
   const post = postQuery.data
   const video = firstVideo(post)
+  const videoQualities = video?.qualities ?? []
+  const selectedVideoSource = selectedQualityUrl ?? video?.playbackUrl ?? video?.url ?? ''
   const imageMedia = firstImages(post)
   const relatedVideos = (feedQuery.data ?? [])
     .filter((item) => item.id !== post?.id && hasVideo(item))
@@ -423,11 +433,9 @@ function PostDetailPage() {
               </div>
 
               <div className="ruru-player">
-                <video
-                  controls
-                  preload="metadata"
+                <RuruVideoPlayer
+                  src={selectedVideoSource}
                   poster={video.coverUrl ?? undefined}
-                  src={video.url}
                   onTimeUpdate={handleVideoTimeUpdate}
                   onPlay={() => setIsVideoPlaying(true)}
                   onPause={() => setIsVideoPlaying(false)}
@@ -500,15 +508,33 @@ function PostDetailPage() {
                 </div>
 
                 <div className="quality-switch">
-                  <button type="button" className="active">
-                    原画
-                  </button>
-                  <button type="button" disabled title="后面接转码服务后开放">
-                    1080P
-                  </button>
-                  <button type="button" disabled title="后面接转码服务后开放">
-                    720P
-                  </button>
+                  {video.playbackUrl && video.playbackType === 'HLS' ? (
+                    <>
+                      <button
+                        type="button"
+                        className={selectedQualityUrl === null ? 'active' : ''}
+                        onClick={() => setSelectedQualityUrl(null)}
+                      >
+                        自动
+                      </button>
+                      {videoQualities.map((quality) => (
+                        <button
+                          key={quality.qualityLabel}
+                          type="button"
+                          className={selectedQualityUrl === quality.playlistUrl ? 'active' : ''}
+                          onClick={() => setSelectedQualityUrl(quality.playlistUrl)}
+                        >
+                          {quality.qualityLabel}
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <button type="button" className="active">
+                      {video.transcodeStatus === 'WAITING' || video.transcodeStatus === 'TRANSCODING'
+                        ? '转码中'
+                        : '原视频'}
+                    </button>
+                  )}
                 </div>
               </div>
 

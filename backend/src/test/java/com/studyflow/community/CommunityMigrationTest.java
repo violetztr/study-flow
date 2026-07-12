@@ -105,6 +105,11 @@ class CommunityMigrationTest {
             assertThat(tableExists(connection, "community_moderation_actions")).isTrue();
             assertThat(tableExists(connection, "media_files")).isTrue();
             assertThat(tableExists(connection, "community_post_media")).isTrue();
+            assertThat(tableExists(connection, "media_transcode_variants")).isTrue();
+            assertThat(tableExists(connection, "media_transcode_segments")).isTrue();
+            assertThat(columnExists(connection, "media_files", "transcode_status")).isTrue();
+            assertThat(columnExists(connection, "media_files", "transcode_error")).isTrue();
+            assertThat(columnExists(connection, "media_files", "hls_master_object_key")).isTrue();
 
             assertThat(tableExists(connection, "portfolio_projects")).isFalse();
             assertThat(tableExists(connection, "github_repositories")).isFalse();
@@ -158,6 +163,12 @@ class CommunityMigrationTest {
     private boolean tableExists(Connection connection, String tableName) throws Exception {
         try (ResultSet tables = connection.getMetaData().getTables(null, null, tableName, new String[]{"TABLE"})) {
             return tables.next();
+        }
+    }
+
+    private boolean columnExists(Connection connection, String tableName, String columnName) throws Exception {
+        try (ResultSet columns = connection.getMetaData().getColumns(null, null, tableName, columnName)) {
+            return columns.next();
         }
     }
 }
