@@ -1,12 +1,32 @@
 import { LoginOutlined, LogoutOutlined, PlusOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Layout, Space } from 'antd'
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
-import { clearSession, getStoredUser, getStoredWallet } from '../api/auth'
+import {
+  AUTH_WALLET_CHANGED_EVENT,
+  clearSession,
+  getStoredUser,
+  getStoredWallet,
+  type UserWalletResponse,
+} from '../api/auth'
 
 function AppLayout() {
   const navigate = useNavigate()
   const user = getStoredUser()
-  const wallet = getStoredWallet()
+  const [wallet, setWallet] = useState<UserWalletResponse | null>(() => getStoredWallet())
+
+  useEffect(() => {
+    function syncWallet() {
+      setWallet(getStoredWallet())
+    }
+
+    window.addEventListener(AUTH_WALLET_CHANGED_EVENT, syncWallet)
+    window.addEventListener('storage', syncWallet)
+    return () => {
+      window.removeEventListener(AUTH_WALLET_CHANGED_EVENT, syncWallet)
+      window.removeEventListener('storage', syncWallet)
+    }
+  }, [])
 
   function handleLogout() {
     clearSession()

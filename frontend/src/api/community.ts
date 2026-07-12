@@ -1,4 +1,5 @@
 import { http } from './http'
+import type { UserWalletResponse } from './auth'
 
 export type CommunityTopicResponse = {
   id: number
@@ -217,7 +218,7 @@ export const communityApi = {
     return http.delete<unknown, void>(`/community/posts/${postId}/reactions/like`)
   },
   pigPost(postId: number) {
-    return http.post<unknown, void>(`/community/posts/${postId}/reactions/pig`)
+    return http.post<unknown, UserWalletResponse>(`/community/posts/${postId}/reactions/pig`)
   },
   favoritePost(postId: number) {
     return http.post<unknown, void>(`/community/posts/${postId}/favorites`)

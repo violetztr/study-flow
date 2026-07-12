@@ -138,7 +138,9 @@ class CommunityReactionControllerTest {
 
         mockMvc.perform(post("/api/community/posts/{postId}/reactions/pig", postId)
                         .header("Authorization", "Bearer " + supporterToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pigBalance").value(0))
+                .andExpect(jsonPath("$.data.todayGranted").value(false));
 
         mockMvc.perform(post("/api/community/posts/{postId}/reactions/pig", postId)
                         .header("Authorization", "Bearer " + supporterToken))

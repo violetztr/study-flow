@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getStoredUser, getStoredWallet, saveStoredWallet } from '../api/auth'
+import { getStoredUser, saveStoredWallet } from '../api/auth'
 import { communityApi } from '../api/community'
 import type { CommunityPostResponse } from '../api/community'
 import CommentList from '../components/community/CommentList'
@@ -223,7 +223,7 @@ function PostDetailPage() {
     },
   })
 
-  const pigMutation = useMutation<void, Error, void, LikeMutationContext>({
+  const pigMutation = useMutation<Awaited<ReturnType<typeof communityApi.pigPost>>, Error, void, LikeMutationContext>({
     mutationFn: () => communityApi.pigPost(postId),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['community-post', postId] })
@@ -240,11 +240,8 @@ function PostDetailPage() {
         queryClient.setQueryData(['community-post', postId], context.previousPost)
       }
     },
-    onSuccess: () => {
-      const wallet = getStoredWallet()
-      if (wallet && !postQuery.data?.piggedByCurrentUser) {
-        saveStoredWallet({ ...wallet, pigBalance: Math.max(0, wallet.pigBalance - 1) })
-      }
+    onSuccess: (wallet) => {
+      saveStoredWallet(wallet)
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['community-post', postId] })

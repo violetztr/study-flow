@@ -2,6 +2,7 @@ package com.studyflow.community.reaction;
 
 import com.studyflow.common.ApiResponse;
 import com.studyflow.security.UserPrincipal;
+import com.studyflow.wallet.dto.UserWalletResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,12 +29,11 @@ public class CommunityReactionController {
     }
 
     @PostMapping("/posts/{postId}/reactions/pig")
-    public ApiResponse<Void> pigPost(
+    public ApiResponse<UserWalletResponse> pigPost(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId
     ) {
-        communityReactionService.pigPost(principal.userId(), postId);
-        return ApiResponse.success();
+        return ApiResponse.success(communityReactionService.pigPost(principal.userId(), postId));
     }
 
     @DeleteMapping("/posts/{postId}/reactions/like")

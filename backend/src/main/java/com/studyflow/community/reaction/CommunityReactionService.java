@@ -9,6 +9,7 @@ import com.studyflow.community.post.CommunityPost;
 import com.studyflow.community.post.CommunityPostCounterService;
 import com.studyflow.community.post.CommunityPostMapper;
 import com.studyflow.wallet.PigWalletService;
+import com.studyflow.wallet.dto.UserWalletResponse;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,11 +73,11 @@ public class CommunityReactionService {
     }
 
     @Transactional
-    public void pigPost(Long userId, Long postId) {
+    public UserWalletResponse pigPost(Long userId, Long postId) {
         Circle circle = communityMemberService.requireActiveDefaultMember(userId);
         CommunityPost post = requirePublishedPost(circle.getId(), postId);
         if (hasReaction(circle.getId(), userId, post.getId(), REACTION_PIG)) {
-            return;
+            return pigWalletService.currentWallet(userId);
         }
 
         pigWalletService.spendPig(userId, 1);
@@ -93,9 +94,10 @@ public class CommunityReactionService {
         try {
             communityReactionMapper.insert(reaction);
         } catch (DuplicateKeyException ex) {
-            return;
+            return pigWalletService.currentWallet(userId);
         }
         incrementPostPigCount(post.getId(), now);
+        return pigWalletService.currentWallet(userId);
     }
 
     @Transactional

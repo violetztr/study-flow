@@ -12,7 +12,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { QueryKey } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { Link, useNavigate } from 'react-router-dom'
-import { getStoredUser, getStoredWallet, saveStoredWallet } from '../../api/auth'
+import { getStoredUser, saveStoredWallet } from '../../api/auth'
 import { communityApi } from '../../api/community'
 import type { CommunityPostResponse, MediaAttachmentResponse } from '../../api/community'
 import TopicBadge from './TopicBadge'
@@ -126,7 +126,7 @@ function PostCard({ post, invalidateQueryKeys = [] }: PostCardProps) {
     },
   })
 
-  const pigMutation = useMutation<void, Error, void, PostMutationContext>({
+  const pigMutation = useMutation<Awaited<ReturnType<typeof communityApi.pigPost>>, Error, void, PostMutationContext>({
     mutationFn: () => communityApi.pigPost(post.id),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['community-feed'] })
@@ -143,11 +143,8 @@ function PostCard({ post, invalidateQueryKeys = [] }: PostCardProps) {
         queryClient.setQueryData(['community-feed'], context.previousFeed)
       }
     },
-    onSuccess: () => {
-      const wallet = getStoredWallet()
-      if (wallet && !post.piggedByCurrentUser) {
-        saveStoredWallet({ ...wallet, pigBalance: Math.max(0, wallet.pigBalance - 1) })
-      }
+    onSuccess: (wallet) => {
+      saveStoredWallet(wallet)
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })

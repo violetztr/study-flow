@@ -2,6 +2,7 @@ import { AUTH_TOKEN_KEY, http } from './http'
 
 export const AUTH_USER_KEY = 'study-flow-user'
 export const AUTH_WALLET_KEY = 'study-flow-wallet'
+export const AUTH_WALLET_CHANGED_EVENT = 'study-flow-wallet-changed'
 
 export type UserResponse = {
   id: number
@@ -55,12 +56,14 @@ export function saveSession(response: LoginResponse) {
 
 export function saveStoredWallet(wallet: UserWalletResponse) {
   localStorage.setItem(AUTH_WALLET_KEY, JSON.stringify(wallet))
+  window.dispatchEvent(new CustomEvent(AUTH_WALLET_CHANGED_EVENT, { detail: wallet }))
 }
 
 export function clearSession() {
   localStorage.removeItem(AUTH_TOKEN_KEY)
   localStorage.removeItem(AUTH_USER_KEY)
   localStorage.removeItem(AUTH_WALLET_KEY)
+  window.dispatchEvent(new CustomEvent(AUTH_WALLET_CHANGED_EVENT, { detail: null }))
 }
 
 export function getStoredUser(): UserResponse | null {
