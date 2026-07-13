@@ -14,10 +14,6 @@ public record UserProfileRequest(
         @Size(max = 20)
         String profileBackgroundType,
         @Size(max = 500)
-        String homeBackgroundUrl,
-        @Size(max = 20)
-        String homeBackgroundType,
-        @Size(max = 500)
         String skills,
         @Size(max = 300)
         String githubUrl,

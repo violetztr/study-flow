@@ -14,7 +14,6 @@ import java.util.List;
 
 @Service
 public class BackgroundPresetService {
-    private static final String PLACEMENT_HOME = "HOME";
     private static final String PLACEMENT_PROFILE = "PROFILE";
     private static final String MEDIA_TYPE_IMAGE = "IMAGE";
     private static final String MEDIA_TYPE_VIDEO = "VIDEO";
@@ -74,11 +73,8 @@ public class BackgroundPresetService {
     }
 
     private String normalizePlacement(String placement) {
-        if (placement != null && PLACEMENT_PROFILE.equalsIgnoreCase(placement.trim())) {
+        if (placement == null || placement.isBlank() || PLACEMENT_PROFILE.equalsIgnoreCase(placement.trim())) {
             return PLACEMENT_PROFILE;
-        }
-        if (placement == null || placement.isBlank() || PLACEMENT_HOME.equalsIgnoreCase(placement.trim())) {
-            return PLACEMENT_HOME;
         }
         throw new BusinessException(400, "Unsupported background placement");
     }

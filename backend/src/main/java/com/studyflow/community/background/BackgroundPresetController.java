@@ -26,7 +26,7 @@ public class BackgroundPresetController {
 
     @GetMapping("/background-presets")
     public ApiResponse<List<BackgroundPresetResponse>> listPresets(
-            @RequestParam(defaultValue = "HOME") String placement
+            @RequestParam(defaultValue = "PROFILE") String placement
     ) {
         return ApiResponse.success(backgroundPresetService.listPresets(placement));
     }

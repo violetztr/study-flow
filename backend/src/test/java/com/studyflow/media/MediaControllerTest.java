@@ -223,7 +223,7 @@ class MediaControllerTest {
                         .header("Authorization", "Bearer " + authorToken))
                 .andExpect(status().isForbidden());
 
-        String ruruToken = registerAndLogin("ruru", "ruru@example.com");
+        String ruruToken = ensureRuruAndLogin("ruru@example.com");
         mockMvc.perform(get("/api/admin/media/pending")
                         .header("Authorization", "Bearer " + ruruToken))
                 .andExpect(status().isOk())

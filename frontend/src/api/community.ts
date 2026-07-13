@@ -138,8 +138,6 @@ export type CommunityMemberResponse = {
   avatarUrl?: string | null
   profileBackgroundUrl?: string | null
   profileBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
-  homeBackgroundUrl?: string | null
-  homeBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
   skills?: string | null
   githubUrl?: string | null
   websiteUrl?: string | null
@@ -154,8 +152,6 @@ export type UserProfileRequest = {
   avatarUrl?: string | null
   profileBackgroundUrl?: string | null
   profileBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
-  homeBackgroundUrl?: string | null
-  homeBackgroundType?: 'IMAGE' | 'VIDEO' | string | null
   skills?: string | null
   githubUrl?: string | null
   websiteUrl?: string | null
@@ -176,7 +172,7 @@ export type ModerationRequest = {
   reason?: string
 }
 
-export type BackgroundPlacement = 'HOME' | 'PROFILE'
+export type BackgroundPlacement = 'PROFILE'
 
 export type BackgroundMediaType = 'IMAGE' | 'VIDEO'
 

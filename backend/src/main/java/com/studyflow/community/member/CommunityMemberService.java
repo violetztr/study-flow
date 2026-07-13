@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 public class CommunityMemberService {
     private static final String PROFILE_BACKGROUND_IMAGE = "IMAGE";
     private static final String PROFILE_BACKGROUND_VIDEO = "VIDEO";
-
     public static final String DEFAULT_CIRCLE_SLUG = "ruru-community";
     public static final String ROLE_MEMBER = "MEMBER";
     public static final String STATUS_ACTIVE = "ACTIVE";
@@ -155,8 +154,6 @@ public class CommunityMemberService {
         profile.setAvatarUrl(request.avatarUrl());
         profile.setProfileBackgroundUrl(request.profileBackgroundUrl());
         profile.setProfileBackgroundType(normalizeProfileBackgroundType(request.profileBackgroundType()));
-        profile.setHomeBackgroundUrl(request.homeBackgroundUrl());
-        profile.setHomeBackgroundType(normalizeProfileBackgroundType(request.homeBackgroundType()));
         profile.setSkills(request.skills());
         profile.setGithubUrl(request.githubUrl());
         profile.setWebsiteUrl(request.websiteUrl());
@@ -259,8 +256,6 @@ public class CommunityMemberService {
                 profile != null ? profile.getAvatarUrl() : null,
                 profile != null ? profile.getProfileBackgroundUrl() : null,
                 profile != null ? normalizeProfileBackgroundType(profile.getProfileBackgroundType()) : PROFILE_BACKGROUND_IMAGE,
-                profile != null ? profile.getHomeBackgroundUrl() : null,
-                profile != null ? normalizeProfileBackgroundType(profile.getHomeBackgroundType()) : PROFILE_BACKGROUND_VIDEO,
                 profile != null ? profile.getSkills() : null,
                 profile != null ? profile.getGithubUrl() : null,
                 profile != null ? profile.getWebsiteUrl() : null,

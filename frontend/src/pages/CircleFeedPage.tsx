@@ -1,4 +1,11 @@
-import { PlusOutlined } from '@ant-design/icons'
+import {
+  ClockCircleOutlined,
+  FileTextOutlined,
+  FireOutlined,
+  PlusOutlined,
+  PlaySquareOutlined,
+  VideoCameraOutlined,
+} from '@ant-design/icons'
 import { Alert, Button, Empty, Input, Skeleton } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
@@ -32,14 +39,10 @@ function getChannelPosts(channel: FeedChannel, posts: CommunityPostResponse[]) {
   return posts.filter((post) => !hasVideo(post))
 }
 
-function normalizeBackgroundType(type?: string | null) {
-  return type === 'IMAGE' ? 'IMAGE' : 'VIDEO'
-}
-
 function CircleFeedPage() {
   const navigate = useNavigate()
   const user = getStoredUser()
-  const [activeChannel, setActiveChannel] = useState<FeedChannel>('article')
+  const [activeChannel, setActiveChannel] = useState<FeedChannel>('video')
   const [showHot, setShowHot] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
   const deferredKeyword = useDeferredValue(searchKeyword.trim())
@@ -47,17 +50,6 @@ function CircleFeedPage() {
   const feedQuery = useQuery({
     queryKey: ['community-feed'],
     queryFn: communityApi.listFeed,
-  })
-
-  const meQuery = useQuery({
-    queryKey: ['community-me'],
-    queryFn: communityApi.getMe,
-    enabled: Boolean(user),
-  })
-
-  const homePresetQuery = useQuery({
-    queryKey: ['background-presets', 'HOME'],
-    queryFn: () => communityApi.listBackgroundPresets('HOME'),
   })
 
   const hotQuery = useQuery({
@@ -75,14 +67,6 @@ function CircleFeedPage() {
   const activeQuery = deferredKeyword.length > 0 ? searchQuery : showHot ? hotQuery : feedQuery
   const posts = activeQuery.data ?? []
   const visiblePosts = getChannelPosts(activeChannel, posts)
-  const defaultHomePreset = homePresetQuery.data?.[0]
-  const homeBackgroundUrl =
-    (user ? meQuery.data?.homeBackgroundUrl : null) ||
-    defaultHomePreset?.url ||
-    '/system-backgrounds/site/home-hero.mp4'
-  const homeBackgroundType = normalizeBackgroundType(
-    (user ? meQuery.data?.homeBackgroundType : null) || defaultHomePreset?.mediaType,
-  )
 
   function goSubmit() {
     if (user) {
@@ -92,107 +76,128 @@ function CircleFeedPage() {
     navigate('/login', { state: { from: '/circle/posts/new' } })
   }
 
+  function toggleHot() {
+    setShowHot((current) => !current)
+    setSearchKeyword('')
+  }
+
   return (
     <section className="page-section feed-page discovery-page">
-      {homeBackgroundType === 'IMAGE' ? (
-        <div
-          className="site-home-bg-image"
-          style={{ backgroundImage: `url("${homeBackgroundUrl}")` }}
-          aria-hidden="true"
-        />
-      ) : (
-        <video
-          className="site-home-bg-video"
-          src={homeBackgroundUrl}
-          autoPlay
-          muted
-          loop
-          playsInline
-          aria-hidden="true"
-        />
-      )}
-      <div className="site-home-bg-overlay" />
-      <div className="discovery-shell">
-        <header className="discovery-topbar">
+      <div className="youtube-home-shell">
+        <aside className="youtube-sidebar" aria-label="ruru 导航">
           <button
-            className="home-wordmark"
             type="button"
+            className="youtube-sidebar-brand"
             onClick={() => {
-              setActiveChannel('article')
+              setActiveChannel('video')
               navigate('/circle')
             }}
           >
-            主页
+            <span className="brand-mark small">R</span>
+            <strong>ruru</strong>
           </button>
 
-          <nav className="feed-channel-tabs" aria-label="内容频道">
-            {channels.map((channel) => (
-              <button
-                key={channel.key}
-                type="button"
-                className={activeChannel === channel.key ? 'active' : ''}
-                onClick={() => setActiveChannel(channel.key)}
-              >
-                {channel.label}
-              </button>
-            ))}
-          </nav>
-
-          <div className="discovery-actions">
-            <Input.Search
-              allowClear
-              className="discovery-search"
-              placeholder="搜索视频、图文、话题或作者"
-              value={searchKeyword}
-              onChange={(event) => setSearchKeyword(event.target.value)}
-              onSearch={(value) => setSearchKeyword(value)}
-            />
-            <Button
-              type={showHot && deferredKeyword.length === 0 ? 'primary' : 'default'}
-              onClick={() => {
-                setShowHot((current) => !current)
-                setSearchKeyword('')
-              }}
+          <nav className="youtube-sidebar-nav">
+            <button
+              type="button"
+              className={activeChannel === 'video' ? 'active' : ''}
+              onClick={() => setActiveChannel('video')}
             >
-              {showHot && deferredKeyword.length === 0 ? '热门' : '最新'}
-            </Button>
-            {user ? <Button onClick={() => navigate('/circle/history')}>历史</Button> : null}
-            {user ? <Button onClick={() => navigate('/circle/submissions')}>稿件</Button> : null}
-            <Button type="primary" icon={<PlusOutlined />} onClick={goSubmit}>
-              投稿
-            </Button>
+              <PlaySquareOutlined /> 推荐
+            </button>
+            <button
+              type="button"
+              className={activeChannel === 'live' ? 'active' : ''}
+              onClick={() => setActiveChannel('live')}
+            >
+              <VideoCameraOutlined /> 直播
+            </button>
+            <button
+              type="button"
+              className={activeChannel === 'article' ? 'active' : ''}
+              onClick={() => setActiveChannel('article')}
+            >
+              <FileTextOutlined /> 图文
+            </button>
+            {user ? (
+              <button type="button" onClick={() => navigate('/circle/history')}>
+                <ClockCircleOutlined /> 历史记录
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={showHot && deferredKeyword.length === 0 ? 'active' : ''}
+              onClick={toggleHot}
+            >
+              <FireOutlined /> 热门
+            </button>
+          </nav>
+        </aside>
+
+        <main className="youtube-main">
+          <header className="discovery-topbar">
+            <nav className="feed-channel-tabs" aria-label="内容频道">
+              {channels.map((channel) => (
+                <button
+                  key={channel.key}
+                  type="button"
+                  className={activeChannel === channel.key ? 'active' : ''}
+                  onClick={() => setActiveChannel(channel.key)}
+                >
+                  {channel.label}
+                </button>
+              ))}
+            </nav>
+
+            <div className="discovery-actions">
+              <Input.Search
+                allowClear
+                className="discovery-search"
+                placeholder="搜索视频、图文、话题或作者"
+                value={searchKeyword}
+                onChange={(event) => setSearchKeyword(event.target.value)}
+                onSearch={(value) => setSearchKeyword(value)}
+              />
+              <Button type={showHot && deferredKeyword.length === 0 ? 'primary' : 'default'} onClick={toggleHot}>
+                {showHot && deferredKeyword.length === 0 ? '热门' : '最新'}
+              </Button>
+              {user ? <Button onClick={() => navigate('/circle/submissions')}>稿件</Button> : null}
+              <Button type="primary" icon={<PlusOutlined />} onClick={goSubmit}>
+                投稿
+              </Button>
+            </div>
+          </header>
+
+          <div className="notice-stack">
+            {feedQuery.isError ? <Alert showIcon type="error" message={feedQuery.error.message} /> : null}
+            {hotQuery.isError ? <Alert showIcon type="error" message={hotQuery.error.message} /> : null}
+            {searchQuery.isError ? <Alert showIcon type="error" message={searchQuery.error.message} /> : null}
           </div>
-        </header>
 
-        <div className="notice-stack">
-          {feedQuery.isError ? <Alert showIcon type="error" message={feedQuery.error.message} /> : null}
-          {hotQuery.isError ? <Alert showIcon type="error" message={hotQuery.error.message} /> : null}
-          {searchQuery.isError ? <Alert showIcon type="error" message={searchQuery.error.message} /> : null}
-        </div>
+          {activeQuery.isLoading ? <Skeleton active /> : null}
 
-        {activeQuery.isLoading ? <Skeleton active /> : null}
+          {!activeQuery.isLoading && activeChannel === 'live' ? (
+            <div className="channel-empty-card">
+              <strong>直播准备中</strong>
+            </div>
+          ) : null}
 
-        {!activeQuery.isLoading && activeChannel === 'live' ? (
-          <div className="channel-empty-card">
-            <strong>直播准备中</strong>
-          </div>
-        ) : null}
+          {!activeQuery.isLoading && activeChannel !== 'live' && visiblePosts.length === 0 ? (
+            <Empty description={activeChannel === 'video' ? '还没有视频' : '还没有图文'}>
+              <Button type="primary" onClick={goSubmit}>
+                去投稿
+              </Button>
+            </Empty>
+          ) : null}
 
-        {!activeQuery.isLoading && activeChannel !== 'live' && visiblePosts.length === 0 ? (
-          <Empty description={activeChannel === 'video' ? '还没有视频' : '还没有图文'}>
-            <Button type="primary" onClick={goSubmit}>
-              去投稿
-            </Button>
-          </Empty>
-        ) : null}
-
-        {activeChannel !== 'live' ? (
-          <div className="discovery-grid">
-            {visiblePosts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
-        ) : null}
+          {activeChannel !== 'live' ? (
+            <div className="discovery-grid youtube-video-grid">
+              {visiblePosts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          ) : null}
+        </main>
       </div>
     </section>
   )

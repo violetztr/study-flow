@@ -15,7 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,42 +31,21 @@ class BackgroundPresetControllerTest {
     @Test
     void backgroundPresetsCanBeListedPubliclyByPlacement() throws Exception {
         mockMvc.perform(get("/api/background-presets")
-                        .param("placement", "HOME"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[*].placement", hasItem("HOME")))
-                .andExpect(jsonPath("$.data[*].mediaType", hasItem("VIDEO")))
-                .andExpect(jsonPath("$.data[*].url", hasItem("/system-backgrounds/site/home-hero.mp4")));
-
-        mockMvc.perform(get("/api/background-presets")
                         .param("placement", "PROFILE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].url", hasItem("/system-backgrounds/profile/road.png")))
                 .andExpect(jsonPath("$.data[*].url", hasItem("/system-backgrounds/profile/silhouette.mp4")));
+
+        mockMvc.perform(get("/api/background-presets"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].url", hasItem("/system-backgrounds/profile/road.png")));
     }
 
     @Test
-    void usersCanSaveTheirOwnHomeBackground() throws Exception {
-        String token = registerAndLogin("home_background_user", "home_background_user@example.com");
-
-        mockMvc.perform(put("/api/community/members/me/profile")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "displayName": "home background user",
-                                  "homeBackgroundUrl": "/api/media/files/101",
-                                  "homeBackgroundType": "VIDEO"
-                                }
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.homeBackgroundUrl").value("/api/media/files/101"))
-                .andExpect(jsonPath("$.data.homeBackgroundType").value("VIDEO"));
-
-        mockMvc.perform(get("/api/community/members/me")
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.homeBackgroundUrl").value("/api/media/files/101"))
-                .andExpect(jsonPath("$.data.homeBackgroundType").value("VIDEO"));
+    void homeBackgroundPlacementIsNoLongerSupported() throws Exception {
+        mockMvc.perform(get("/api/background-presets")
+                        .param("placement", "HOME"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -79,7 +57,7 @@ class BackgroundPresetControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "placement": "HOME",
+                                  "placement": "PROFILE",
                                   "name": "normal upload",
                                   "url": "/api/media/files/201",
                                   "mediaType": "IMAGE"

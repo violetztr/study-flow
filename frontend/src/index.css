@@ -139,16 +139,7 @@ textarea {
 
 .app-layout {
   min-height: 100vh;
-  background:
-    linear-gradient(rgba(255, 252, 246, 0.78), rgba(255, 252, 246, 0.82)),
-    repeating-linear-gradient(
-      90deg,
-      rgba(38, 53, 47, 0.04) 0,
-      rgba(38, 53, 47, 0.04) 1px,
-      transparent 1px,
-      transparent 72px
-    ),
-    var(--sf-bg);
+  background: #fff;
 }
 
 .app-sider {
@@ -187,13 +178,12 @@ textarea {
   z-index: 9;
   top: 0;
   display: flex;
-  min-height: 64px;
+  min-height: 54px;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--sf-border);
-  background: rgba(255, 252, 246, 0.8);
-  backdrop-filter: blur(16px);
+  padding: 8px 24px;
+  border-bottom: 1px solid rgba(15, 23, 20, 0.08);
+  background: #fff;
 }
 
 .compact-brand {
@@ -241,7 +231,7 @@ textarea {
 }
 
 .app-content {
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - 54px);
 }
 
 .page-section {
@@ -359,45 +349,9 @@ textarea {
 }
 
 .feed-page.discovery-page {
-  isolation: isolate;
-  position: relative;
-  overflow: hidden;
   min-height: calc(100vh - 54px);
-  padding: 0 18px 32px;
-  background: #101815;
-}
-
-.site-home-bg-video,
-.site-home-bg-image,
-.site-home-bg-overlay {
-  position: fixed;
-  z-index: 0;
-  inset: 0;
-  pointer-events: none;
-}
-
-.site-home-bg-video,
-.site-home-bg-image {
-  width: 100%;
-  height: 100%;
-  opacity: 0.62;
-  filter: saturate(1.08) contrast(1.04) brightness(0.88);
-  transform: scale(1.02);
-}
-
-.site-home-bg-video {
-  object-fit: cover;
-}
-
-.site-home-bg-image {
-  background-position: center;
-  background-size: cover;
-}
-
-.site-home-bg-overlay {
-  background:
-    linear-gradient(180deg, rgba(250, 249, 244, 0.38), rgba(250, 249, 244, 0.56) 42%, rgba(250, 249, 244, 0.76) 100%),
-    radial-gradient(circle at 12% 2%, rgba(67, 125, 107, 0.2), transparent 34%);
+  padding: 0;
+  background: #fff;
 }
 
 .detail-shell,
@@ -406,38 +360,93 @@ textarea {
   margin: 0 auto;
 }
 
-.discovery-shell {
-  position: relative;
-  z-index: 1;
-  width: min(1560px, 100%);
-  margin: 0 auto;
+.youtube-home-shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: calc(100vh - 54px);
+  background: #fff;
+}
+
+.youtube-sidebar {
+  position: sticky;
+  top: 54px;
+  align-self: start;
+  height: calc(100vh - 54px);
+  padding: 14px 12px 20px;
+  border-right: 1px solid rgba(15, 23, 20, 0.08);
+  background: #fff;
+}
+
+.youtube-sidebar-brand {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 8px 16px;
+  border: 0;
+  color: #0f172a;
+  background: transparent;
+  cursor: pointer;
+}
+
+.youtube-sidebar-brand strong {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.youtube-sidebar-nav {
+  display: grid;
+  gap: 4px;
+}
+
+.youtube-sidebar-nav button {
+  display: flex;
+  width: 100%;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  color: #202124;
+  font-size: 14px;
+  font-weight: 650;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.youtube-sidebar-nav button:hover,
+.youtube-sidebar-nav button.active {
+  color: #0f312b;
+  background: #f2f3f3;
+}
+
+.youtube-sidebar-nav .anticon {
+  font-size: 19px;
+}
+
+.youtube-main {
+  min-width: 0;
+  padding: 0 24px 48px;
 }
 
 .discovery-topbar {
   position: sticky;
   z-index: 5;
-  top: 0;
+  top: 54px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 28px;
+  grid-template-columns: minmax(220px, auto) minmax(320px, 1fr);
+  gap: 20px;
   align-items: center;
-  min-height: 66px;
-  margin: 0 -18px 24px;
-  padding: 0 18px;
-  border-bottom: 1px solid rgba(29, 37, 34, 0.08);
-  background: rgba(255, 255, 255, 0.76);
-  backdrop-filter: blur(18px) saturate(1.1);
-}
-
-.home-wordmark {
-  padding: 0;
-  border: 0;
-  color: var(--sf-primary);
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  background: transparent;
-  cursor: pointer;
+  min-height: 64px;
+  margin: 0 -24px 24px;
+  padding: 10px 24px;
+  border-bottom: 1px solid rgba(15, 23, 20, 0.08);
+  background: #fff;
 }
 
 .discovery-actions {
@@ -448,53 +457,46 @@ textarea {
 }
 
 .discovery-search {
-  width: min(320px, 34vw);
+  width: min(560px, 40vw);
 }
 
 .feed-channel-tabs {
   display: flex;
-  gap: 28px;
+  gap: 10px;
   align-items: center;
+  overflow-x: auto;
   min-width: 0;
 }
 
 .feed-channel-tabs button {
-  position: relative;
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  padding: 21px 0 19px;
+  padding: 8px 14px;
   border: 0;
-  color: #3f4743;
-  font-size: 16px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.feed-channel-tabs button::after {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  content: '';
   border-radius: 999px;
-  background: transparent;
+  color: #1f1f1f;
+  font-size: 14px;
+  font-weight: 650;
+  background: #f2f2f2;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .feed-channel-tabs button.active {
-  color: var(--sf-primary);
-  font-weight: 800;
-}
-
-.feed-channel-tabs button.active::after {
-  background: var(--sf-primary);
+  color: #fff;
+  background: #0f0f0f;
 }
 
 .discovery-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
   gap: 34px 20px;
+}
+
+.youtube-video-grid {
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 40px 20px;
 }
 
 .channel-empty-card {
@@ -1151,6 +1153,7 @@ textarea {
 
 .post-card.discovery-card {
   min-width: 0;
+  color: #0f0f0f;
 }
 
 .discovery-cover {
@@ -1158,9 +1161,9 @@ textarea {
   display: block;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  border-radius: 10px;
+  border-radius: 12px;
   color: inherit;
-  background: #eef1ef;
+  background: #f2f2f2;
 }
 
 .discovery-cover img,
@@ -1279,13 +1282,13 @@ textarea {
 
 .discovery-card-body h3 {
   display: -webkit-box;
-  min-height: 44px;
-  margin: 0 0 8px;
+  min-height: 42px;
+  margin: 0 0 7px;
   overflow: hidden;
-  color: #141b18;
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 1.45;
+  color: #0f0f0f;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -1301,7 +1304,7 @@ textarea {
 
 .discovery-author-row {
   justify-content: space-between;
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 }
 
 .author-name-chip {
@@ -1313,8 +1316,8 @@ textarea {
 
 .mini-author-avatar {
   display: inline-flex;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
@@ -1333,8 +1336,8 @@ textarea {
 }
 
 .discovery-topic-row {
-  min-height: 22px;
-  margin-bottom: 8px;
+  min-height: 20px;
+  margin-bottom: 6px;
 }
 
 .discovery-card-footer {
@@ -2805,18 +2808,50 @@ textarea {
   }
 
   .feed-page.discovery-page {
-    padding: 0 12px 24px;
+    padding: 0;
+  }
+
+  .youtube-home-shell {
+    display: block;
+  }
+
+  .youtube-sidebar {
+    position: sticky;
+    z-index: 6;
+    top: 54px;
+    height: auto;
+    padding: 8px 12px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(15, 23, 20, 0.08);
+  }
+
+  .youtube-sidebar-brand {
+    display: none;
+  }
+
+  .youtube-sidebar-nav {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+  }
+
+  .youtube-sidebar-nav button {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    border-radius: 999px;
+  }
+
+  .youtube-main {
+    padding: 0 12px 28px;
   }
 
   .discovery-topbar {
-    grid-template-columns: 1fr auto;
+    top: 107px;
+    grid-template-columns: 1fr;
     gap: 12px;
     margin: 0 -12px 18px;
     padding: 10px 12px;
-  }
-
-  .home-wordmark {
-    font-size: 18px;
   }
 
   .discovery-actions {
@@ -2830,19 +2865,18 @@ textarea {
   }
 
   .feed-channel-tabs {
-    grid-column: 1 / -1;
-    order: 3;
-    gap: 22px;
+    gap: 8px;
     overflow-x: auto;
   }
 
   .feed-channel-tabs button {
-    padding: 8px 0 10px;
+    padding: 8px 12px;
     white-space: nowrap;
   }
 
+  .youtube-video-grid,
   .discovery-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 22px 12px;
   }
 
