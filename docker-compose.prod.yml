@@ -1,0 +1,6 @@
+services:
+  backend:
+    image: ${IMAGE_REGISTRY:-ghcr.io/violetztr/study-flow}/backend:${IMAGE_TAG:-latest}
+
+  frontend:
+    image: ${IMAGE_REGISTRY:-ghcr.io/violetztr/study-flow}/frontend:${IMAGE_TAG:-latest}
