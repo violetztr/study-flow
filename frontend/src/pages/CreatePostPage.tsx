@@ -1,8 +1,8 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { Alert, Button, Progress, message } from 'antd'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { communityApi } from '../api/community'
 import { mediaApi } from '../api/media'
 import PostComposer, { type CommunityPostFormValues } from '../components/community/PostComposer'
@@ -25,9 +25,19 @@ async function uploadMediaFile(file: File, onStatus?: (status: string) => void) 
 
 function CreatePostPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const [messageApi, contextHolder] = message.useMessage()
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
+  const requestedCollectionId = Number(searchParams.get('collectionId'))
+  const initialCollectionId = Number.isFinite(requestedCollectionId) && requestedCollectionId > 0
+    ? requestedCollectionId
+    : null
+
+  const collectionsQuery = useQuery({
+    queryKey: ['community-collections-my'],
+    queryFn: communityApi.listMyCollections,
+  })
 
   const createMutation = useMutation({
     mutationFn: async (values: CommunityPostFormValues) => {
@@ -50,6 +60,10 @@ function CreatePostPage() {
         content: values.content,
         topicId: null,
         topicName: values.topicName ?? null,
+        collectionEnabled: values.collectionEnabled ?? false,
+        collectionId: values.collectionId ?? null,
+        collectionTitle: values.collectionTitle ?? null,
+        collectionDescription: values.collectionDescription ?? null,
         videoCoverMediaFileId,
         mediaFileIds,
       })
@@ -57,6 +71,7 @@ function CreatePostPage() {
     onSuccess: (post) => {
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
       queryClient.invalidateQueries({ queryKey: ['community-submissions-my'] })
+      queryClient.invalidateQueries({ queryKey: ['community-collections-my'] })
       if (post.status === 'PENDING_REVIEW') {
         void messageApi.success('视频已提交审核，可以在我的稿件里查看状态')
         navigate('/circle/submissions')
@@ -96,7 +111,12 @@ function CreatePostPage() {
               <Progress percent={createMutation.isPending ? 68 : 100} showInfo={false} size="small" />
             </div>
           ) : null}
-          <PostComposer loading={createMutation.isPending} onSubmit={handleSubmit} />
+          <PostComposer
+            collections={collectionsQuery.data ?? []}
+            initialCollectionId={initialCollectionId}
+            loading={createMutation.isPending}
+            onSubmit={handleSubmit}
+          />
         </div>
       </div>
     </section>

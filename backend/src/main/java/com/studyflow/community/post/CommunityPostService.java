@@ -5,12 +5,18 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.studyflow.common.BusinessException;
 import com.studyflow.community.circle.Circle;
+import com.studyflow.community.collection.CommunityCollection;
+import com.studyflow.community.collection.CommunityCollectionMapper;
 import com.studyflow.community.danmaku.CommunityDanmaku;
 import com.studyflow.community.danmaku.CommunityDanmakuMapper;
 import com.studyflow.community.favorite.CommunityFavoriteService;
 import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
+import com.studyflow.community.post.dto.CommunityCollectionItemResponse;
+import com.studyflow.community.post.dto.CommunityCollectionSummaryResponse;
+import com.studyflow.community.post.dto.CommunityPostCollectionRequest;
+import com.studyflow.community.post.dto.CommunityPostCollectionResponse;
 import com.studyflow.community.post.dto.CommunityPostRequest;
 import com.studyflow.community.post.dto.CommunityPostResponse;
 import com.studyflow.community.reaction.CommunityReactionService;
@@ -34,20 +40,20 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.studyflow.community.member.CommunityMemberService.STATUS_ACTIVE;
-
 @Service
 public class CommunityPostService {
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String STATUS_REJECTED = "REJECTED";
     private static final String STATUS_DELETED = "DELETED";
+    private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String CONTENT_TYPE_ARTICLE = "ARTICLE";
     private static final String CONTENT_TYPE_VIDEO = "VIDEO";
     private static final String CONTENT_FORMAT_TEXT = "TEXT";
     private static final String VISIBILITY_CIRCLE = "CIRCLE";
 
     private final CommunityPostMapper communityPostMapper;
+    private final CommunityCollectionMapper communityCollectionMapper;
     private final CommunityTopicMapper communityTopicMapper;
     private final CommunityMemberService communityMemberService;
     private final UserProfileMapper userProfileMapper;
@@ -61,6 +67,7 @@ public class CommunityPostService {
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
+            CommunityCollectionMapper communityCollectionMapper,
             CommunityTopicMapper communityTopicMapper,
             CommunityMemberService communityMemberService,
             UserProfileMapper userProfileMapper,
@@ -73,6 +80,7 @@ public class CommunityPostService {
             CommunityPostCounterService communityPostCounterService
     ) {
         this.communityPostMapper = communityPostMapper;
+        this.communityCollectionMapper = communityCollectionMapper;
         this.communityTopicMapper = communityTopicMapper;
         this.communityMemberService = communityMemberService;
         this.userProfileMapper = userProfileMapper;
@@ -243,6 +251,39 @@ public class CommunityPostService {
         return toResponses(posts, userId);
     }
 
+    public List<CommunityCollectionSummaryResponse> listMyCollections(Long userId) {
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
+        List<CommunityCollection> collections = communityCollectionMapper.selectList(new LambdaQueryWrapper<CommunityCollection>()
+                .eq(CommunityCollection::getCircleId, circle.getId())
+                .eq(CommunityCollection::getAuthorId, userId)
+                .eq(CommunityCollection::getStatus, STATUS_ACTIVE)
+                .orderByDesc(CommunityCollection::getUpdatedAt)
+                .orderByDesc(CommunityCollection::getId));
+        if (collections.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Set<Long> collectionIds = collections.stream()
+                .map(CommunityCollection::getId)
+                .collect(Collectors.toSet());
+        Map<Long, Integer> postCounts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                        .select(CommunityPost::getId, CommunityPost::getCollectionId)
+                        .in(CommunityPost::getCollectionId, collectionIds)
+                        .eq(CommunityPost::getStatus, STATUS_PUBLISHED))
+                .stream()
+                .collect(Collectors.groupingBy(CommunityPost::getCollectionId, Collectors.summingInt(post -> 1)));
+
+        return collections.stream()
+                .map(collection -> new CommunityCollectionSummaryResponse(
+                        collection.getId(),
+                        collection.getTitle(),
+                        collection.getDescription(),
+                        postCounts.getOrDefault(collection.getId(), 0),
+                        collection.getUpdatedAt()
+                ))
+                .toList();
+    }
+
     public List<CommunityPostResponse> listPendingReviewSubmissions(Long currentUserId, Long circleId) {
         List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
                 .eq(CommunityPost::getCircleId, circleId)
@@ -331,12 +372,23 @@ public class CommunityPostService {
         CommunityTopic topic = findActiveTopic(circle.getId(), request.topicId());
         LocalDateTime now = LocalDateTime.now();
         String contentType = mediaService.resolvePostContentType(userId, request.mediaFileIds());
+        CommunityCollection collection = resolveCollectionForPost(
+                circle.getId(),
+                userId,
+                null,
+                request.collectionEnabled(),
+                request.collectionId(),
+                request.collectionTitle(),
+                request.collectionDescription(),
+                now
+        );
 
         CommunityPost post = new CommunityPost();
         post.setCircleId(circle.getId());
         post.setAuthorId(userId);
         post.setTopicId(topic == null ? null : topic.getId());
         post.setTopicName(resolveTopicName(topic, request.topicName()));
+        post.setCollectionId(collection == null ? null : collection.getId());
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setVideoCoverMediaFileId(request.videoCoverMediaFileId());
@@ -359,7 +411,7 @@ public class CommunityPostService {
         }
         mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), request.videoCoverMediaFileId(), now);
         if (STATUS_PUBLISHED.equals(post.getStatus())) {
-            communityPostCacheService.evictFeed();
+            evictCollectionCaches(null, post.getCollectionId(), post.getId());
         }
         return toResponse(post, userId);
     }
@@ -370,10 +422,22 @@ public class CommunityPostService {
         CommunityPost post = requireOwnedPost(circle.getId(), userId, postId);
         CommunityTopic topic = findActiveTopic(circle.getId(), request.topicId());
         Long previousTopicId = post.getTopicId();
+        Long previousCollectionId = post.getCollectionId();
         Long nextTopicId = topic == null ? null : topic.getId();
         String nextTopicName = resolveTopicName(topic, request.topicName());
         LocalDateTime now = LocalDateTime.now();
         String nextContentType = mediaService.resolvePostContentType(userId, request.mediaFileIds());
+        CommunityCollection collection = resolveCollectionForPost(
+                circle.getId(),
+                userId,
+                previousCollectionId,
+                request.collectionEnabled(),
+                request.collectionId(),
+                request.collectionTitle(),
+                request.collectionDescription(),
+                now
+        );
+        Long nextCollectionId = collection == null ? null : collection.getId();
 
         int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
                 .eq(CommunityPost::getId, post.getId())
@@ -382,6 +446,7 @@ public class CommunityPostService {
                 .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
                 .set(CommunityPost::getTopicId, nextTopicId)
                 .set(CommunityPost::getTopicName, nextTopicName)
+                .set(CommunityPost::getCollectionId, nextCollectionId)
                 .set(CommunityPost::getTitle, request.title())
                 .set(CommunityPost::getContent, request.content())
                 .set(CommunityPost::getVideoCoverMediaFileId, request.videoCoverMediaFileId())
@@ -393,13 +458,49 @@ public class CommunityPostService {
         updateTopicCounts(previousTopicId, nextTopicId);
         post.setTopicId(nextTopicId);
         post.setTopicName(nextTopicName);
+        post.setCollectionId(nextCollectionId);
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setVideoCoverMediaFileId(request.videoCoverMediaFileId());
         post.setContentType(nextContentType);
         post.setUpdatedAt(now);
         mediaService.replacePostMedia(userId, post.getId(), request.mediaFileIds(), request.videoCoverMediaFileId(), now);
-        communityPostCacheService.evictFeedAndPost(post.getId());
+        evictCollectionCaches(previousCollectionId, nextCollectionId, post.getId());
+        return toResponse(post, userId);
+    }
+
+    @Transactional
+    public CommunityPostResponse updatePostCollection(Long userId, Long postId, CommunityPostCollectionRequest request) {
+        Circle circle = communityMemberService.requireActiveDefaultMember(userId);
+        CommunityPost post = requireOwnedPost(circle.getId(), userId, postId);
+        Long previousCollectionId = post.getCollectionId();
+        LocalDateTime now = LocalDateTime.now();
+        CommunityCollection collection = resolveCollectionForPost(
+                circle.getId(),
+                userId,
+                previousCollectionId,
+                request.enabled(),
+                request.collectionId(),
+                request.title(),
+                request.description(),
+                now
+        );
+        Long nextCollectionId = collection == null ? null : collection.getId();
+
+        int updated = communityPostMapper.update(null, new LambdaUpdateWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, post.getId())
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getAuthorId, userId)
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .set(CommunityPost::getCollectionId, nextCollectionId)
+                .set(CommunityPost::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException(409, "Post status changed");
+        }
+
+        post.setCollectionId(nextCollectionId);
+        post.setUpdatedAt(now);
+        evictCollectionCaches(previousCollectionId, nextCollectionId, post.getId());
         return toResponse(post, userId);
     }
 
@@ -422,7 +523,7 @@ public class CommunityPostService {
         if (post.getTopicId() != null) {
             communityTopicMapper.decrementPostCount(post.getTopicId());
         }
-        communityPostCacheService.evictFeedAndPost(post.getId());
+        evictCollectionCaches(post.getCollectionId(), null, post.getId());
         communityPostCounterService.evictPostCounter(post.getId());
     }
 
@@ -486,6 +587,139 @@ public class CommunityPostService {
         }
     }
 
+    private CommunityCollection resolveCollectionForPost(
+            Long circleId,
+            Long userId,
+            Long previousCollectionId,
+            Boolean enabled,
+            Long requestedCollectionId,
+            String title,
+            String description,
+            LocalDateTime now
+    ) {
+        if (Boolean.FALSE.equals(enabled)) {
+            return null;
+        }
+        if (enabled == null && requestedCollectionId == null && title == null && description == null) {
+            return previousCollectionId == null ? null : requireOwnedCollection(circleId, userId, previousCollectionId);
+        }
+        if (!Boolean.TRUE.equals(enabled)) {
+            return previousCollectionId == null ? null : requireOwnedCollection(circleId, userId, previousCollectionId);
+        }
+        if (requestedCollectionId != null) {
+            return requireOwnedCollection(circleId, userId, requestedCollectionId);
+        }
+
+        String normalizedTitle = normalizeCollectionTitle(title);
+        String normalizedDescription = normalizeCollectionDescription(description);
+        if (normalizedTitle == null) {
+            if (previousCollectionId != null) {
+                CommunityCollection previous = requireOwnedCollection(circleId, userId, previousCollectionId);
+                updateCollectionDescription(previous, normalizedDescription, now);
+                return previous;
+            }
+            throw new BusinessException(400, "专栏标题不能为空");
+        }
+
+        CommunityCollection existing = findOwnedCollectionByTitle(circleId, userId, normalizedTitle);
+        if (existing != null && !Objects.equals(existing.getId(), previousCollectionId)) {
+            return existing;
+        }
+        if (previousCollectionId != null) {
+            CommunityCollection previous = requireOwnedCollection(circleId, userId, previousCollectionId);
+            updateCollection(previous, normalizedTitle, normalizedDescription, now);
+            return previous;
+        }
+
+        CommunityCollection collection = new CommunityCollection();
+        collection.setCircleId(circleId);
+        collection.setAuthorId(userId);
+        collection.setTitle(normalizedTitle);
+        collection.setDescription(normalizedDescription);
+        collection.setStatus(STATUS_ACTIVE);
+        collection.setCreatedAt(now);
+        collection.setUpdatedAt(now);
+        communityCollectionMapper.insert(collection);
+        return collection;
+    }
+
+    private CommunityCollection requireOwnedCollection(Long circleId, Long userId, Long collectionId) {
+        CommunityCollection collection = communityCollectionMapper.selectOne(new LambdaQueryWrapper<CommunityCollection>()
+                .eq(CommunityCollection::getId, collectionId)
+                .eq(CommunityCollection::getCircleId, circleId)
+                .eq(CommunityCollection::getAuthorId, userId)
+                .eq(CommunityCollection::getStatus, STATUS_ACTIVE));
+        if (collection == null) {
+            throw new BusinessException(404, "专栏不存在");
+        }
+        return collection;
+    }
+
+    private CommunityCollection findOwnedCollectionByTitle(Long circleId, Long userId, String title) {
+        return communityCollectionMapper.selectOne(new LambdaQueryWrapper<CommunityCollection>()
+                .eq(CommunityCollection::getCircleId, circleId)
+                .eq(CommunityCollection::getAuthorId, userId)
+                .eq(CommunityCollection::getTitle, title)
+                .eq(CommunityCollection::getStatus, STATUS_ACTIVE));
+    }
+
+    private void updateCollection(CommunityCollection collection, String title, String description, LocalDateTime now) {
+        if (Objects.equals(collection.getTitle(), title) && Objects.equals(collection.getDescription(), description)) {
+            return;
+        }
+        collection.setTitle(title);
+        collection.setDescription(description);
+        collection.setUpdatedAt(now);
+        communityCollectionMapper.updateById(collection);
+    }
+
+    private void updateCollectionDescription(CommunityCollection collection, String description, LocalDateTime now) {
+        if (Objects.equals(collection.getDescription(), description)) {
+            return;
+        }
+        collection.setDescription(description);
+        collection.setUpdatedAt(now);
+        communityCollectionMapper.updateById(collection);
+    }
+
+    private String normalizeCollectionTitle(String title) {
+        if (title == null) {
+            return null;
+        }
+        String trimmed = title.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeCollectionDescription(String description) {
+        if (description == null) {
+            return null;
+        }
+        String trimmed = description.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void evictCollectionCaches(Long previousCollectionId, Long nextCollectionId, Long fallbackPostId) {
+        Set<Long> postIds = new HashSet<>();
+        postIds.add(fallbackPostId);
+        Set<Long> collectionIds = new HashSet<>();
+        if (previousCollectionId != null) {
+            collectionIds.add(previousCollectionId);
+        }
+        if (nextCollectionId != null) {
+            collectionIds.add(nextCollectionId);
+        }
+        if (!collectionIds.isEmpty()) {
+            communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                            .select(CommunityPost::getId)
+                            .in(CommunityPost::getCollectionId, collectionIds))
+                    .forEach(post -> postIds.add(post.getId()));
+        }
+        communityPostCacheService.evictFeed();
+        postIds.stream()
+                .filter(Objects::nonNull)
+                .forEach(communityPostCacheService::evictPost);
+    }
+
     private List<CommunityPostResponse> toResponses(List<CommunityPost> posts, Long userId) {
         if (posts.isEmpty()) {
             return Collections.emptyList();
@@ -501,9 +735,14 @@ public class CommunityPostService {
                 .map(CommunityPost::getTopicId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+        Set<Long> collectionIds = posts.stream()
+                .map(CommunityPost::getCollectionId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
 
         Map<Long, AuthorDisplay> authorDisplays = authorDisplays(authorIds);
         Map<Long, CommunityTopic> topics = topics(topicIds);
+        Map<Long, CommunityPostCollectionResponse> collections = collectionResponses(collectionIds);
         Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
         Set<Long> piggedPostIds = communityReactionService.piggedPostIds(userId, postIds);
         Set<Long> favoritedPostIds = communityFavoriteService.favoritedPostIds(userId, postIds);
@@ -522,6 +761,7 @@ public class CommunityPostService {
                         piggedPostIds,
                         favoritedPostIds,
                         danmakuCounts,
+                        collections,
                         mediaByPostId
                 ))
                 .toList();
@@ -587,6 +827,7 @@ public class CommunityPostService {
                 pigged,
                 favorited,
                 post.media(),
+                post.collection(),
                 post.lastActivityAt(),
                 post.createdAt(),
                 post.updatedAt()
@@ -605,6 +846,7 @@ public class CommunityPostService {
             Set<Long> piggedPostIds,
             Set<Long> favoritedPostIds,
             Map<Long, Integer> danmakuCounts,
+            Map<Long, CommunityPostCollectionResponse> collections,
             Map<Long, List<MediaAttachmentResponse>> mediaByPostId
     ) {
         CommunityTopic topic = post.getTopicId() == null ? null : topics.get(post.getTopicId());
@@ -636,10 +878,58 @@ public class CommunityPostService {
                 piggedPostIds.contains(post.getId()),
                 favoritedPostIds.contains(post.getId()),
                 mediaByPostId.getOrDefault(post.getId(), Collections.emptyList()),
+                post.getCollectionId() == null ? null : collections.get(post.getCollectionId()),
                 post.getLastActivityAt(),
                 post.getCreatedAt(),
                 post.getUpdatedAt()
         );
+    }
+
+    private Map<Long, CommunityPostCollectionResponse> collectionResponses(Set<Long> collectionIds) {
+        if (collectionIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, CommunityCollection> collections = communityCollectionMapper.selectList(
+                        new LambdaQueryWrapper<CommunityCollection>()
+                                .in(CommunityCollection::getId, collectionIds)
+                                .eq(CommunityCollection::getStatus, STATUS_ACTIVE))
+                .stream()
+                .collect(Collectors.toMap(CommunityCollection::getId, Function.identity()));
+        if (collections.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<Long, List<CommunityCollectionItemResponse>> itemsByCollectionId =
+                communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                                .in(CommunityPost::getCollectionId, collections.keySet())
+                                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                                .orderByAsc(CommunityPost::getCreatedAt)
+                                .orderByAsc(CommunityPost::getId))
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                CommunityPost::getCollectionId,
+                                Collectors.mapping(
+                                        post -> new CommunityCollectionItemResponse(
+                                                post.getId(),
+                                                post.getTitle(),
+                                                post.getContentType() == null ? CONTENT_TYPE_ARTICLE : post.getContentType(),
+                                                post.getViewCount() == null ? 0 : post.getViewCount(),
+                                                post.getCreatedAt()
+                                        ),
+                                        Collectors.toList()
+                                )
+                        ));
+
+        return collections.values().stream()
+                .collect(Collectors.toMap(
+                        CommunityCollection::getId,
+                        collection -> new CommunityPostCollectionResponse(
+                                collection.getId(),
+                                collection.getTitle(),
+                                collection.getDescription(),
+                                itemsByCollectionId.getOrDefault(collection.getId(), Collections.emptyList())
+                        )
+                ));
     }
 
     private Map<Long, AuthorDisplay> authorDisplays(Set<Long> authorIds) {

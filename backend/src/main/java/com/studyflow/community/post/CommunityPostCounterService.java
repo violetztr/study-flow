@@ -170,6 +170,7 @@ public class CommunityPostCounterService {
                 post.piggedByCurrentUser(),
                 post.favoritedByCurrentUser(),
                 post.media(),
+                post.collection(),
                 post.lastActivityAt(),
                 post.createdAt(),
                 post.updatedAt()

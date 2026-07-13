@@ -15,6 +15,10 @@ export type CommunityPostRequest = {
   content: string
   topicId?: number | null
   topicName?: string | null
+  collectionEnabled?: boolean | null
+  collectionId?: number | null
+  collectionTitle?: string | null
+  collectionDescription?: string | null
   videoCoverMediaFileId?: number | null
   mediaFileIds?: number[]
 }
@@ -68,9 +72,40 @@ export type CommunityPostResponse = {
   piggedByCurrentUser: boolean
   favoritedByCurrentUser: boolean
   media: MediaAttachmentResponse[]
+  collection?: CommunityPostCollectionResponse | null
   lastActivityAt?: string | null
   createdAt: string
   updatedAt?: string | null
+}
+
+export type CommunityCollectionItemResponse = {
+  postId: number
+  title: string
+  contentType: 'ARTICLE' | 'VIDEO' | 'LIVE' | string
+  viewCount: number
+  createdAt: string
+}
+
+export type CommunityPostCollectionResponse = {
+  id: number
+  title: string
+  description?: string | null
+  items: CommunityCollectionItemResponse[]
+}
+
+export type CommunityCollectionSummaryResponse = {
+  id: number
+  title: string
+  description?: string | null
+  postCount: number
+  updatedAt: string
+}
+
+export type CommunityPostCollectionRequest = {
+  enabled: boolean
+  collectionId?: number | null
+  title?: string | null
+  description?: string | null
 }
 
 export type CommunityCommentRequest = {
@@ -220,6 +255,9 @@ export const communityApi = {
   createPost(request: CommunityPostRequest) {
     return http.post<unknown, CommunityPostResponse>('/community/posts', request)
   },
+  listMyCollections() {
+    return http.get<unknown, CommunityCollectionSummaryResponse[]>('/community/collections/my')
+  },
   listMySubmissions() {
     return http.get<unknown, CommunityPostResponse[]>('/community/submissions/my')
   },
@@ -228,6 +266,9 @@ export const communityApi = {
   },
   updatePost(id: number, request: CommunityPostRequest) {
     return http.put<unknown, CommunityPostResponse>(`/community/posts/${id}`, request)
+  },
+  updatePostCollection(id: number, request: CommunityPostCollectionRequest) {
+    return http.put<unknown, CommunityPostResponse>(`/community/posts/${id}/collection`, request)
   },
   deletePost(id: number) {
     return http.delete<unknown, void>(`/community/posts/${id}`)

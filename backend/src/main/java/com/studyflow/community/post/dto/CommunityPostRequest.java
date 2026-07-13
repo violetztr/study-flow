@@ -12,6 +12,10 @@ public record CommunityPostRequest(
         Long topicId,
         @Size(max = 10) String topicName,
         Long videoCoverMediaFileId,
-        @Size(max = 9) List<@NotNull Long> mediaFileIds
+        @Size(max = 9) List<@NotNull Long> mediaFileIds,
+        Boolean collectionEnabled,
+        Long collectionId,
+        @Size(max = 160) String collectionTitle,
+        @Size(max = 1000) String collectionDescription
 ) {
 }

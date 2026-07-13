@@ -6,10 +6,10 @@ import {
   PictureOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons'
-import { Button, Form, Input, Upload, message } from 'antd'
+import { Button, Form, Input, Select, Upload, message } from 'antd'
 import { useEffect, useState } from 'react'
 import type { UploadFile } from 'antd'
-import type { CommunityPostRequest } from '../../api/community'
+import type { CommunityCollectionSummaryResponse, CommunityPostRequest } from '../../api/community'
 
 export type PostComposerMode = 'article' | 'video'
 
@@ -19,9 +19,15 @@ export type CommunityPostFormValues = CommunityPostRequest & {
   videoCoverFile?: File | null
 }
 
+type PostComposerFields = CommunityPostRequest & {
+  collectionChoice?: string
+}
+
 type PostComposerProps = {
   loading?: boolean
   initialValues?: Partial<CommunityPostRequest>
+  initialCollectionId?: number | null
+  collections?: CommunityCollectionSummaryResponse[]
   onSubmit: (values: CommunityPostFormValues) => void
 }
 
@@ -51,6 +57,18 @@ const modeOptions: Array<{
 function normalizeTopicName(topicName?: string | null) {
   const trimmedTopicName = topicName?.trim()
   return trimmedTopicName ? trimmedTopicName : null
+}
+
+function collectionChoiceFromId(collectionId?: number | null) {
+  return collectionId ? `collection-${collectionId}` : 'none'
+}
+
+function parseCollectionChoice(choice?: string | null) {
+  if (!choice?.startsWith('collection-')) {
+    return null
+  }
+  const id = Number(choice.replace('collection-', ''))
+  return Number.isFinite(id) ? id : null
 }
 
 function isVideoUpload(file: UploadFile) {
@@ -154,9 +172,17 @@ function getUploadFiles(fileList: UploadFile[]) {
     .filter((file): file is NonNullable<UploadFile['originFileObj']> => Boolean(file))
 }
 
-function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
+function PostComposer({
+  loading,
+  initialValues,
+  initialCollectionId,
+  collections = [],
+  onSubmit,
+}: PostComposerProps) {
+  const [form] = Form.useForm<PostComposerFields>()
   const [messageApi, contextHolder] = message.useMessage()
   const [mode, setMode] = useState<PostComposerMode>('video')
+  const [collectionChoice, setCollectionChoice] = useState(collectionChoiceFromId(initialCollectionId))
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [videoFileUid, setVideoFileUid] = useState<string | null>(null)
   const [videoCoverFile, setVideoCoverFile] = useState<File | null>(null)
@@ -166,6 +192,18 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
 
   const isVideoMode = mode === 'video'
   const currentMode = modeOptions.find((item) => item.key === mode) ?? modeOptions[0]
+  const selectedCollectionId = parseCollectionChoice(collectionChoice)
+  const selectedCollection = collections.find((collection) => collection.id === selectedCollectionId)
+
+  useEffect(() => {
+    const nextChoice = collectionChoiceFromId(initialCollectionId)
+    setCollectionChoice(nextChoice)
+    form.setFieldsValue({
+      collectionChoice: nextChoice,
+      collectionId: initialCollectionId ?? null,
+      collectionEnabled: Boolean(initialCollectionId),
+    })
+  }, [form, initialCollectionId])
 
   useEffect(() => {
     if (!videoCoverFile) {
@@ -283,13 +321,19 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
   return (
     <>
       {contextHolder}
-      <Form<CommunityPostRequest>
+      <Form<PostComposerFields>
+        form={form}
         className="composer-form"
         layout="vertical"
         requiredMark={false}
-        initialValues={initialValues}
+        initialValues={{
+          collectionChoice: collectionChoiceFromId(initialCollectionId),
+          ...initialValues,
+        }}
         onFinish={(values) => {
           const mediaFiles = getUploadFiles(fileList)
+          const nextCollectionChoice = values.collectionChoice ?? 'none'
+          const nextCollectionId = parseCollectionChoice(nextCollectionChoice)
 
           if (mode === 'video') {
             const videoFile = mediaFiles.find((file) => file.type.startsWith('video/'))
@@ -302,12 +346,21 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
               return
             }
           }
+          if (nextCollectionChoice === 'new' && !values.collectionTitle?.trim()) {
+            void messageApi.warning('请先给新专栏起个名字')
+            return
+          }
 
           onSubmit({
             ...values,
             mode,
             topicId: null,
             topicName: normalizeTopicName(values.topicName),
+            collectionEnabled: nextCollectionChoice !== 'none',
+            collectionId: nextCollectionChoice.startsWith('collection-') ? nextCollectionId : null,
+            collectionTitle: nextCollectionChoice === 'new' ? values.collectionTitle?.trim() : null,
+            collectionDescription:
+              nextCollectionChoice === 'new' ? values.collectionDescription?.trim() || null : null,
             mediaFiles,
             videoCoverFile: mode === 'video' ? videoCoverFile : null,
           })
@@ -372,7 +425,50 @@ function PostComposer({ loading, initialValues, onSubmit }: PostComposerProps) {
           >
             <Input allowClear className="composer-topic-input" placeholder="输入话题" />
           </Form.Item>
+          <Form.Item name="collectionChoice" className="composer-collection-item">
+            <Select
+              className="composer-collection-select"
+              placeholder="无专栏"
+              value={collectionChoice}
+              onChange={(value) => {
+                setCollectionChoice(value)
+                form.setFieldsValue({
+                  collectionChoice: value,
+                  collectionId: parseCollectionChoice(value),
+                })
+              }}
+              options={[
+                { value: 'none', label: '无专栏' },
+                ...collections.map((collection) => ({
+                  value: `collection-${collection.id}`,
+                  label: collection.title,
+                })),
+                { value: 'new', label: '+ 新建专栏' },
+              ]}
+            />
+          </Form.Item>
         </div>
+
+        {collectionChoice === 'new' ? (
+          <div className="composer-collection-fields">
+            <Form.Item
+              name="collectionTitle"
+              rules={[
+                { required: true, message: '请输入专栏名称' },
+                { max: 160, message: '专栏名称不能超过 160 个字' },
+              ]}
+            >
+              <Input placeholder="专栏名称，比如 Apex 练习日志" />
+            </Form.Item>
+            <Form.Item name="collectionDescription" rules={[{ max: 1000, message: '专栏简介不能超过 1000 个字' }]}>
+              <Input.TextArea placeholder="专栏简介，可不填" autoSize={{ minRows: 2, maxRows: 5 }} />
+            </Form.Item>
+          </div>
+        ) : selectedCollection ? (
+          <p className="composer-collection-hint">
+            将发布到「{selectedCollection.title}」，当前 {selectedCollection.postCount} 篇内容。
+          </p>
+        ) : null}
 
         <Upload.Dragger
           accept={isVideoMode ? 'video/mp4,video/webm,video/quicktime' : 'image/jpeg,image/png,image/webp,image/gif'}

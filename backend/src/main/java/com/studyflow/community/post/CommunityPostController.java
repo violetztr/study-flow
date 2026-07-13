@@ -1,6 +1,8 @@
 package com.studyflow.community.post;
 
 import com.studyflow.common.ApiResponse;
+import com.studyflow.community.post.dto.CommunityCollectionSummaryResponse;
+import com.studyflow.community.post.dto.CommunityPostCollectionRequest;
 import com.studyflow.community.post.dto.CommunityPostRequest;
 import com.studyflow.community.post.dto.CommunityPostResponse;
 import com.studyflow.security.UserPrincipal;
@@ -54,6 +56,13 @@ public class CommunityPostController {
         return ApiResponse.success(communityPostService.listMySubmissions(principal.userId()));
     }
 
+    @GetMapping("/collections/my")
+    public ApiResponse<List<CommunityCollectionSummaryResponse>> listMyCollections(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ApiResponse.success(communityPostService.listMyCollections(principal.userId()));
+    }
+
     @PostMapping("/posts")
     public ApiResponse<CommunityPostResponse> createPost(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -77,6 +86,15 @@ public class CommunityPostController {
             @Valid @RequestBody CommunityPostRequest request
     ) {
         return ApiResponse.success(communityPostService.updatePost(principal.userId(), postId, request));
+    }
+
+    @PutMapping("/posts/{postId}/collection")
+    public ApiResponse<CommunityPostResponse> updatePostCollection(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId,
+            @Valid @RequestBody CommunityPostCollectionRequest request
+    ) {
+        return ApiResponse.success(communityPostService.updatePostCollection(principal.userId(), postId, request));
     }
 
     @DeleteMapping("/posts/{postId}")

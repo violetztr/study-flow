@@ -89,6 +89,142 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void postCollectionOnlyAppearsWhenAuthorEnablesIt() throws Exception {
+        String token = registerAndLogin("post_collection_author", "post_collection_author@example.com");
+        Long topicId = firstTopicId(token);
+        Long firstPostId = createPostWithCollection(
+                token,
+                topicId,
+                "Apex 第一集",
+                "先把第一段练习放进去。",
+                "Apex 小课",
+                "把 Apex 训练内容整理成一个合集。"
+        );
+        Long secondPostId = createPostWithCollection(
+                token,
+                topicId,
+                "Apex 第二集",
+                "第二段练习继续放在同一个合集。",
+                "Apex 小课",
+                "把 Apex 训练内容整理成一个合集。"
+        );
+        Long standalonePostId = createPost(token, topicId, "没有专栏的图文", "这个帖子不应该显示专栏合集。");
+
+        mockMvc.perform(get("/api/community/posts/{id}", firstPostId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collection.title").value("Apex 小课"))
+                .andExpect(jsonPath("$.data.collection.description").value("把 Apex 训练内容整理成一个合集。"))
+                .andExpect(jsonPath("$.data.collection.items", hasSize(2)))
+                .andExpect(jsonPath("$.data.collection.items[*].postId", hasItem(firstPostId.intValue())))
+                .andExpect(jsonPath("$.data.collection.items[*].postId", hasItem(secondPostId.intValue())));
+
+        JsonNode standalonePost = getPost(token, standalonePostId);
+        assertThat(standalonePost.path("collection").isNull() || standalonePost.path("collection").isMissingNode())
+                .isTrue();
+    }
+
+    @Test
+    void authorCanListAndSelectExistingCollectionWhenPublishing() throws Exception {
+        String token = registerAndLogin("post_collection_selector", "post_collection_selector@example.com");
+        Long topicId = firstTopicId(token);
+        Long firstPostId = createPostWithCollection(
+                token,
+                topicId,
+                "第一篇专栏内容",
+                "先创建出一个专栏。",
+                "我的 Java 复盘",
+                "把 Java 学习路径串起来。"
+        );
+        Long collectionId = getPost(token, firstPostId).path("collection").path("id").asLong();
+
+        mockMvc.perform(get("/api/community/collections/my")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(collectionId))
+                .andExpect(jsonPath("$.data[0].title").value("我的 Java 复盘"));
+
+        MvcResult secondResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "第二篇专栏内容",
+                                  "content": "发布时选择已有专栏。",
+                                  "collectionEnabled": true,
+                                  "collectionId": %d
+                                }
+                                """.formatted(topicId, collectionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collection.id").value(collectionId))
+                .andReturn();
+        Long secondPostId = objectMapper.readTree(secondResult.getResponse().getContentAsByteArray())
+                .path("data")
+                .path("id")
+                .asLong();
+
+        mockMvc.perform(get("/api/community/posts/{id}", secondPostId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collection.id").value(collectionId))
+                .andExpect(jsonPath("$.data.collection.items", hasSize(2)))
+                .andExpect(jsonPath("$.data.collection.items[*].postId", hasItem(firstPostId.intValue())))
+                .andExpect(jsonPath("$.data.collection.items[*].postId", hasItem(secondPostId.intValue())));
+    }
+
+    @Test
+    void authorCanEnableRenameAndDisableCollectionAfterPublishing() throws Exception {
+        String token = registerAndLogin("post_collection_editor", "post_collection_editor@example.com");
+        Long topicId = firstTopicId(token);
+        Long postId = createPost(token, topicId, "可整理的图文", "先单独发布，之后再加入专栏。");
+
+        mockMvc.perform(put("/api/community/posts/{id}/collection", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "enabled": true,
+                                  "title": "Ruru 开发日志",
+                                  "description": "把 Ruru 社区的开发过程串起来。"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collection.title").value("Ruru 开发日志"))
+                .andExpect(jsonPath("$.data.collection.description").value("把 Ruru 社区的开发过程串起来。"))
+                .andExpect(jsonPath("$.data.collection.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.collection.items[0].postId").value(postId));
+
+        mockMvc.perform(put("/api/community/posts/{id}/collection", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "enabled": true,
+                                  "title": "Ruru 真实开发日志",
+                                  "description": "重新命名后的专栏简介。"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collection.title").value("Ruru 真实开发日志"))
+                .andExpect(jsonPath("$.data.collection.description").value("重新命名后的专栏简介。"));
+
+        mockMvc.perform(put("/api/community/posts/{id}/collection", postId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "enabled": false
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        JsonNode postWithoutCollection = getPost(token, postId);
+        assertThat(postWithoutCollection.path("collection").isNull()
+                || postWithoutCollection.path("collection").isMissingNode()).isTrue();
+    }
+
+    @Test
     void guestFeedWritesShortRedisCache() throws Exception {
         String token = registerAndLogin("post_feed_cache_alice", "post_feed_cache_alice@example.com");
         Long postId = createPost(token, firstTopicId(token), "Feed cache", "Guest feed should be cached briefly.");
@@ -917,6 +1053,34 @@ class CommunityPostControllerTest {
         return response.path("data").path("id").asLong();
     }
 
+    private Long createPostWithCollection(
+            String token,
+            Long topicId,
+            String title,
+            String content,
+            String collectionTitle,
+            String collectionDescription
+    ) throws Exception {
+        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "topicId": %d,
+                                  "title": "%s",
+                                  "content": "%s",
+                                  "collectionEnabled": true,
+                                  "collectionTitle": "%s",
+                                  "collectionDescription": "%s"
+                                }
+                                """.formatted(topicId, title, content, collectionTitle, collectionDescription)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
+        return response.path("data").path("id").asLong();
+    }
+
     private void overwriteCounters(
             Long postId,
             int viewCount,
@@ -1092,6 +1256,7 @@ class CommunityPostControllerTest {
                 false,
                 false,
                 List.of(),
+                null,
                 now,
                 now,
                 now

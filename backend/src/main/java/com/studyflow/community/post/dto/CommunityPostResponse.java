@@ -31,6 +31,7 @@ public record CommunityPostResponse(
         Boolean piggedByCurrentUser,
         Boolean favoritedByCurrentUser,
         List<MediaAttachmentResponse> media,
+        CommunityPostCollectionResponse collection,
         LocalDateTime lastActivityAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

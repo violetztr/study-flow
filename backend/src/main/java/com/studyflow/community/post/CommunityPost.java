@@ -15,6 +15,7 @@ public class CommunityPost {
     private Long topicId;
     private String topicName;
     private Long videoCoverMediaFileId;
+    private Long collectionId;
     private String title;
     private String content;
     private String contentType;
@@ -81,6 +82,14 @@ public class CommunityPost {
 
     public void setVideoCoverMediaFileId(Long videoCoverMediaFileId) {
         this.videoCoverMediaFileId = videoCoverMediaFileId;
+    }
+
+    public Long getCollectionId() {
+        return collectionId;
+    }
+
+    public void setCollectionId(Long collectionId) {
+        this.collectionId = collectionId;
     }
 
     public String getTitle() {
