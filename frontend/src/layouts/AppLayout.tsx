@@ -1,7 +1,7 @@
 import { LoginOutlined, LogoutOutlined, PlusOutlined, UserAddOutlined, UserOutlined } from '@ant-design/icons'
 import { Button, Layout, Space } from 'antd'
 import { useEffect, useState } from 'react'
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import {
   AUTH_WALLET_CHANGED_EVENT,
   clearSession,
@@ -36,13 +36,6 @@ function AppLayout() {
   return (
     <Layout className="app-layout">
       <header className="app-header compact-header">
-        <Link className="compact-brand" to="/circle">
-          <span className="brand-mark small">R</span>
-          <span>
-            <strong>ruru</strong>
-          </span>
-        </Link>
-
         <Space wrap size={10} className="compact-actions">
           {user ? (
             <>

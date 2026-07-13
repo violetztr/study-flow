@@ -93,6 +93,15 @@ export type CommunityPostCollectionResponse = {
   items: CommunityCollectionItemResponse[]
 }
 
+export type CommunityCollectionItemsPageResponse = {
+  collectionId: number
+  page: number
+  pageSize: number
+  total: number
+  hasNext: boolean
+  items: CommunityCollectionItemResponse[]
+}
+
 export type CommunityCollectionSummaryResponse = {
   id: number
   title: string
@@ -257,6 +266,11 @@ export const communityApi = {
   },
   listMyCollections() {
     return http.get<unknown, CommunityCollectionSummaryResponse[]>('/community/collections/my')
+  },
+  listCollectionItems(collectionId: number, page = 1, pageSize = 10) {
+    return http.get<unknown, CommunityCollectionItemsPageResponse>(`/community/collections/${collectionId}/items`, {
+      params: { page, pageSize },
+    })
   },
   listMySubmissions() {
     return http.get<unknown, CommunityPostResponse[]>('/community/submissions/my')

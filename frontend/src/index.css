@@ -186,23 +186,8 @@ textarea {
   background: #fff;
 }
 
-.compact-brand {
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
-  color: var(--sf-primary-dark);
-  text-decoration: none;
-}
-
-.compact-brand strong,
-.compact-brand small {
-  display: block;
-}
-
-.compact-brand small {
-  margin-top: 1px;
-  color: var(--sf-muted);
-  font-size: 12px;
+.compact-header {
+  justify-content: flex-end;
 }
 
 .compact-actions {
@@ -377,24 +362,6 @@ textarea {
   background: #fff;
 }
 
-.youtube-sidebar-brand {
-  display: flex;
-  width: 100%;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 8px 16px;
-  border: 0;
-  color: #0f172a;
-  background: transparent;
-  cursor: pointer;
-}
-
-.youtube-sidebar-brand strong {
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-}
-
 .youtube-sidebar-nav {
   display: grid;
   gap: 4px;
@@ -438,10 +405,10 @@ textarea {
   position: sticky;
   z-index: 5;
   top: 54px;
-  display: grid;
-  grid-template-columns: minmax(220px, auto) minmax(320px, 1fr);
-  gap: 20px;
+  display: flex;
+  gap: 12px;
   align-items: center;
+  justify-content: flex-end;
   min-height: 64px;
   margin: 0 -24px 24px;
   padding: 10px 24px;
@@ -458,34 +425,6 @@ textarea {
 
 .discovery-search {
   width: min(560px, 40vw);
-}
-
-.feed-channel-tabs {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  overflow-x: auto;
-  min-width: 0;
-}
-
-.feed-channel-tabs button {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  padding: 8px 14px;
-  border: 0;
-  border-radius: 999px;
-  color: #1f1f1f;
-  font-size: 14px;
-  font-weight: 650;
-  background: #f2f2f2;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.feed-channel-tabs button.active {
-  color: #fff;
-  background: #0f0f0f;
 }
 
 .discovery-grid {
@@ -2705,6 +2644,12 @@ textarea {
   font-size: 13px;
 }
 
+.collection-summary small {
+  color: #89918d;
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .collection-item-list {
   display: grid;
   gap: 4px;
@@ -2784,6 +2729,13 @@ textarea {
 .collection-manage-button {
   margin-top: 12px;
   border-radius: 999px;
+}
+
+.collection-load-more {
+  margin-top: 8px;
+  border-radius: 999px;
+  color: var(--sf-primary);
+  font-weight: 800;
 }
 
 .related-list {
@@ -2969,10 +2921,6 @@ textarea {
     border-bottom: 1px solid rgba(15, 23, 20, 0.08);
   }
 
-  .youtube-sidebar-brand {
-    display: none;
-  }
-
   .youtube-sidebar-nav {
     display: flex;
     gap: 6px;
@@ -2992,7 +2940,6 @@ textarea {
 
   .discovery-topbar {
     top: 107px;
-    grid-template-columns: 1fr;
     gap: 12px;
     margin: 0 -12px 18px;
     padding: 10px 12px;
@@ -3006,16 +2953,6 @@ textarea {
   .discovery-search {
     width: min(100%, 360px);
     flex: 1 1 220px;
-  }
-
-  .feed-channel-tabs {
-    gap: 8px;
-    overflow-x: auto;
-  }
-
-  .feed-channel-tabs button {
-    padding: 8px 12px;
-    white-space: nowrap;
   }
 
   .youtube-video-grid,

@@ -1,6 +1,7 @@
 package com.studyflow.community.post;
 
 import com.studyflow.common.ApiResponse;
+import com.studyflow.community.post.dto.CommunityCollectionItemsPageResponse;
 import com.studyflow.community.post.dto.CommunityCollectionSummaryResponse;
 import com.studyflow.community.post.dto.CommunityPostCollectionRequest;
 import com.studyflow.community.post.dto.CommunityPostRequest;
@@ -61,6 +62,15 @@ public class CommunityPostController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ApiResponse.success(communityPostService.listMyCollections(principal.userId()));
+    }
+
+    @GetMapping("/collections/{collectionId}/items")
+    public ApiResponse<CommunityCollectionItemsPageResponse> listCollectionItems(
+            @PathVariable Long collectionId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer pageSize
+    ) {
+        return ApiResponse.success(communityPostService.listCollectionItems(collectionId, page, pageSize));
     }
 
     @PostMapping("/posts")

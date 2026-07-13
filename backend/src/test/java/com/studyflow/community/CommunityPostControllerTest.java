@@ -125,6 +125,62 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void collectionItemsArePagedForLargeCollection() throws Exception {
+        String token = registerAndLogin("post_collection_paged_author", "post_collection_paged_author@example.com");
+        Long topicId = firstTopicId(token);
+        Long firstPostId = createPostWithCollection(
+                token,
+                topicId,
+                "分页专栏第 1 集",
+                "先创建出一个需要分页的专栏。",
+                "Ruru 分页专栏",
+                "用来验证专栏合集不会一次性塞太多内容。"
+        );
+        Long collectionId = getPost(token, firstPostId).path("collection").path("id").asLong();
+
+        for (int index = 2; index <= 25; index++) {
+            mockMvc.perform(post("/api/community/posts")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "topicId": %d,
+                                      "title": "分页专栏第 %d 集",
+                                      "content": "第 %d 集内容。",
+                                      "collectionEnabled": true,
+                                      "collectionId": %d
+                                    }
+                                    """.formatted(topicId, index, index, collectionId)))
+                    .andExpect(status().isOk());
+        }
+
+        mockMvc.perform(get("/api/community/collections/{collectionId}/items", collectionId)
+                        .param("page", "1")
+                        .param("pageSize", "10")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.pageSize").value(10))
+                .andExpect(jsonPath("$.data.total").value(25))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.items", hasSize(10)))
+                .andExpect(jsonPath("$.data.items[0].postId").value(firstPostId))
+                .andExpect(jsonPath("$.data.items[9].title").value("分页专栏第 10 集"));
+
+        mockMvc.perform(get("/api/community/collections/{collectionId}/items", collectionId)
+                        .param("page", "3")
+                        .param("pageSize", "10")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.page").value(3))
+                .andExpect(jsonPath("$.data.pageSize").value(10))
+                .andExpect(jsonPath("$.data.total").value(25))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.items", hasSize(5)))
+                .andExpect(jsonPath("$.data.items[4].title").value("分页专栏第 25 集"));
+    }
+
+    @Test
     void authorCanListAndSelectExistingCollectionWhenPublishing() throws Exception {
         String token = registerAndLogin("post_collection_selector", "post_collection_selector@example.com");
         Long topicId = firstTopicId(token);

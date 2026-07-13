@@ -14,6 +14,7 @@ import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
 import com.studyflow.community.post.dto.CommunityCollectionItemResponse;
+import com.studyflow.community.post.dto.CommunityCollectionItemsPageResponse;
 import com.studyflow.community.post.dto.CommunityCollectionSummaryResponse;
 import com.studyflow.community.post.dto.CommunityPostCollectionRequest;
 import com.studyflow.community.post.dto.CommunityPostCollectionResponse;
@@ -282,6 +283,33 @@ public class CommunityPostService {
                         collection.getUpdatedAt()
                 ))
                 .toList();
+    }
+
+    public CommunityCollectionItemsPageResponse listCollectionItems(Long collectionId, Integer page, Integer pageSize) {
+        Circle circle = communityMemberService.getDefaultCircle();
+        CommunityCollection collection = communityCollectionMapper.selectOne(new LambdaQueryWrapper<CommunityCollection>()
+                .eq(CommunityCollection::getId, collectionId)
+                .eq(CommunityCollection::getCircleId, circle.getId())
+                .eq(CommunityCollection::getStatus, STATUS_ACTIVE));
+        if (collection == null) {
+            throw new BusinessException(404, "专栏不存在");
+        }
+
+        int safePage = Math.max(1, page == null ? 1 : page);
+        int safePageSize = Math.min(50, Math.max(1, pageSize == null ? 10 : pageSize));
+        long total = communityPostMapper.selectCount(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getCollectionId, collectionId)
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED));
+        List<CommunityCollectionItemResponse> items = collectionItems(collectionId, safePage, safePageSize);
+
+        return new CommunityCollectionItemsPageResponse(
+                collectionId,
+                safePage,
+                safePageSize,
+                total,
+                (long) safePage * safePageSize < total,
+                items
+        );
     }
 
     public List<CommunityPostResponse> listPendingReviewSubmissions(Long currentUserId, Long circleId) {
@@ -899,27 +927,6 @@ public class CommunityPostService {
             return Collections.emptyMap();
         }
 
-        Map<Long, List<CommunityCollectionItemResponse>> itemsByCollectionId =
-                communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
-                                .in(CommunityPost::getCollectionId, collections.keySet())
-                                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
-                                .orderByAsc(CommunityPost::getCreatedAt)
-                                .orderByAsc(CommunityPost::getId))
-                        .stream()
-                        .collect(Collectors.groupingBy(
-                                CommunityPost::getCollectionId,
-                                Collectors.mapping(
-                                        post -> new CommunityCollectionItemResponse(
-                                                post.getId(),
-                                                post.getTitle(),
-                                                post.getContentType() == null ? CONTENT_TYPE_ARTICLE : post.getContentType(),
-                                                post.getViewCount() == null ? 0 : post.getViewCount(),
-                                                post.getCreatedAt()
-                                        ),
-                                        Collectors.toList()
-                                )
-                        ));
-
         return collections.values().stream()
                 .collect(Collectors.toMap(
                         CommunityCollection::getId,
@@ -927,9 +934,28 @@ public class CommunityPostService {
                                 collection.getId(),
                                 collection.getTitle(),
                                 collection.getDescription(),
-                                itemsByCollectionId.getOrDefault(collection.getId(), Collections.emptyList())
+                                collectionItems(collection.getId(), 1, 10)
                         )
                 ));
+    }
+
+    private List<CommunityCollectionItemResponse> collectionItems(Long collectionId, int page, int pageSize) {
+        int offset = (page - 1) * pageSize;
+        return communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                        .eq(CommunityPost::getCollectionId, collectionId)
+                        .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                        .orderByAsc(CommunityPost::getCreatedAt)
+                        .orderByAsc(CommunityPost::getId)
+                        .last("LIMIT " + pageSize + " OFFSET " + offset))
+                .stream()
+                .map(post -> new CommunityCollectionItemResponse(
+                        post.getId(),
+                        post.getTitle(),
+                        post.getContentType() == null ? CONTENT_TYPE_ARTICLE : post.getContentType(),
+                        post.getViewCount() == null ? 0 : post.getViewCount(),
+                        post.getCreatedAt()
+                ))
+                .toList();
     }
 
     private Map<Long, AuthorDisplay> authorDisplays(Set<Long> authorIds) {

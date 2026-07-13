@@ -14,7 +14,7 @@ import {
   UserDeleteOutlined,
 } from '@ant-design/icons'
 import { Alert, Button, Form, Input, Popconfirm, Select, Skeleton, Switch } from 'antd'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -189,6 +189,15 @@ function PostDetailPage() {
     enabled: Boolean(user),
   })
 
+  const collectionItemsQuery = useInfiniteQuery({
+    queryKey: ['community-collection-items', postQuery.data?.collection?.id],
+    queryFn: ({ pageParam }) =>
+      communityApi.listCollectionItems(postQuery.data!.collection!.id, pageParam, 10),
+    enabled: Boolean(postQuery.data?.collection?.id),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
+  })
+
   const authorQuery = useQuery({
     queryKey: ['community-profile', postQuery.data?.authorId],
     queryFn: () => communityApi.getProfile(postQuery.data!.authorId),
@@ -207,27 +216,29 @@ function PostDetailPage() {
   }, [postId])
 
   const activeVideo = firstVideo(postQuery.data)
+  const currentCollectionId = postQuery.data?.collection?.id
+  const currentCollectionTitle = postQuery.data?.collection?.title ?? ''
+  const currentCollectionDescription = postQuery.data?.collection?.description ?? ''
 
   useEffect(() => {
     setSelectedQualityUrl(null)
   }, [activeVideo?.id, activeVideo?.playbackUrl])
 
   useEffect(() => {
-    const collection = postQuery.data?.collection
-    const nextChoice = collectionChoiceFromId(collection?.id)
+    const nextChoice = collectionChoiceFromId(currentCollectionId)
     setCollectionChoice(nextChoice)
     setCollectionEditorOpen(false)
     collectionForm.setFieldsValue({
       collectionChoice: nextChoice,
-      title: collection?.title ?? '',
-      description: collection?.description ?? '',
+      title: currentCollectionTitle,
+      description: currentCollectionDescription,
     })
   }, [
     collectionForm,
     postQuery.data?.id,
-    postQuery.data?.collection?.id,
-    postQuery.data?.collection?.title,
-    postQuery.data?.collection?.description,
+    currentCollectionId,
+    currentCollectionTitle,
+    currentCollectionDescription,
   ])
 
   const reportViewMutation = useMutation({
@@ -421,6 +432,7 @@ function PostDetailPage() {
       queryClient.setQueryData<CommunityPostResponse>(['community-post', postId], nextPost)
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
       queryClient.invalidateQueries({ queryKey: ['community-collections-my'] })
+      queryClient.invalidateQueries({ queryKey: ['community-collection-items'] })
       setCollectionEditorOpen(false)
     },
   })
@@ -550,6 +562,9 @@ function PostDetailPage() {
     }
 
     const collection = post.collection
+    const collectionItems =
+      collectionItemsQuery.data?.pages.flatMap((page) => page.items) ?? collection?.items ?? []
+    const collectionTotal = collectionItemsQuery.data?.pages[0]?.total ?? collectionItems.length
     const selectedCollectionId = parseCollectionChoice(collectionChoice)
     const showCollectionFields = collectionChoice === 'new' || selectedCollectionId === collection?.id
 
@@ -572,9 +587,10 @@ function PostDetailPage() {
             <div className="collection-summary">
               <strong>{collection.title}</strong>
               {collection.description ? <p>{collection.description}</p> : null}
+              <small>{formatMetric(collectionTotal)} 个内容</small>
             </div>
             <div className="collection-item-list">
-              {collection.items.map((item, index) => (
+              {collectionItems.map((item, index) => (
                 <Link
                   className={item.postId === post.id ? 'collection-item active' : 'collection-item'}
                   key={item.postId}
@@ -590,6 +606,16 @@ function PostDetailPage() {
                 </Link>
               ))}
             </div>
+            {collectionItemsQuery.hasNextPage ? (
+              <Button
+                block
+                className="collection-load-more"
+                loading={collectionItemsQuery.isFetchingNextPage}
+                onClick={() => collectionItemsQuery.fetchNextPage()}
+              >
+                加载更多
+              </Button>
+            ) : null}
           </>
         ) : (
           <p className="muted-text">这个内容还没有加入专栏。</p>
@@ -743,6 +769,9 @@ function PostDetailPage() {
           ) : null}
           {updateCollectionMutation.isError ? (
             <Alert showIcon type="error" message={updateCollectionMutation.error.message} />
+          ) : null}
+          {collectionItemsQuery.isError ? (
+            <Alert showIcon type="error" message={collectionItemsQuery.error.message} />
           ) : null}
         </div>
 

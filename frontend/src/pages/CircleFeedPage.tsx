@@ -17,12 +17,6 @@ import PostCard from '../components/community/PostCard'
 
 type FeedChannel = 'live' | 'article' | 'video'
 
-const channels: Array<{ key: FeedChannel; label: string }> = [
-  { key: 'live', label: '直播' },
-  { key: 'article', label: '图文' },
-  { key: 'video', label: '视频' },
-]
-
 function hasVideo(post: CommunityPostResponse) {
   return post.contentType === 'VIDEO' || post.media.some((media) => media.fileType === 'VIDEO')
 }
@@ -77,7 +71,13 @@ function CircleFeedPage() {
   }
 
   function toggleHot() {
-    setShowHot((current) => !current)
+    setShowHot((current) => {
+      const next = !current
+      if (next) {
+        setActiveChannel('video')
+      }
+      return next
+    })
     setSearchKeyword('')
   }
 
@@ -85,37 +85,34 @@ function CircleFeedPage() {
     <section className="page-section feed-page discovery-page">
       <div className="youtube-home-shell">
         <aside className="youtube-sidebar" aria-label="ruru 导航">
-          <button
-            type="button"
-            className="youtube-sidebar-brand"
-            onClick={() => {
-              setActiveChannel('video')
-              navigate('/circle')
-            }}
-          >
-            <span className="brand-mark small">R</span>
-            <strong>ruru</strong>
-          </button>
-
           <nav className="youtube-sidebar-nav">
             <button
               type="button"
-              className={activeChannel === 'video' ? 'active' : ''}
-              onClick={() => setActiveChannel('video')}
+              className={activeChannel === 'video' && !showHot ? 'active' : ''}
+              onClick={() => {
+                setActiveChannel('video')
+                setShowHot(false)
+              }}
             >
               <PlaySquareOutlined /> 推荐
             </button>
             <button
               type="button"
-              className={activeChannel === 'live' ? 'active' : ''}
-              onClick={() => setActiveChannel('live')}
+              className={activeChannel === 'live' && !showHot ? 'active' : ''}
+              onClick={() => {
+                setActiveChannel('live')
+                setShowHot(false)
+              }}
             >
               <VideoCameraOutlined /> 直播
             </button>
             <button
               type="button"
-              className={activeChannel === 'article' ? 'active' : ''}
-              onClick={() => setActiveChannel('article')}
+              className={activeChannel === 'article' && !showHot ? 'active' : ''}
+              onClick={() => {
+                setActiveChannel('article')
+                setShowHot(false)
+              }}
             >
               <FileTextOutlined /> 图文
             </button>
@@ -136,19 +133,6 @@ function CircleFeedPage() {
 
         <main className="youtube-main">
           <header className="discovery-topbar">
-            <nav className="feed-channel-tabs" aria-label="内容频道">
-              {channels.map((channel) => (
-                <button
-                  key={channel.key}
-                  type="button"
-                  className={activeChannel === channel.key ? 'active' : ''}
-                  onClick={() => setActiveChannel(channel.key)}
-                >
-                  {channel.label}
-                </button>
-              ))}
-            </nav>
-
             <div className="discovery-actions">
               <Input.Search
                 allowClear
@@ -158,9 +142,6 @@ function CircleFeedPage() {
                 onChange={(event) => setSearchKeyword(event.target.value)}
                 onSearch={(value) => setSearchKeyword(value)}
               />
-              <Button type={showHot && deferredKeyword.length === 0 ? 'primary' : 'default'} onClick={toggleHot}>
-                {showHot && deferredKeyword.length === 0 ? '热门' : '最新'}
-              </Button>
               {user ? <Button onClick={() => navigate('/circle/submissions')}>稿件</Button> : null}
               <Button type="primary" icon={<PlusOutlined />} onClick={goSubmit}>
                 投稿
