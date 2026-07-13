@@ -113,6 +113,35 @@ function firstImages(post?: CommunityPostResponse) {
   return post?.media.filter((media) => media.fileType !== 'VIDEO') ?? []
 }
 
+function renderAuthorAvatar(name: string, avatarUrl?: string | null) {
+  return avatarUrl ? <img alt={name} src={avatarUrl} /> : name.trim().slice(0, 1).toUpperCase() || 'R'
+}
+
+function getVideoSourceLabel(video?: ReturnType<typeof firstVideo>) {
+  if (!video) {
+    return ''
+  }
+
+  if (video.playbackUrl && video.playbackType === 'HLS') {
+    return '自动'
+  }
+
+  if (video.transcodeStatus === 'FAILED') {
+    return '转码失败'
+  }
+
+  if (
+    video.url &&
+    (video.transcodeStatus === 'WAITING' ||
+      video.transcodeStatus === 'PENDING' ||
+      video.transcodeStatus === 'TRANSCODING')
+  ) {
+    return '高清处理中'
+  }
+
+  return '原视频'
+}
+
 function canModerateCommunity(user: ReturnType<typeof getStoredUser>) {
   return Boolean(user && (user.username === 'ruru' || user.role === 'ADMIN' || user.role === 'OWNER'))
 }
@@ -382,6 +411,9 @@ function PostDetailPage() {
       )
     : []
   const canFollowAuthor = Boolean(user && post && user.id !== post.authorId)
+  const authorName = authorQuery.data?.displayName || post?.authorName || 'ruru'
+  const authorAvatarUrl = authorQuery.data?.avatarUrl || post?.authorAvatarUrl
+  const sourceLabel = getVideoSourceLabel(video)
 
   return (
     <section className={`page-section detail-page ${video ? 'video-watch-page' : ''}`}>
@@ -433,6 +465,8 @@ function PostDetailPage() {
                 <RuruVideoPlayer
                   src={selectedVideoSource}
                   poster={video.coverUrl ?? undefined}
+                  autoPlay
+                  muted
                   onTimeUpdate={handleVideoTimeUpdate}
                   onPlay={() => setIsVideoPlaying(true)}
                   onPause={() => setIsVideoPlaying(false)}
@@ -527,9 +561,7 @@ function PostDetailPage() {
                     </>
                   ) : (
                     <button type="button" className="active">
-                      {video.transcodeStatus === 'WAITING' || video.transcodeStatus === 'TRANSCODING'
-                        ? '转码中'
-                        : '原视频'}
+                      {sourceLabel}
                     </button>
                   )}
                 </div>
@@ -587,10 +619,10 @@ function PostDetailPage() {
             <aside className="watch-side">
               <section className="author-panel">
                 <Link to={`/circle/members/${post.authorId}`} className="author-avatar">
-                  {post.authorName.slice(0, 1).toUpperCase()}
+                  {renderAuthorAvatar(authorName, authorAvatarUrl)}
                 </Link>
                 <div className="author-info">
-                  <Link to={`/circle/members/${post.authorId}`}>{post.authorName}</Link>
+                  <Link to={`/circle/members/${post.authorId}`}>{authorName}</Link>
                   <span>
                     {formatMetric(authorQuery.data?.followerCount)} 粉丝 ·{' '}
                     {formatMetric(authorQuery.data?.followingCount)} 关注
@@ -685,11 +717,11 @@ function PostDetailPage() {
             <div className="article-detail-head">
               <div className="article-author-block">
                 <Link to={`/circle/members/${post.authorId}`} className="author-avatar">
-                  {post.authorName.slice(0, 1).toUpperCase()}
+                  {renderAuthorAvatar(authorName, authorAvatarUrl)}
                 </Link>
                 <div>
                   <Link to={`/circle/members/${post.authorId}`}>
-                    <strong>{post.authorName}</strong>
+                    <strong>{authorName}</strong>
                   </Link>
                   <span>{dayjs(post.createdAt).format('YYYY-MM-DD HH:mm')}</span>
                 </div>

@@ -119,9 +119,9 @@ public class CommunityCommentService {
         Set<Long> authorIds = comments.stream()
                 .map(CommunityComment::getAuthorId)
                 .collect(Collectors.toSet());
-        Map<Long, String> authorNames = authorNames(authorIds);
+        Map<Long, AuthorDisplay> authorDisplays = authorDisplays(authorIds);
         return comments.stream()
-                .map(comment -> toResponse(comment, authorNames))
+                .map(comment -> toResponse(comment, authorDisplays))
                 .toList();
     }
 
@@ -129,12 +129,14 @@ public class CommunityCommentService {
         return toResponses(List.of(comment)).get(0);
     }
 
-    private CommunityCommentResponse toResponse(CommunityComment comment, Map<Long, String> authorNames) {
+    private CommunityCommentResponse toResponse(CommunityComment comment, Map<Long, AuthorDisplay> authorDisplays) {
+        AuthorDisplay author = authorDisplays.getOrDefault(comment.getAuthorId(), new AuthorDisplay("", null));
         return new CommunityCommentResponse(
                 comment.getId(),
                 comment.getPostId(),
                 comment.getAuthorId(),
-                authorNames.getOrDefault(comment.getAuthorId(), ""),
+                author.name(),
+                author.avatarUrl(),
                 comment.getContent(),
                 comment.getStatus(),
                 comment.getReactionCount(),
@@ -143,21 +145,32 @@ public class CommunityCommentService {
         );
     }
 
-    private Map<Long, String> authorNames(Set<Long> authorIds) {
+    private Map<Long, AuthorDisplay> authorDisplays(Set<Long> authorIds) {
         if (authorIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        Map<Long, String> names = userMapper.selectList(new LambdaQueryWrapper<User>()
+        Map<Long, AuthorDisplay> authors = userMapper.selectList(new LambdaQueryWrapper<User>()
                         .in(User::getId, authorIds))
                 .stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername));
+                .collect(Collectors.toMap(
+                        User::getId,
+                        user -> new AuthorDisplay(user.getUsername(), null)
+                ));
         userProfileMapper.selectList(new LambdaQueryWrapper<UserProfile>()
                         .in(UserProfile::getUserId, authorIds))
                 .forEach(profile -> {
-                    if (profile.getDisplayName() != null && !profile.getDisplayName().isBlank()) {
-                        names.put(profile.getUserId(), profile.getDisplayName());
-                    }
+                    AuthorDisplay current = authors.getOrDefault(profile.getUserId(), new AuthorDisplay("", null));
+                    String displayName = profile.getDisplayName() != null && !profile.getDisplayName().isBlank()
+                            ? profile.getDisplayName()
+                            : current.name();
+                    String avatarUrl = profile.getAvatarUrl() != null && !profile.getAvatarUrl().isBlank()
+                            ? profile.getAvatarUrl()
+                            : current.avatarUrl();
+                    authors.put(profile.getUserId(), new AuthorDisplay(displayName, avatarUrl));
                 });
-        return names;
+        return authors;
+    }
+
+    private record AuthorDisplay(String name, String avatarUrl) {
     }
 }

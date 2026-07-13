@@ -266,10 +266,14 @@ function MemberProfilePage() {
       void messageApi.success('个人空间已更新')
       setProfileEditorOpen(false)
       queryClient.invalidateQueries({ queryKey: profileQueryKey })
+      queryClient.invalidateQueries({ queryKey: ['community-profile'] })
       queryClient.invalidateQueries({ queryKey: ['community-me'] })
       queryClient.invalidateQueries({ queryKey: ['community-member', member?.userId] })
       queryClient.invalidateQueries({ queryKey: ['community-members'] })
       queryClient.invalidateQueries({ queryKey: ['community-feed'] })
+      queryClient.invalidateQueries({ queryKey: ['community-comments'] })
+      queryClient.invalidateQueries({ queryKey: ['community-watch-history-my'] })
+      queryClient.invalidateQueries({ queryKey: ['community-rankings-hot'] })
     },
   })
 

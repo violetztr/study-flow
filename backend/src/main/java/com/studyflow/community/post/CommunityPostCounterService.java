@@ -149,6 +149,7 @@ public class CommunityPostCounterService {
                 post.circleId(),
                 post.authorId(),
                 post.authorName(),
+                post.authorAvatarUrl(),
                 post.topicId(),
                 post.topicName(),
                 post.title(),

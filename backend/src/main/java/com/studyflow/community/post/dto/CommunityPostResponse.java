@@ -10,6 +10,7 @@ public record CommunityPostResponse(
         Long circleId,
         Long authorId,
         String authorName,
+        String authorAvatarUrl,
         Long topicId,
         String topicName,
         String title,

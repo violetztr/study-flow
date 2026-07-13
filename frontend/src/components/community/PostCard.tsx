@@ -34,6 +34,10 @@ function getInitial(name: string) {
   return name.trim().slice(0, 1).toUpperCase() || 'R'
 }
 
+function renderAvatar(name: string, avatarUrl?: string | null) {
+  return avatarUrl ? <img alt={name} src={avatarUrl} loading="lazy" /> : <span>{getInitial(name)}</span>
+}
+
 function formatMetric(value?: number | null) {
   const safeValue = value ?? 0
   if (safeValue >= 10000) {
@@ -250,8 +254,9 @@ function PostCard({ post, invalidateQueryKeys = [] }: PostCardProps) {
         </Link>
 
         <div className="discovery-author-row">
-          <Link to={`/circle/members/${post.authorId}`} className="author-name-link">
-            {post.authorName}
+          <Link to={`/circle/members/${post.authorId}`} className="author-name-link author-name-chip">
+            <span className="mini-author-avatar">{renderAvatar(post.authorName, post.authorAvatarUrl)}</span>
+            <span>{post.authorName}</span>
           </Link>
           <span>{dayjs(post.createdAt).format('MM-DD')}</span>
         </div>

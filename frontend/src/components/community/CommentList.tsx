@@ -15,6 +15,10 @@ function getInitial(name: string) {
   return name.trim().slice(0, 1).toUpperCase() || 'R'
 }
 
+function renderAvatar(name: string, avatarUrl?: string | null) {
+  return avatarUrl ? <img alt={name} src={avatarUrl} loading="lazy" /> : getInitial(name)
+}
+
 function CommentList({ comments, currentUserId, canModerate = false, deletingId, onDelete }: CommentListProps) {
   if (comments.length === 0) {
     return <div className="comment-empty">还没有评论，来写第一条吧。</div>
@@ -27,7 +31,7 @@ function CommentList({ comments, currentUserId, canModerate = false, deletingId,
 
         return (
           <article className="comment-item" key={comment.id}>
-            <div className="comment-avatar">{getInitial(comment.authorName)}</div>
+            <div className="comment-avatar">{renderAvatar(comment.authorName, comment.authorAvatarUrl)}</div>
             <div className="comment-body">
               <div className="comment-meta">
                 <strong>{comment.authorName}</strong>

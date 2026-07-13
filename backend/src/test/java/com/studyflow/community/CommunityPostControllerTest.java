@@ -1072,6 +1072,7 @@ class CommunityPostControllerTest {
                 1L,
                 "cached-author",
                 null,
+                null,
                 "缓存",
                 title,
                 "Cached content",

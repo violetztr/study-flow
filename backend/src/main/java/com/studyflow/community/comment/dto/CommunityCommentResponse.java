@@ -7,6 +7,7 @@ public record CommunityCommentResponse(
         Long postId,
         Long authorId,
         String authorName,
+        String authorAvatarUrl,
         String content,
         String status,
         Integer reactionCount,

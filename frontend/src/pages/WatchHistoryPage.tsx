@@ -34,6 +34,14 @@ function getProgressPercent(maxProgressSeconds: number, durationSeconds: number)
   return Math.min(100, Math.round((maxProgressSeconds / durationSeconds) * 100))
 }
 
+function getInitial(name: string) {
+  return name.trim().slice(0, 1).toUpperCase() || 'R'
+}
+
+function renderAvatar(name: string, avatarUrl?: string | null) {
+  return avatarUrl ? <img alt={name} src={avatarUrl} loading="lazy" /> : <span>{getInitial(name)}</span>
+}
+
 function WatchHistoryPage() {
   const navigate = useNavigate()
   const historyQuery = useQuery({
@@ -90,7 +98,12 @@ function WatchHistoryPage() {
 
                 <div className="history-main">
                   <div className="history-meta">
-                    <span>{item.post.authorName}</span>
+                    <span className="history-author">
+                      <span className="mini-author-avatar">
+                        {renderAvatar(item.post.authorName, item.post.authorAvatarUrl)}
+                      </span>
+                      {item.post.authorName}
+                    </span>
                     <span>
                       <ClockCircleOutlined /> {dayjs(item.lastViewedAt).format('MM-DD HH:mm')}
                     </span>

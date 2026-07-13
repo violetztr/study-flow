@@ -32,10 +32,6 @@ function getChannelPosts(channel: FeedChannel, posts: CommunityPostResponse[]) {
   return posts.filter((post) => !hasVideo(post))
 }
 
-function getChannelCount(channel: FeedChannel, posts: CommunityPostResponse[]) {
-  return getChannelPosts(channel, posts).length
-}
-
 function normalizeBackgroundType(type?: string | null) {
   return type === 'IMAGE' ? 'IMAGE' : 'VIDEO'
 }
@@ -118,8 +114,15 @@ function CircleFeedPage() {
       <div className="site-home-bg-overlay" />
       <div className="discovery-shell">
         <header className="discovery-topbar">
-          <button className="discovery-logo" type="button" onClick={() => setActiveChannel('article')}>
-            ruru
+          <button
+            className="home-wordmark"
+            type="button"
+            onClick={() => {
+              setActiveChannel('article')
+              navigate('/circle')
+            }}
+          >
+            主页
           </button>
 
           <nav className="feed-channel-tabs" aria-label="内容频道">
@@ -131,7 +134,6 @@ function CircleFeedPage() {
                 onClick={() => setActiveChannel(channel.key)}
               >
                 {channel.label}
-                <span>{getChannelCount(channel.key, posts)}</span>
               </button>
             ))}
           </nav>

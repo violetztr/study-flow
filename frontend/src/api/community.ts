@@ -47,6 +47,7 @@ export type CommunityPostResponse = {
   circleId: number
   authorId: number
   authorName: string
+  authorAvatarUrl?: string | null
   topicId?: number | null
   topicName?: string | null
   title: string
@@ -81,6 +82,7 @@ export type CommunityCommentResponse = {
   postId: number
   authorId: number
   authorName: string
+  authorAvatarUrl?: string | null
   content: string
   status: string
   reactionCount: number

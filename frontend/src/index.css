@@ -429,13 +429,13 @@ textarea {
   backdrop-filter: blur(18px) saturate(1.1);
 }
 
-.discovery-logo {
+.home-wordmark {
   padding: 0;
   border: 0;
   color: var(--sf-primary);
-  font-size: 28px;
-  font-weight: 950;
-  letter-spacing: -0.08em;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
   background: transparent;
   cursor: pointer;
 }
@@ -489,11 +489,6 @@ textarea {
 
 .feed-channel-tabs button.active::after {
   background: var(--sf-primary);
-}
-
-.feed-channel-tabs span {
-  color: var(--sf-muted);
-  font-size: 12px;
 }
 
 .discovery-grid {
@@ -1072,6 +1067,10 @@ textarea {
   align-items: center;
 }
 
+.history-author {
+  min-width: 0;
+}
+
 .history-main h2 {
   margin: 9px 0 7px;
   color: var(--sf-text);
@@ -1118,6 +1117,16 @@ textarea {
   color: var(--sf-primary-dark);
   font-weight: 800;
   background: #edf3ef;
+  overflow: hidden;
+}
+
+.comment-avatar img,
+.mini-author-avatar img,
+.author-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .post-detail-meta,
@@ -1293,6 +1302,34 @@ textarea {
 .discovery-author-row {
   justify-content: space-between;
   margin-bottom: 7px;
+}
+
+.author-name-chip {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.mini-author-avatar {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 850;
+  background: linear-gradient(135deg, var(--sf-primary), #0f312b);
+}
+
+.author-name-chip > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .discovery-topic-row {
@@ -2558,6 +2595,7 @@ textarea {
   width: 46px;
   height: 46px;
   place-items: center;
+  overflow: hidden;
   border-radius: 999px;
   color: #fff;
   font-weight: 950;
@@ -2777,8 +2815,8 @@ textarea {
     padding: 10px 12px;
   }
 
-  .discovery-logo {
-    font-size: 24px;
+  .home-wordmark {
+    font-size: 18px;
   }
 
   .discovery-actions {

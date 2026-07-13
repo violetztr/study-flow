@@ -4,6 +4,8 @@ import { useEffect, useRef, type SyntheticEvent } from 'react'
 type RuruVideoPlayerProps = {
   src: string
   poster?: string
+  autoPlay?: boolean
+  muted?: boolean
   onTimeUpdate?: (event: SyntheticEvent<HTMLVideoElement>) => void
   onPlay?: () => void
   onPause?: () => void
@@ -17,6 +19,8 @@ function isHlsSource(src: string) {
 function RuruVideoPlayer({
   src,
   poster,
+  autoPlay = false,
+  muted = false,
   onTimeUpdate,
   onPlay,
   onPause,
@@ -30,24 +34,41 @@ function RuruVideoPlayer({
       return undefined
     }
 
+    function tryAutoPlay() {
+      if (!autoPlay) {
+        return
+      }
+      video!.muted = muted
+      void video!.play().catch(() => {
+        // Some browsers block autoplay; native controls remain available.
+      })
+    }
+
     video.removeAttribute('src')
     video.load()
+
+    if (!src) {
+      return undefined
+    }
 
     if (!isHlsSource(src)) {
       video.src = src
       video.load()
+      tryAutoPlay()
       return undefined
     }
 
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src
       video.load()
+      tryAutoPlay()
       return undefined
     }
 
     if (!Hls.isSupported()) {
       video.src = src
       video.load()
+      tryAutoPlay()
       return undefined
     }
 
@@ -57,17 +78,21 @@ function RuruVideoPlayer({
     })
     hls.loadSource(src)
     hls.attachMedia(video)
+    hls.on(Hls.Events.MANIFEST_PARSED, tryAutoPlay)
 
     return () => {
       hls.destroy()
     }
-  }, [src])
+  }, [autoPlay, muted, src])
 
   return (
     <video
       ref={videoRef}
+      autoPlay={autoPlay}
       controls
-      preload="metadata"
+      muted={muted}
+      playsInline
+      preload={autoPlay ? 'auto' : 'metadata'}
       poster={poster}
       onTimeUpdate={onTimeUpdate}
       onPlay={onPlay}

@@ -502,7 +502,7 @@ public class CommunityPostService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Long, String> authorNames = authorNames(authorIds);
+        Map<Long, AuthorDisplay> authorDisplays = authorDisplays(authorIds);
         Map<Long, CommunityTopic> topics = topics(topicIds);
         Set<Long> likedPostIds = communityReactionService.likedPostIds(userId, postIds);
         Set<Long> piggedPostIds = communityReactionService.piggedPostIds(userId, postIds);
@@ -516,7 +516,7 @@ public class CommunityPostService {
         return posts.stream()
                 .map(post -> toResponse(
                         post,
-                        authorNames,
+                        authorDisplays,
                         topics,
                         likedPostIds,
                         piggedPostIds,
@@ -566,6 +566,7 @@ public class CommunityPostService {
                 post.circleId(),
                 post.authorId(),
                 post.authorName(),
+                post.authorAvatarUrl(),
                 post.topicId(),
                 post.topicName(),
                 post.title(),
@@ -598,7 +599,7 @@ public class CommunityPostService {
 
     private CommunityPostResponse toResponse(
             CommunityPost post,
-            Map<Long, String> authorNames,
+            Map<Long, AuthorDisplay> authorDisplays,
             Map<Long, CommunityTopic> topics,
             Set<Long> likedPostIds,
             Set<Long> piggedPostIds,
@@ -608,11 +609,13 @@ public class CommunityPostService {
     ) {
         CommunityTopic topic = post.getTopicId() == null ? null : topics.get(post.getTopicId());
         String topicName = post.getTopicName() != null ? post.getTopicName() : topic == null ? null : topic.getName();
+        AuthorDisplay author = authorDisplays.getOrDefault(post.getAuthorId(), new AuthorDisplay("", null));
         return new CommunityPostResponse(
                 post.getId(),
                 post.getCircleId(),
                 post.getAuthorId(),
-                authorNames.getOrDefault(post.getAuthorId(), ""),
+                author.name(),
+                author.avatarUrl(),
                 post.getTopicId(),
                 topicName,
                 post.getTitle(),
@@ -639,22 +642,33 @@ public class CommunityPostService {
         );
     }
 
-    private Map<Long, String> authorNames(Set<Long> authorIds) {
+    private Map<Long, AuthorDisplay> authorDisplays(Set<Long> authorIds) {
         if (authorIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        Map<Long, String> names = userMapper.selectList(new LambdaQueryWrapper<User>()
+        Map<Long, AuthorDisplay> authors = userMapper.selectList(new LambdaQueryWrapper<User>()
                         .in(User::getId, authorIds))
                 .stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername));
+                .collect(Collectors.toMap(
+                        User::getId,
+                        user -> new AuthorDisplay(user.getUsername(), null)
+                ));
         userProfileMapper.selectList(new LambdaQueryWrapper<UserProfile>()
                         .in(UserProfile::getUserId, authorIds))
                 .forEach(profile -> {
-                    if (profile.getDisplayName() != null && !profile.getDisplayName().isBlank()) {
-                        names.put(profile.getUserId(), profile.getDisplayName());
-                    }
+                    AuthorDisplay current = authors.getOrDefault(profile.getUserId(), new AuthorDisplay("", null));
+                    String displayName = profile.getDisplayName() != null && !profile.getDisplayName().isBlank()
+                            ? profile.getDisplayName()
+                            : current.name();
+                    String avatarUrl = profile.getAvatarUrl() != null && !profile.getAvatarUrl().isBlank()
+                            ? profile.getAvatarUrl()
+                            : current.avatarUrl();
+                    authors.put(profile.getUserId(), new AuthorDisplay(displayName, avatarUrl));
                 });
-        return names;
+        return authors;
+    }
+
+    private record AuthorDisplay(String name, String avatarUrl) {
     }
 
     private Map<Long, CommunityTopic> topics(Set<Long> topicIds) {
