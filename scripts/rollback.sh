@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ "$#" -ne 1 ]; then
+  echo "Usage: bash scripts/rollback.sh <previous-git-sha>" >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
@@ -10,22 +15,16 @@ source "$SCRIPT_DIR/lib/production-compose.sh"
 
 load_production_env
 
-# Fast production deploy: pull prebuilt GHCR images, then restart without building on the server.
-# Usage:
-#   bash scripts/deploy-fast.sh <image-tag-or-commit-sha>
-#   bash scripts/deploy-fast.sh            # uses IMAGE_TAG from .env or defaults to latest
-IMAGE_TAG="${1:-${IMAGE_TAG:-latest}}"
+IMAGE_TAG="$1"
 export IMAGE_TAG
 
 FRONTEND_PORT="${FRONTEND_PORT:-80}"
 HEALTH_RETRIES=20
 HEALTH_DELAY=3
 
-echo "Deploying Ruru with image tag: $IMAGE_TAG"
+echo "Rolling Ruru back to image tag: $IMAGE_TAG"
 
-git pull --ff-only
-
-echo "Pulling images..."
+echo "Pulling images for tag $IMAGE_TAG..."
 production_compose pull backend frontend
 
 echo "Starting services (no-build)..."
@@ -52,5 +51,5 @@ done
 echo "Verifying frontend-proxied health endpoint..."
 curl -fsS --retry 10 --retry-delay 3 "http://127.0.0.1:${FRONTEND_PORT}/api/health"
 
-echo "Deploy complete."
+echo "Rollback complete."
 production_compose ps

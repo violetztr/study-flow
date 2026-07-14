@@ -121,19 +121,23 @@ MEDIA_TRANSCODE_ENABLED=false
 MEDIA_QUEUE_ENABLED=false
 ```
 
-生产快启动：GitHub Actions 已经负责构建并推送 GHCR 镜像，服务器只拉镜像并重启，不要加 `--build`。
+生产快启动：GitHub Actions 已经负责构建并推送 GHCR 镜像，服务器只拉镜像并重启，不要加 `--build`。每次部署使用 Git SHA 标签避免镜像漂移：
+
+```bash
+cd /home/violet/study-flow
+git pull --ff-only
+bash scripts/deploy-fast.sh <git-sha>
+```
+
+`deploy-fast.sh` 会自动等待所有容器健康状态通过并验证前端代理的健康接口。
+
+也可以手动执行：
 
 ```bash
 git pull --ff-only
 sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend frontend
 sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans
 sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-```
-
-也可以直接执行项目里的快启动脚本：
-
-```bash
-bash scripts/deploy-fast.sh
 ```
 
 只有在服务器必须自己编译镜像时，才使用慢速构建命令：

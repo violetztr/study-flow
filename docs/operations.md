@@ -80,6 +80,19 @@ bash scripts/restore-mysql.sh backups/mysql/study_flow-YYYYMMDD-HHMMSS.sql.gz
 sudo docker compose up -d backend
 ```
 
+## 回滚
+
+GitHub Actions 会同时推送 `latest` 和完整 Git SHA 标签的镜像。回滚到之前的版本：
+
+```bash
+cd /home/violet/study-flow
+bash scripts/rollback.sh <previous-git-sha>
+```
+
+回滚脚本会拉取指定 SHA 的镜像，以 `--no-build` 重启服务，等待所有容器健康状态，并验证前端代理的健康接口。
+
+如果数据库迁移已经执行过，回滚代码前要先确认 Flyway 迁移是否兼容旧版本。
+
 ## CI 检查
 
 GitHub Actions 会在 push 或 PR 时自动执行：

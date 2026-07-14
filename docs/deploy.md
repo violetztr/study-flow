@@ -277,24 +277,38 @@ sudo systemctl reload nginx
 
 ## 更新版本
 
-本地开发完成后：
+每次发布流程：
 
-```bash
-git add .
-git commit -m "your message"
-git push
-```
+1. 本地开发完成后推送到 `main`。
+2. GitHub Actions 自动构建后端/前端 Docker 镜像并推送到 GHCR（同时打 `latest` 和 Git SHA 标签）。
+3. 服务器部署使用预构建镜像，不重新编译。
 
-服务器更新：
+生产更新（推荐）：
 
 ```bash
 cd /home/violet/study-flow
-git pull
-sudo docker compose up -d --build
-sudo docker compose ps
+git pull --ff-only
+bash scripts/deploy-fast.sh <git-sha>
 ```
 
+也可以直接手动执行：
+
+```bash
+cd /home/violet/study-flow
+git pull --ff-only
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend frontend
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans
+```
+
+GitHub Actions 在推送 `main` 后会自动完成服务器部署（需要配置好 Secrets）。
+
 Flyway 会在后端启动时自动迁移数据库。
+
+只有在服务器必须自己编译镜像时，才使用慢速构建命令：
+
+```bash
+sudo docker compose up -d --build
+```
 
 ## GitHub Actions
 

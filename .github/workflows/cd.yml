@@ -149,7 +149,7 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           IMAGE_REGISTRY: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}
-          IMAGE_TAG: latest
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           remote_env=$(
             printf 'DEPLOY_PATH=%q GHCR_USERNAME=%q GHCR_TOKEN=%q IMAGE_REGISTRY=%q IMAGE_TAG=%q' \
@@ -172,22 +172,81 @@ jobs:
             exit 1
           fi
 
+          health_poll() {
+            local retries=20
+            local delay=3
+            for i in $(seq 1 "$retries"); do
+              local unhealthy
+              if [ "$USE_SUDO" = "true" ]; then
+                unhealthy=$(sudo env IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
+                  docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format '{{.Name}} {{.Health}}' 2>/dev/null \
+                  | grep -v ' healthy' || true)
+              else
+                unhealthy=$(IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
+                  docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format '{{.Name}} {{.Health}}' 2>/dev/null \
+                  | grep -v ' healthy' || true)
+              fi
+              if [ -z "$unhealthy" ]; then
+                echo "All services healthy after $i attempt(s)."
+                return 0
+              fi
+              if [ "$i" -eq "$retries" ]; then
+                echo "ERROR: Some services are still unhealthy after ${retries} attempts:" >&2
+                echo "$unhealthy" >&2
+                echo "" >&2
+                echo "Full compose status:" >&2
+                if [ "$USE_SUDO" = "true" ]; then
+                  sudo env IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
+                    docker compose -f docker-compose.yml -f docker-compose.prod.yml ps >&2
+                else
+                  IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
+                    docker compose -f docker-compose.yml -f docker-compose.prod.yml ps >&2
+                fi
+                echo "" >&2
+                echo "Last 100 log lines for backend, frontend, mysql, redis, rabbitmq:" >&2
+                local svc
+                for svc in backend frontend mysql redis rabbitmq; do
+                  echo "--- $svc ---" >&2
+                  if [ "$USE_SUDO" = "true" ]; then
+                    sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 100 "$svc" 2>&1 >&2 || true
+                  else
+                    docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 100 "$svc" 2>&1 >&2 || true
+                  fi
+                done
+                return 1
+              fi
+              sleep "$delay"
+            done
+          }
+
+          compose_cmd() {
+            if [ "$USE_SUDO" = "true" ]; then
+              sudo env IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
+                docker compose -f docker-compose.yml -f docker-compose.prod.yml "$@"
+            else
+              IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
+                docker compose -f docker-compose.yml -f docker-compose.prod.yml "$@"
+            fi
+          }
+
           if [ "$USE_SUDO" = "true" ]; then
             printf '%s' "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-            sudo env IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
-              docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend frontend
-            sudo env IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
-              docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans
-            sudo env IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
-              docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
           else
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-            IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
-              docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend frontend
-            IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
-              docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --remove-orphans
-            IMAGE_REGISTRY="$IMAGE_REGISTRY" IMAGE_TAG="$IMAGE_TAG" \
-              docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
           fi
 
+          echo "Pulling images with tag: $IMAGE_TAG"
+          compose_cmd pull backend frontend
+
+          echo "Starting services (no-build)..."
+          compose_cmd up -d --no-build --remove-orphans
+
+          echo "Waiting for services to become healthy..."
+          health_poll
+
+          echo "Verifying frontend-proxied health endpoint..."
+          curl -fsS --retry 10 --retry-delay 3 "http://127.0.0.1:${FRONTEND_PORT:-80}/api/health"
+
+          echo "Deploy complete."
+          compose_cmd ps
           REMOTE

@@ -92,24 +92,20 @@ sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```bash
 cd /home/violet/study-flow
 git pull --ff-only
-sudo env IMAGE_REGISTRY=ghcr.io/violetztr/study-flow IMAGE_TAG=latest \
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend frontend
-sudo env IMAGE_REGISTRY=ghcr.io/violetztr/study-flow IMAGE_TAG=latest \
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+bash scripts/deploy-fast.sh <git-sha>
 ```
 
-这个命令不会在服务器编译代码。
+这个命令不会在服务器编译代码，会自动等待服务健康并通过 `/api/health` 验证。
 
 ## 回滚
 
-GitHub Actions 会同时推送 commit SHA 镜像。假设要回滚到某个 commit：
+GitHub Actions 会同时推送 commit SHA 镜像。回滚到某个 commit：
 
 ```bash
 cd /home/violet/study-flow
-sudo env IMAGE_REGISTRY=ghcr.io/violetztr/study-flow IMAGE_TAG=<commit-sha> \
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend frontend
-sudo env IMAGE_REGISTRY=ghcr.io/violetztr/study-flow IMAGE_TAG=<commit-sha> \
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+bash scripts/rollback.sh <previous-git-sha>
 ```
+
+回滚脚本会拉取指定 SHA 的镜像，以 `--no-build` 重启服务，等待健康状态后验证。
 
 如果数据库迁移已经执行过，回滚代码前要先确认 Flyway 迁移是否兼容旧版本。
