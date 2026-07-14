@@ -3,7 +3,6 @@ import {
   CloseCircleOutlined,
   DeleteOutlined,
   SafetyOutlined,
-  SyncOutlined,
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -24,7 +23,6 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi, type CommunityPostResponse, type MediaAttachmentResponse, type ModerationRequest } from '../api/community'
-import { mediaApi } from '../api/media'
 
 type AdminAction =
   | 'hide-post'
@@ -107,25 +105,6 @@ function getShortContent(content: string) {
   return content.length > 120 ? `${content.slice(0, 120)}...` : content
 }
 
-function getTranscodeTag(media?: MediaAttachmentResponse) {
-  if (!media || media.fileType !== 'VIDEO') {
-    return null
-  }
-
-  switch (media.transcodeStatus) {
-    case 'READY':
-      return <Tag color="green">HLS 已就绪</Tag>
-    case 'TRANSCODING':
-      return <Tag color="processing">转码中</Tag>
-    case 'FAILED':
-      return <Tag color="red">转码失败</Tag>
-    case 'WAITING':
-      return <Tag color="blue">等待转码</Tag>
-    default:
-      return <Tag>未转码</Tag>
-  }
-}
-
 function CommunityAdminPage() {
   const [form] = Form.useForm<AdminFormValues>()
   const [successText, setSuccessText] = useState<string | null>(null)
@@ -191,17 +170,6 @@ function CommunityAdminPage() {
     },
   })
 
-  const retryTranscodeMutation = useMutation({
-    mutationFn: mediaApi.retryTranscode,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['admin-pending-submissions'] }),
-        queryClient.invalidateQueries({ queryKey: ['community-feed'] }),
-        queryClient.invalidateQueries({ queryKey: ['community-submissions-my'] }),
-      ])
-    },
-  })
-
   function handleApproveSubmission(postId: number) {
     approveSubmissionMutation.mutate(postId)
   }
@@ -225,10 +193,6 @@ function CommunityAdminPage() {
       return
     }
     deleteSubmissionMutation.mutate(postId)
-  }
-
-  function handleRetryTranscode(mediaFileId: number) {
-    retryTranscodeMutation.mutate(mediaFileId)
   }
 
   if (!canModerateCommunity) {
@@ -270,10 +234,6 @@ function CommunityAdminPage() {
             {deleteSubmissionMutation.isError ? (
               <Alert showIcon type="error" message={deleteSubmissionMutation.error.message} />
             ) : null}
-            {retryTranscodeMutation.isError ? (
-              <Alert showIcon type="error" message={retryTranscodeMutation.error.message} />
-            ) : null}
-
             {pendingSubmissionsQuery.isLoading ? (
               <div className="admin-review-loading">正在读取待审稿件...</div>
             ) : null}
@@ -295,10 +255,6 @@ function CommunityAdminPage() {
                 const isDeleting =
                   deleteSubmissionMutation.isPending &&
                   deleteSubmissionMutation.variables === submission.id
-                const isRetryingTranscode =
-                  retryTranscodeMutation.isPending &&
-                  retryTranscodeMutation.variables === videoMedia?.id
-
                 return (
                   <article key={submission.id} className="admin-submission-card">
                     <div className="admin-submission-preview">
@@ -326,27 +282,6 @@ function CommunityAdminPage() {
                         <span>作者：{submission.authorName}</span>
                         {submission.topicName ? <span>话题：#{submission.topicName}</span> : null}
                       </div>
-
-                      {videoMedia ? (
-                        <div className="admin-transcode-box">
-                          <div className="admin-transcode-row">
-                            {getTranscodeTag(videoMedia)}
-                            <span>媒体 ID：{videoMedia.id}</span>
-                          </div>
-                          {videoMedia.transcodeError ? (
-                            <p>{videoMedia.transcodeError}</p>
-                          ) : null}
-                          {videoMedia.transcodeStatus === 'FAILED' ? (
-                            <Button
-                              icon={<SyncOutlined />}
-                              loading={isRetryingTranscode}
-                              onClick={() => handleRetryTranscode(videoMedia.id)}
-                            >
-                              重新转码
-                            </Button>
-                          ) : null}
-                        </div>
-                      ) : null}
 
                       {rejectingPostId === submission.id ? (
                         <div className="admin-reject-box">

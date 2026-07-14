@@ -152,7 +152,6 @@ function PostDetailPage() {
   const [danmakuColor, setDanmakuColor] = useState(danmakuColorOptions[0].value)
   const [danmakuVisible, setDanmakuVisible] = useState(true)
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
-  const [selectedQualityUrl, setSelectedQualityUrl] = useState<string | null>(null)
   const [collectionEditorOpen, setCollectionEditorOpen] = useState(false)
   const [collectionChoice, setCollectionChoice] = useState('none')
   const viewReportedRef = useRef(false)
@@ -215,14 +214,9 @@ function PostDetailPage() {
     setCurrentSecond(0)
   }, [postId])
 
-  const activeVideo = firstVideo(postQuery.data)
   const currentCollectionId = postQuery.data?.collection?.id
   const currentCollectionTitle = postQuery.data?.collection?.title ?? ''
   const currentCollectionDescription = postQuery.data?.collection?.description ?? ''
-
-  useEffect(() => {
-    setSelectedQualityUrl(null)
-  }, [activeVideo?.id, activeVideo?.playbackUrl])
 
   useEffect(() => {
     const nextChoice = collectionChoiceFromId(currentCollectionId)
@@ -466,11 +460,7 @@ function PostDetailPage() {
 
   const post = postQuery.data
   const video = firstVideo(post)
-  const videoQualities = video?.qualities ?? []
-  const selectedVideoSource = selectedQualityUrl ?? video?.playbackUrl ?? video?.url ?? ''
-  const shouldShowQualitySwitch = Boolean(
-    video?.playbackUrl && video.playbackType === 'HLS' && videoQualities.length > 0,
-  )
+  const selectedVideoSource = video?.url ?? ''
   const imageMedia = firstImages(post)
   const relatedVideos = (feedQuery.data ?? [])
     .filter((item) => item.id !== post?.id && hasVideo(item))
@@ -797,22 +787,6 @@ function PostDetailPage() {
               </div>
 
               <div className="ruru-player">
-                {video && !video.playbackUrl && video.transcodeStatus && video.transcodeStatus !== 'READY' ? (
-                  <Alert
-                    type={video.transcodeStatus === 'FAILED' ? 'error' : video.transcodeStatus === 'TRANSCODING' ? 'info' : 'warning'}
-                    showIcon
-                    message={
-                      video.transcodeStatus === 'WAITING'
-                        ? '视频转码排队中，当前播放为原片画质'
-                        : video.transcodeStatus === 'TRANSCODING'
-                          ? '视频转码处理中，当前播放为原片画质'
-                          : video.transcodeStatus === 'FAILED'
-                            ? `视频转码失败${video.transcodeError ? `：${video.transcodeError}` : ''}，当前播放为原片画质`
-                            : ''
-                    }
-                    style={{ marginBottom: 12 }}
-                  />
-                ) : null}
                 <RuruVideoPlayer
                   src={selectedVideoSource}
                   poster={video.coverUrl ?? undefined}
@@ -889,27 +863,6 @@ function PostDetailPage() {
                   </div>
                 </div>
 
-                {shouldShowQualitySwitch ? (
-                  <div className="quality-switch">
-                    <button
-                      type="button"
-                      className={selectedQualityUrl === null ? 'active' : ''}
-                      onClick={() => setSelectedQualityUrl(null)}
-                    >
-                      自动
-                    </button>
-                    {videoQualities.map((quality) => (
-                      <button
-                        key={quality.qualityLabel}
-                        type="button"
-                        className={selectedQualityUrl === quality.playlistUrl ? 'active' : ''}
-                        onClick={() => setSelectedQualityUrl(quality.playlistUrl)}
-                      >
-                        {quality.qualityLabel}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
 
               <div className="watch-actions">

@@ -1,4 +1,3 @@
-import Hls from 'hls.js'
 import { useEffect, useRef, type SyntheticEvent } from 'react'
 
 type RuruVideoPlayerProps = {
@@ -10,10 +9,6 @@ type RuruVideoPlayerProps = {
   onPlay?: () => void
   onPause?: () => void
   onEnded?: () => void
-}
-
-function isHlsSource(src: string) {
-  return src.includes('.m3u8')
 }
 
 function RuruVideoPlayer({
@@ -51,38 +46,11 @@ function RuruVideoPlayer({
       return undefined
     }
 
-    if (!isHlsSource(src)) {
-      video.src = src
-      video.load()
-      tryAutoPlay()
-      return undefined
-    }
+    video.src = src
+    video.load()
+    tryAutoPlay()
 
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = src
-      video.load()
-      tryAutoPlay()
-      return undefined
-    }
-
-    if (!Hls.isSupported()) {
-      video.src = src
-      video.load()
-      tryAutoPlay()
-      return undefined
-    }
-
-    const hls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: false,
-    })
-    hls.loadSource(src)
-    hls.attachMedia(video)
-    hls.on(Hls.Events.MANIFEST_PARSED, tryAutoPlay)
-
-    return () => {
-      hls.destroy()
-    }
+    return undefined
   }, [autoPlay, muted, src])
 
   return (
