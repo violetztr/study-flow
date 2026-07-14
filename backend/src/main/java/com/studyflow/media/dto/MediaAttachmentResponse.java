@@ -1,7 +1,5 @@
 package com.studyflow.media.dto;
 
-import java.util.List;
-
 public record MediaAttachmentResponse(
         Long id,
         String fileType,
@@ -9,11 +7,6 @@ public record MediaAttachmentResponse(
         String originalFilename,
         Long fileSize,
         String url,
-        String coverUrl,
-        String playbackUrl,
-        String playbackType,
-        String transcodeStatus,
-        String transcodeError,
-        List<MediaTranscodeVariantResponse> qualities
+        String coverUrl
 ) {
 }

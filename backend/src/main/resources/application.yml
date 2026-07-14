@@ -4,11 +4,6 @@ server:
 spring:
   application:
     name: study-flow
-  rabbitmq:
-    host: ${SPRING_RABBITMQ_HOST:localhost}
-    port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:guest}
-    password: ${SPRING_RABBITMQ_PASSWORD:guest}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/study_flow?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username: ${SPRING_DATASOURCE_USERNAME:root}
@@ -42,14 +37,3 @@ study-flow:
       read-url-ttl: ${R2_READ_URL_TTL:1h}
       max-image-bytes: ${R2_MAX_IMAGE_BYTES:10485760}
       max-video-bytes: ${R2_MAX_VIDEO_BYTES:209715200}
-    transcode:
-      enabled: ${MEDIA_TRANSCODE_ENABLED:false}
-      ffmpeg-path: ${MEDIA_TRANSCODE_FFMPEG_PATH:ffmpeg}
-      work-dir: ${MEDIA_TRANSCODE_WORK_DIR:/tmp/ruru-transcode}
-      timeout: ${MEDIA_TRANSCODE_TIMEOUT:30m}
-    queue:
-      enabled: ${MEDIA_QUEUE_ENABLED:false}
-      exchange: ${MEDIA_QUEUE_EXCHANGE:ruru.media}
-      transcode-queue: ${MEDIA_QUEUE_TRANSCODE_QUEUE:ruru.media.transcode}
-      transcode-routing-key: ${MEDIA_QUEUE_TRANSCODE_ROUTING_KEY:media.transcode.requested}
-      fallback-to-local-event: ${MEDIA_QUEUE_FALLBACK_TO_LOCAL_EVENT:true}

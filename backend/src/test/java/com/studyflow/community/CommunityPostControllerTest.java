@@ -647,8 +647,8 @@ class CommunityPostControllerTest {
     }
 
     @Test
-    void videoAttachmentIncludesHlsPlaybackMetadataWhenTranscodeReady() throws Exception {
-        String token = registerAndLogin("post_hls_video_alice", "post_hls_video_alice@example.com");
+    void videoAttachmentIncludesCorrectMetadataWhenVideoPostIsReady() throws Exception {
+        String token = registerAndLogin("post_video_ready_alice", "post_video_ready_alice@example.com");
         Long topicId = firstTopicId(token);
         Long videoMediaFileId = prepareAndCompleteVideoUpload(token);
         Long coverMediaFileId = prepareAndCompleteImageUpload(token);
@@ -658,12 +658,9 @@ class CommunityPostControllerTest {
         mockMvc.perform(get("/api/community/posts/{id}", postId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.media[0].id").value(videoMediaFileId))
-                .andExpect(jsonPath("$.data.media[0].transcodeStatus").value("READY"))
-                .andExpect(jsonPath("$.data.media[0].playbackType").value("HLS"))
-                .andExpect(jsonPath("$.data.media[0].playbackUrl")
-                        .value("/api/media/videos/%d/hls/master.m3u8".formatted(videoMediaFileId)))
-                .andExpect(jsonPath("$.data.media[0].qualities[0].qualityLabel").value("720P"))
-                .andExpect(jsonPath("$.data.media[0].qualities[0].height").value(720));
+                .andExpect(jsonPath("$.data.media[0].fileType").value("VIDEO"))
+                .andExpect(jsonPath("$.data.media[0].url", containsString("test-account.r2.cloudflarestorage.com")))
+                .andExpect(jsonPath("$.data.media[0].coverUrl", containsString("test-account.r2.cloudflarestorage.com")));
     }
 
     @Test
@@ -1237,23 +1234,9 @@ class CommunityPostControllerTest {
 
         jdbcTemplate.update("""
                 UPDATE media_files
-                SET status = 'APPROVED',
-                    transcode_status = 'READY',
-                    hls_master_object_key = 'community/videos/%d/hls/master.m3u8'
+                SET status = 'APPROVED'
                 WHERE id = ?
-                """.formatted(videoMediaFileId), videoMediaFileId);
-        jdbcTemplate.update("""
-                INSERT INTO media_transcode_variants (
-                    media_file_id,
-                    quality_label,
-                    width,
-                    height,
-                    bitrate_kbps,
-                    playlist_object_key,
-                    status
-                )
-                VALUES (?, '720P', 1280, 720, 2800, 'community/videos/%d/hls/720p/index.m3u8', 'READY')
-                """.formatted(videoMediaFileId), videoMediaFileId);
+                """, videoMediaFileId);
     }
 
     private JsonNode getPost(String token, Long postId) throws Exception {

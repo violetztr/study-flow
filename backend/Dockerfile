@@ -23,7 +23,7 @@ ENV JAVA_OPTS=""
 
 RUN set -eux; \
     apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg curl \
+    && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /workspace/target/study-flow-backend-0.0.1-SNAPSHOT.jar app.jar

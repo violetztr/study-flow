@@ -19,12 +19,6 @@ public class MediaFile {
     private String fileType;
     private Long fileSize;
     private String status;
-    private String transcodeStatus;
-    private String transcodeError;
-    private LocalDateTime transcodeStartedAt;
-    private LocalDateTime transcodeCompletedAt;
-    private String hlsMasterObjectKey;
-    private Integer durationSeconds;
     private LocalDateTime uploadedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -107,54 +101,6 @@ public class MediaFile {
 
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public String getTranscodeStatus() {
-        return transcodeStatus;
-    }
-
-    public void setTranscodeStatus(String transcodeStatus) {
-        this.transcodeStatus = transcodeStatus;
-    }
-
-    public String getTranscodeError() {
-        return transcodeError;
-    }
-
-    public void setTranscodeError(String transcodeError) {
-        this.transcodeError = transcodeError;
-    }
-
-    public LocalDateTime getTranscodeStartedAt() {
-        return transcodeStartedAt;
-    }
-
-    public void setTranscodeStartedAt(LocalDateTime transcodeStartedAt) {
-        this.transcodeStartedAt = transcodeStartedAt;
-    }
-
-    public LocalDateTime getTranscodeCompletedAt() {
-        return transcodeCompletedAt;
-    }
-
-    public void setTranscodeCompletedAt(LocalDateTime transcodeCompletedAt) {
-        this.transcodeCompletedAt = transcodeCompletedAt;
-    }
-
-    public String getHlsMasterObjectKey() {
-        return hlsMasterObjectKey;
-    }
-
-    public void setHlsMasterObjectKey(String hlsMasterObjectKey) {
-        this.hlsMasterObjectKey = hlsMasterObjectKey;
-    }
-
-    public Integer getDurationSeconds() {
-        return durationSeconds;
-    }
-
-    public void setDurationSeconds(Integer durationSeconds) {
-        this.durationSeconds = durationSeconds;
     }
 
     public LocalDateTime getUploadedAt() {

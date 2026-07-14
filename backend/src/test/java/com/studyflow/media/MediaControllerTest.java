@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -31,9 +30,6 @@ class MediaControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
 
     @Test
     void prepareImageUploadReturnsR2SignedUrlAndMediaRecord() throws Exception {
@@ -156,8 +152,7 @@ class MediaControllerTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.fileType").value("VIDEO"))
-                .andExpect(jsonPath("$.data.status").value("PENDING_REVIEW"))
-                .andExpect(jsonPath("$.data.transcodeStatus").value("WAITING"));
+                .andExpect(jsonPath("$.data.status").value("PENDING_REVIEW"));
     }
 
     @Test
@@ -240,25 +235,6 @@ class MediaControllerTest {
     }
 
     @Test
-    void ruruCanRetryFailedVideoTranscode() throws Exception {
-        String token = registerAndLogin("media_retry_author", "media_retry_author@example.com");
-        Long videoFileId = prepareAndCompleteVideoUpload(token);
-        markVideoTranscodeFailed(videoFileId);
-
-        mockMvc.perform(post("/api/admin/media/{mediaFileId}/transcode/retry", videoFileId)
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
-
-        String ruruToken = ensureRuruAndLogin("ruru-retry@example.com");
-        mockMvc.perform(post("/api/admin/media/{mediaFileId}/transcode/retry", videoFileId)
-                        .header("Authorization", "Bearer " + ruruToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(videoFileId))
-                .andExpect(jsonPath("$.data.transcodeStatus").value("WAITING"))
-                .andExpect(jsonPath("$.data.transcodeError").doesNotExist());
-    }
-
-    @Test
     void videoPostRequiresCoverImage() throws Exception {
         String token = registerAndLogin("media_video_cover_required", "media_video_cover_required@example.com");
         Long topicId = firstTopicId(token);
@@ -277,54 +253,6 @@ class MediaControllerTest {
                                 """.formatted(topicId, videoFileId)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
-    }
-
-    @Test
-    void hlsMasterPlaylistIsPublicForReadyApprovedVideo() throws Exception {
-        String token = registerAndLogin("media_hls_ready", "media_hls_ready@example.com");
-        Long videoFileId = prepareAndCompleteVideoUpload(token);
-        markVideoTranscodeReady(videoFileId);
-
-        mockMvc.perform(get("/api/media/videos/{mediaFileId}/hls/master.m3u8", videoFileId))
-                .andExpect(status().isFound())
-                .andExpect(result -> {
-                    String location = result.getResponse().getHeader("Location");
-                    assertThat(location).isNotNull();
-                    assertThat(location).contains("master.m3u8");
-                });
-    }
-
-    @Test
-    void hlsVariantPlaylistRewritesSegmentsToPublicApiUrls() throws Exception {
-        String token = registerAndLogin("media_hls_variant", "media_hls_variant@example.com");
-        Long videoFileId = prepareAndCompleteVideoUpload(token);
-        markVideoTranscodeReady(videoFileId);
-
-        mockMvc.perform(get("/api/media/videos/{mediaFileId}/hls/720p/index.m3u8", videoFileId))
-                .andExpect(status().isOk())
-                .andExpect(result -> {
-                    String body = result.getResponse().getContentAsString();
-                    assertThat(body).contains("#EXTM3U");
-                    assertThat(body).contains("#EXT-X-TARGETDURATION:6");
-                    assertThat(body).contains("#EXTINF:6.000,");
-                    assertThat(body).contains("/api/media/videos/%d/hls/720p/segments/0.ts".formatted(videoFileId));
-                    assertThat(body).contains("#EXT-X-ENDLIST");
-                });
-    }
-
-    @Test
-    void hlsSegmentRedirectsToShortLivedSignedR2Url() throws Exception {
-        String token = registerAndLogin("media_hls_segment", "media_hls_segment@example.com");
-        Long videoFileId = prepareAndCompleteVideoUpload(token);
-        markVideoTranscodeReady(videoFileId);
-
-        mockMvc.perform(get("/api/media/videos/{mediaFileId}/hls/720p/segments/0.ts", videoFileId))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(header().string("Location", containsString("test-account.r2.cloudflarestorage.com")))
-                .andExpect(header().string("Location", containsString(
-                        "community/videos/%d/hls/720p/segment-000.ts".formatted(videoFileId)
-                )))
-                .andExpect(header().string("Location", containsString("X-Amz-Signature")));
     }
 
     private Long prepareImageUpload(String token) throws Exception {
@@ -379,51 +307,6 @@ class MediaControllerTest {
         return mediaFileId;
     }
 
-    private void markVideoTranscodeReady(Long videoFileId) {
-        jdbcTemplate.update("""
-                UPDATE media_files
-                SET status = 'APPROVED',
-                    transcode_status = 'READY',
-                    hls_master_object_key = 'community/videos/%d/hls/master.m3u8'
-                WHERE id = ?
-                """.formatted(videoFileId), videoFileId);
-        jdbcTemplate.update("""
-                INSERT INTO media_transcode_variants (
-                    media_file_id,
-                    quality_label,
-                    width,
-                    height,
-                    bitrate_kbps,
-                    playlist_object_key,
-                    status
-                )
-                VALUES (?, '720P', 1280, 720, 2800, 'community/videos/%d/hls/720p/index.m3u8', 'READY')
-                """.formatted(videoFileId), videoFileId);
-        jdbcTemplate.update("""
-                INSERT INTO media_transcode_segments (
-                    media_file_id,
-                    quality_label,
-                    segment_index,
-                    duration_seconds,
-                    object_key,
-                    byte_size
-                )
-                VALUES (?, '720P', 0, 6.000, 'community/videos/%d/hls/720p/segment-000.ts', 1024)
-                """.formatted(videoFileId), videoFileId);
-    }
-
-    private void markVideoTranscodeFailed(Long videoFileId) {
-        jdbcTemplate.update("""
-                UPDATE media_files
-                SET status = 'APPROVED',
-                    transcode_status = 'FAILED',
-                    transcode_error = 'ffmpeg failed',
-                    transcode_started_at = CURRENT_TIMESTAMP,
-                    transcode_completed_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """, videoFileId);
-    }
-
     private Long firstTopicId(String token) throws Exception {
         MvcResult topicsResult = mockMvc.perform(get("/api/community/topics")
                         .header("Authorization", "Bearer " + token))
@@ -447,25 +330,6 @@ class MediaControllerTest {
                                   "videoCoverMediaFileId": %d
                                 }
                                 """.formatted(topicId, mediaFileId, coverFileId)))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        JsonNode response = objectMapper.readTree(postResult.getResponse().getContentAsByteArray());
-        return response.path("data").path("id").asLong();
-    }
-
-    private Long createPost(String token, Long topicId, Long mediaFileId) throws Exception {
-        MvcResult postResult = mockMvc.perform(post("/api/community/posts")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "topicId": %d,
-                                  "title": "带视频的动态",
-                                  "content": "视频审核通过前不会公开展示。",
-                                  "mediaFileIds": [%d]
-                                }
-                                """.formatted(topicId, mediaFileId)))
                 .andExpect(status().isOk())
                 .andReturn();
 
