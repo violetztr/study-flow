@@ -22,9 +22,11 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +47,7 @@ public class MediaTranscodeService {
     private static final int MAX_ERROR_LENGTH = 1000;
 
     private static final List<VariantSpec> VARIANTS = List.of(
+            new VariantSpec("480P", 640, 480, 1000),
             new VariantSpec("720P", 1280, 720, 2800),
             new VariantSpec("1080P", 1920, 1080, 5000)
     );
@@ -110,17 +113,20 @@ public class MediaTranscodeService {
                 clearOldTranscodeResult(mediaFileId);
 
                 Integer durationSeconds = null;
+                List<MediaTranscodeVariant> variantRecords = new ArrayList<>();
                 for (VariantSpec variant : VARIANTS) {
                     Path variantDir = workDir.resolve(normalizeQualityPath(variant.qualityLabel()));
                     Files.createDirectories(variantDir);
                     Path playlistPath = variantDir.resolve("index.m3u8");
                     runFfmpeg(sourcePath, variantDir, playlistPath, variant);
-                    uploadVariant(s3Client, mediaFile, variant, variantDir, playlistPath);
+                    MediaTranscodeVariant record = uploadVariant(s3Client, mediaFile, variant, variantDir, playlistPath);
+                    variantRecords.add(record);
                     if (durationSeconds == null) {
                         durationSeconds = estimateDurationSeconds(playlistPath);
                     }
                 }
 
+                uploadMasterPlaylist(s3Client, mediaFile, variantRecords);
                 markReady(mediaFileId, durationSeconds);
             }
         } catch (Exception exception) {
@@ -213,7 +219,7 @@ public class MediaTranscodeService {
         }
     }
 
-    private void uploadVariant(
+    private MediaTranscodeVariant uploadVariant(
             S3Client s3Client,
             MediaFile mediaFile,
             VariantSpec variant,
@@ -252,6 +258,36 @@ public class MediaTranscodeService {
             segmentRecord.setByteSize(Files.size(segmentPath));
             mediaTranscodeSegmentMapper.insert(segmentRecord);
         }
+        return variantRecord;
+    }
+
+    private void uploadMasterPlaylist(S3Client s3Client, MediaFile mediaFile, List<MediaTranscodeVariant> variants) {
+        StringBuilder content = new StringBuilder();
+        content.append("#EXTM3U\n");
+        content.append("#EXT-X-VERSION:3\n");
+        for (MediaTranscodeVariant variant : variants) {
+            content.append("#EXT-X-STREAM-INF:BANDWIDTH=")
+                    .append(variant.getBitrateKbps() != null ? variant.getBitrateKbps() * 1000 : 0)
+                    .append(",RESOLUTION=")
+                    .append(variant.getWidth())
+                    .append("x")
+                    .append(variant.getHeight())
+                    .append("\n");
+            String qualityPath = normalizeQualityPath(variant.getQualityLabel());
+            content.append(qualityPath).append("/index.m3u8\n");
+        }
+
+        String masterKey = "community/videos/%d/hls/master.m3u8".formatted(mediaFile.getId());
+        uploadTextObject(s3Client, mediaFile.getBucketName(), masterKey, content.toString(), CONTENT_TYPE_M3U8);
+    }
+
+    private void uploadTextObject(S3Client s3Client, String bucketName, String objectKey, String content, String contentType) {
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(objectKey)
+                .contentType(contentType)
+                .build();
+        s3Client.putObject(request, RequestBody.fromBytes(content.getBytes(StandardCharsets.UTF_8)));
     }
 
     private void uploadObject(S3Client s3Client, String bucketName, String objectKey, Path path, String contentType) {

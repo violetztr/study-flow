@@ -286,13 +286,11 @@ class MediaControllerTest {
         markVideoTranscodeReady(videoFileId);
 
         mockMvc.perform(get("/api/media/videos/{mediaFileId}/hls/master.m3u8", videoFileId))
-                .andExpect(status().isOk())
+                .andExpect(status().isFound())
                 .andExpect(result -> {
-                    String body = result.getResponse().getContentAsString();
-                    assertThat(body).contains("#EXTM3U");
-                    assertThat(body).contains("#EXT-X-STREAM-INF");
-                    assertThat(body).contains("RESOLUTION=1280x720");
-                    assertThat(body).contains("/api/media/videos/%d/hls/720p/index.m3u8".formatted(videoFileId));
+                    String location = result.getResponse().getHeader("Location");
+                    assertThat(location).isNotNull();
+                    assertThat(location).contains("master.m3u8");
                 });
     }
 

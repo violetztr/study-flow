@@ -797,6 +797,22 @@ function PostDetailPage() {
               </div>
 
               <div className="ruru-player">
+                {video && !video.playbackUrl && video.transcodeStatus && video.transcodeStatus !== 'READY' ? (
+                  <Alert
+                    type={video.transcodeStatus === 'FAILED' ? 'error' : video.transcodeStatus === 'TRANSCODING' ? 'info' : 'warning'}
+                    showIcon
+                    message={
+                      video.transcodeStatus === 'WAITING'
+                        ? '视频转码排队中，当前播放为原片画质'
+                        : video.transcodeStatus === 'TRANSCODING'
+                          ? '视频转码处理中，当前播放为原片画质'
+                          : video.transcodeStatus === 'FAILED'
+                            ? `视频转码失败${video.transcodeError ? `：${video.transcodeError}` : ''}，当前播放为原片画质`
+                            : ''
+                    }
+                    style={{ marginBottom: 12 }}
+                  />
+                ) : null}
                 <RuruVideoPlayer
                   src={selectedVideoSource}
                   poster={video.coverUrl ?? undefined}

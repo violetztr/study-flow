@@ -77,6 +77,12 @@ public class MediaController {
 
     @GetMapping(value = "/media/videos/{mediaFileId}/hls/master.m3u8", produces = "application/vnd.apple.mpegurl")
     public ResponseEntity<String> hlsMasterPlaylist(@PathVariable Long mediaFileId) {
+        String presignedUrl = mediaService.presignHlsMasterUrl(mediaFileId);
+        if (presignedUrl != null) {
+            return ResponseEntity.status(302)
+                    .location(URI.create(presignedUrl))
+                    .build();
+        }
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/vnd.apple.mpegurl"))
                 .body(mediaService.buildHlsMasterPlaylist(mediaFileId));

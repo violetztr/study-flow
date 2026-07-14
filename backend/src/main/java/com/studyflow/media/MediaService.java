@@ -263,6 +263,17 @@ public class MediaService {
     }
 
     @Transactional(readOnly = true)
+    public String presignHlsMasterUrl(Long mediaFileId) {
+        MediaFile mediaFile = mediaFileMapper.selectById(mediaFileId);
+        if (mediaFile == null
+                || !hasText(mediaFile.getHlsMasterObjectKey())
+                || !TRANSCODE_READY.equals(mediaFile.getTranscodeStatus())) {
+            return null;
+        }
+        return presignGetUrl(mediaFile.getBucketName(), mediaFile.getHlsMasterObjectKey(), "application/vnd.apple.mpegurl");
+    }
+
+    @Transactional(readOnly = true)
     public String presignPublicMediaUrl(Long mediaFileId) {
         MediaFile mediaFile = mediaFileMapper.selectById(mediaFileId);
         if (mediaFile == null || !isPubliclyVisible(mediaFile)) {
@@ -881,6 +892,20 @@ public class MediaService {
     }
 
     private MediaUploadCompleteResponse toCompleteResponse(MediaFile mediaFile) {
+        List<MediaTranscodeVariantResponse> variants = Collections.emptyList();
+        if (FILE_TYPE_VIDEO.equals(mediaFile.getFileType())
+                && TRANSCODE_READY.equals(mediaFile.getTranscodeStatus())) {
+            variants = readyTranscodeVariants(mediaFile.getId()).stream()
+                    .map(variant -> new MediaTranscodeVariantResponse(
+                            variant.getQualityLabel(),
+                            variant.getWidth(),
+                            variant.getHeight(),
+                            variant.getBitrateKbps(),
+                            hlsVariantUrl(mediaFile.getId(), normalizeQualityPath(variant.getQualityLabel()))
+                    ))
+                    .toList();
+        }
+
         return new MediaUploadCompleteResponse(
                 mediaFile.getId(),
                 mediaFile.getFileType(),
@@ -890,7 +915,8 @@ public class MediaService {
                 publicMediaUrl(mediaFile.getId()),
                 mediaFile.getStatus(),
                 mediaFile.getTranscodeStatus(),
-                mediaFile.getTranscodeError()
+                mediaFile.getTranscodeError(),
+                variants
         );
     }
 
