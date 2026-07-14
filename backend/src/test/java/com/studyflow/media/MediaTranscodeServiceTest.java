@@ -161,7 +161,7 @@ class MediaTranscodeServiceTest {
         try {
             Method method = MediaTranscodeService.class.getDeclaredMethod(methodName, paramTypes);
             method.setAccessible(true);
-            return method.invoke(SERVICE, args);
+            return method.invoke(SERVICE, (Object[]) args);
         } catch (Exception e) {
             throw new AssertionError("Failed to invoke " + methodName, e);
         }
