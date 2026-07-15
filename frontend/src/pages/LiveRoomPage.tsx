@@ -1,10 +1,15 @@
 import { ArrowLeftOutlined, UserOutlined, EyeOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import { Button, Skeleton, Tag, Typography } from 'antd'
+import { Button, Skeleton, Tag, Typography, Switch } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Client } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
 import { getStoredUser } from '../api/auth'
-import { communityApi } from '../api/community'
+import { communityApi, type LiveMessageResponse } from '../api/community'
 import LivePlayer from '../components/community/LivePlayer'
+import LiveChat from '../components/community/LiveChat'
+import LiveDanmaku from '../components/community/LiveDanmaku'
 
 const { Text, Title } = Typography
 
@@ -19,6 +24,66 @@ function LiveRoomPage() {
     enabled: !!roomId,
     refetchInterval: 10_000,
   })
+
+  const [stompClient, setStompClient] = useState<Client | null>(null)
+  const [connected, setConnected] = useState(false)
+  const [danmakuEnabled, setDanmakuEnabled] = useState(true)
+  const clientRef = useRef<Client | null>(null)
+
+  useEffect(() => {
+    if (!roomId) return
+
+    const token = localStorage.getItem('token')
+    const wsUrl = `${window.location.protocol}//${window.location.host}/ws`
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(wsUrl),
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      debug: () => {},
+      onConnect: () => {
+        setConnected(true)
+      },
+      onDisconnect: () => {
+        setConnected(false)
+      },
+      onStompError: () => {
+        setConnected(false)
+      },
+      reconnectDelay: 5000,
+    })
+
+    client.activate()
+    clientRef.current = client
+    setStompClient(client)
+
+    return () => {
+      client.deactivate()
+    }
+  }, [roomId])
+
+  const sendMessage = useCallback(
+    (destination: string, body: Record<string, unknown>) => {
+      if (!clientRef.current || !clientRef.current.connected) return
+      clientRef.current.publish({ destination, body: JSON.stringify(body) })
+    },
+    []
+  )
+
+  const subscribe = useCallback(
+    (destination: string, callback: (message: LiveMessageResponse) => void) => {
+      if (!clientRef.current) return () => {}
+      const sub = clientRef.current.subscribe(destination, (msg) => {
+        try {
+          const body = JSON.parse(msg.body) as LiveMessageResponse
+          callback(body)
+        } catch {
+          // ignore parse errors
+        }
+      })
+      return () => sub.unsubscribe()
+    },
+    []
+  )
 
   if (roomQuery.isLoading) {
     return (
@@ -46,6 +111,7 @@ function LiveRoomPage() {
   const flvSrc = room.flvUrl || ''
   const hlsSrc = room.hlsUrl || ''
   const streamType: 'flv' | 'hls' = flvSrc ? 'flv' : 'hls'
+  const stompProxy = stompClient ? { send: sendMessage, subscribe } : null
 
   return (
     <section className="page-section live-room-page">
@@ -82,6 +148,12 @@ function LiveRoomPage() {
                   {new Date(room.startedAt).toLocaleTimeString()}
                 </Text>
               ) : null}
+              {isLive ? (
+                <span className="danmaku-toggle">
+                  <Text type="secondary" style={{ fontSize: 12 }}>弹幕</Text>
+                  <Switch size="small" checked={danmakuEnabled} onChange={setDanmakuEnabled} />
+                </span>
+              ) : null}
             </div>
           </div>
         </header>
@@ -90,12 +162,20 @@ function LiveRoomPage() {
           <main className="live-room-main">
             <div className="live-player-wrapper">
               {isLive ? (
-                <LivePlayer
-                  src={streamType === 'flv' ? flvSrc : hlsSrc}
-                  streamType={streamType}
-                  autoPlay
-                  muted={false}
-                />
+                <>
+                  <LivePlayer
+                    src={streamType === 'flv' ? flvSrc : hlsSrc}
+                    streamType={streamType}
+                    autoPlay
+                    muted={false}
+                  />
+                  <LiveDanmaku
+                    roomId={Number(roomId)}
+                    stompClient={stompProxy}
+                    connected={connected}
+                    enabled={danmakuEnabled}
+                  />
+                </>
               ) : (
                 <div className="live-offline-placeholder">
                   <Text type="secondary" style={{ fontSize: 18 }}>
@@ -103,6 +183,13 @@ function LiveRoomPage() {
                   </Text>
                 </div>
               )}
+            </div>
+            <div className="live-chat-area">
+              <LiveChat
+                roomId={Number(roomId)}
+                stompClient={stompProxy}
+                connected={connected}
+              />
             </div>
           </main>
 
@@ -167,11 +254,6 @@ function LiveRoomPage() {
                   峰值: {room.peakViewers} · 累计: {room.totalViews}
                 </Text>
               </div>
-            </div>
-
-            <div className="side-card">
-              <Title level={5}>聊天</Title>
-              <Text type="secondary">实时聊天将在下一阶段上线</Text>
             </div>
           </aside>
         </div>

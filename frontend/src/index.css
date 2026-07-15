@@ -2860,6 +2860,72 @@ textarea {
   margin-top: 12px;
 }
 
+.danmaku-toggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: 12px;
+}
+
+.live-danmaku-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 4;
+}
+
+.live-danmaku-item {
+  position: absolute;
+  right: -100%;
+  font-size: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  animation: danmaku-slide 8s linear forwards;
+  pointer-events: none;
+}
+
+.live-danmaku-author {
+  opacity: 0.8;
+  font-size: 12px;
+  margin-right: 2px;
+}
+
+.live-chat-area {
+  margin-top: 12px;
+}
+
+.live-chat {
+  display: flex;
+  flex-direction: column;
+  height: 280px;
+  border: 1px solid rgba(29, 37, 34, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.live-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.live-chat-item {
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.live-chat-input {
+  padding: 8px;
+  border-top: 1px solid rgba(29, 37, 34, 0.08);
+  background: #fafbf9;
+}
+
 @media (max-width: 900px) {
   .auth-page::before {
     inset: 14px;

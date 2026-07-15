@@ -214,6 +214,17 @@ export type BackgroundMediaType = 'IMAGE' | 'VIDEO'
   topicName?: string | null
 }
 
+export type LiveMessageResponse = {
+  id: number
+  roomId: number
+  userId: number
+  username: string | null
+  content: string
+  color: string
+  type: 'CHAT' | 'DANMAKU' | 'SYSTEM'
+  createdAt: string
+}
+
 export type LiveRoomResponse = {
   id: number
   userId: number
@@ -417,5 +428,10 @@ export const communityApi = {
   },
   createLiveRoom(request: LiveRoomRequest) {
     return http.post<unknown, LiveRoomResponse>('/live/rooms', request)
+  },
+  listLiveMessages(roomId: number, limit = 50) {
+    return http.get<unknown, LiveMessageResponse[]>(`/live/rooms/${roomId}/messages`, {
+      params: { limit },
+    })
   },
 }
