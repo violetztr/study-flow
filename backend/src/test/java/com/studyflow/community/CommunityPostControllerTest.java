@@ -382,6 +382,8 @@ class CommunityPostControllerTest {
         Long coldPostId = createPost(token, topicId, "phase6 cold post", "This one is newer but colder.");
         overwriteCounters(hotPostId, 9000, 100, 50, 20, 10);
         overwriteCounters(coldPostId, 1, 0, 0, 0, 0);
+        // clear Redis ranking ZSet so the query falls back to MySQL which has correct counters
+        redisCacheService.delete(RedisKeys.hotRanking());
 
         mockMvc.perform(get("/api/community/rankings/hot")
                         .header("Authorization", "Bearer " + token))
