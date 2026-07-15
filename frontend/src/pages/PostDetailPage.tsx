@@ -88,10 +88,6 @@ function togglePostFavorite(post: CommunityPostResponse) {
   }
 }
 
-function hasVideo(post: CommunityPostResponse) {
-  return post.contentType === 'VIDEO' || post.media.some((media) => media.fileType === 'VIDEO')
-}
-
 function shouldReportPlayback(playedSeconds: number, durationSeconds: number) {
   return playedSeconds >= 10 || (durationSeconds > 0 && playedSeconds * 5 >= durationSeconds)
 }
@@ -202,11 +198,6 @@ function PostDetailPage() {
     queryFn: () => communityApi.getProfile(postQuery.data!.authorId),
     enabled: Boolean(postQuery.data?.authorId),
     select: (profile) => profile.member,
-  })
-
-  const feedQuery = useQuery({
-    queryKey: ['community-feed'],
-    queryFn: communityApi.listFeed,
   })
 
   useEffect(() => {

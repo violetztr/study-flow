@@ -58,12 +58,11 @@ public class RedisCacheService {
     // ---- ZSet operations ----
 
     public Optional<Boolean> zadd(String key, String member, double score) {
-        return run("zadd", key, () -> Optional.of(redisTemplate.opsForZSet().add(key, member, score)));
+        return run("zadd", key, () -> redisTemplate.opsForZSet().add(key, member, score));
     }
 
     public Optional<Set<String>> zrevrange(String key, long start, long end) {
-        return run("zrevrange", key, () -> Optional.ofNullable(
-                redisTemplate.opsForZSet().reverseRange(key, start, end)));
+        return run("zrevrange", key, () -> redisTemplate.opsForZSet().reverseRange(key, start, end));
     }
 
     public void zremrangeByRank(String key, long start, long end) {

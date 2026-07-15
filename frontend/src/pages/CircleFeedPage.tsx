@@ -16,7 +16,7 @@ import { communityApi } from '../api/community'
 import type { CommunityPostResponse } from '../api/community'
 import PostCard from '../components/community/PostCard'
 
-type FeedChannel = 'live' | 'article' | 'video'
+type FeedChannel = 'live' | 'article' | 'video' | 'following'
 
 function hasVideo(post: CommunityPostResponse) {
   return post.contentType === 'VIDEO' || post.media.some((media) => media.fileType === 'VIDEO')
