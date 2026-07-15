@@ -10,6 +10,7 @@ import PostDetailPage from './pages/PostDetailPage'
 import MembersPage from './pages/MembersPage'
 import MemberProfilePage from './pages/MemberProfilePage'
 import CommunityAdminPage from './pages/CommunityAdminPage'
+import LiveRoomPage from './pages/LiveRoomPage'
 import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<AppLayout />}>
         <Route path="/circle" element={<CircleFeedPage />} />
+        <Route path="/circle/live/:roomId" element={<LiveRoomPage />} />
         <Route path="/circle/posts/:id" element={<PostDetailPage />} />
         <Route path="/circle/members/:id" element={<MemberProfilePage />} />
         <Route element={<ProtectedRoute />}>

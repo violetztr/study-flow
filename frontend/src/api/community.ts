@@ -207,6 +207,36 @@ export type BackgroundPlacement = 'PROFILE'
 
 export type BackgroundMediaType = 'IMAGE' | 'VIDEO'
 
+ export type LiveRoomRequest = {
+  title: string
+  coverUrl?: string | null
+  topicId?: number | null
+  topicName?: string | null
+}
+
+export type LiveRoomResponse = {
+  id: number
+  userId: number
+  username?: string | null
+  userAvatarUrl?: string | null
+  circleId: number
+  title: string
+  coverUrl?: string | null
+  topicId?: number | null
+  topicName?: string | null
+  streamKey?: string | null
+  status: 'WAITING' | 'LIVE' | 'ENDED' | string
+  startedAt?: string | null
+  endedAt?: string | null
+  peakViewers: number
+  totalViews: number
+  currentViewers: number
+  flvUrl?: string | null
+  hlsUrl?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export type BackgroundPresetResponse = {
   id: number
   placement: BackgroundPlacement
@@ -378,5 +408,14 @@ export const communityApi = {
   },
   unmuteMember(userId: number, request: ModerationRequest) {
     return http.post<unknown, void>(`/admin/community/members/${userId}/unmute`, request)
+  },
+  listLiveRooms() {
+    return http.get<unknown, LiveRoomResponse[]>('/live/rooms')
+  },
+  getLiveRoom(roomId: number) {
+    return http.get<unknown, LiveRoomResponse>(`/live/rooms/${roomId}`)
+  },
+  createLiveRoom(request: LiveRoomRequest) {
+    return http.post<unknown, LiveRoomResponse>('/live/rooms', request)
   },
 }

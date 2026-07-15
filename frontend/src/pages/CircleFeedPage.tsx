@@ -13,7 +13,7 @@ import { useDeferredValue, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
-import type { CommunityPostResponse } from '../api/community'
+import type { CommunityPostResponse, LiveRoomResponse } from '../api/community'
 import PostCard from '../components/community/PostCard'
 
 type FeedChannel = 'live' | 'article' | 'video' | 'following'
@@ -67,6 +67,13 @@ function CircleFeedPage() {
     queryKey: ['community-search', deferredKeyword],
     queryFn: () => communityApi.searchPosts(deferredKeyword),
     enabled: deferredKeyword.length > 0,
+  })
+
+  const liveRoomsQuery = useQuery({
+    queryKey: ['live-rooms'],
+    queryFn: communityApi.listLiveRooms,
+    enabled: activeChannel === 'live',
+    refetchInterval: 15_000,
   })
 
   const activeQuery = deferredKeyword.length > 0
@@ -186,10 +193,49 @@ function CircleFeedPage() {
 
           {activeQuery.isLoading ? <Skeleton active /> : null}
 
-          {!activeQuery.isLoading && activeChannel === 'live' ? (
-            <div className="channel-empty-card">
-              <strong>直播准备中</strong>
-            </div>
+          {activeChannel === 'live' && !liveRoomsQuery.isLoading ? (
+            liveRoomsQuery.data && liveRoomsQuery.data.length > 0 ? (
+              <div className="discovery-grid youtube-video-grid">
+                {liveRoomsQuery.data.map((room: LiveRoomResponse) => (
+                  <div
+                    key={room.id}
+                    className="live-room-card"
+                    onClick={() => navigate(`/circle/live/${room.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="live-room-cover">
+                      {room.coverUrl ? (
+                        <img src={room.coverUrl} alt={room.title} />
+                      ) : (
+                        <div className="live-room-cover-placeholder" />
+                      )}
+                      <span className="live-badge">直播中</span>
+                    </div>
+                    <div className="live-room-card-body">
+                      <div className="live-room-title">{room.title}</div>
+                      <div className="live-room-meta">
+                        <span>{room.username || '主播'}</span>
+                        <span>👁 {room.currentViewers}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="channel-empty-card">
+                <strong>当前没有直播</strong>
+                {user ? (
+                  <Button
+                    type="primary"
+                    size="small"
+                    style={{ marginTop: 8 }}
+                    onClick={goSubmit}
+                  >
+                    去开播
+                  </Button>
+                ) : null}
+              </div>
+            )
           ) : null}
 
           {!activeQuery.isLoading && activeChannel !== 'live' && visiblePosts.length === 0 ? (

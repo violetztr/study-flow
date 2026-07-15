@@ -35,6 +35,10 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers("/api/live/srs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/live/rooms",
+                                "/api/live/rooms/*"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/community/posts/*/views"
                         ).permitAll()
