@@ -20,8 +20,8 @@
 | 阶段 3 | DONE | Redis 高并发基础 | Redis 限流、缓存、防刷、计数 |
 | 阶段 4 | IN_PROGRESS | FFmpeg 转码和 HLS 播放 | FFmpeg、HLS、对象存储 |
 | 阶段 5 | IN_PROGRESS | 消息队列和异步任务 | RabbitMQ、异步转码、任务重试 |
-| 阶段 6 | IN_PROGRESS | 搜索、榜单和推荐雏形 | MySQL 搜索、Redis ZSet、Elasticsearch |
-| 阶段 7 | TODO | 直播基础 | SRS、RTMP、HTTP-FLV、WebSocket |
+| 阶段 6 | DONE | 搜索、榜单和推荐雏形 | MySQL 搜索、Redis ZSet、Elasticsearch |
+| 阶段 7 | NEXT | 直播基础 | SRS、RTMP、HTTP-FLV、WebSocket |
 | 阶段 8 | IN_PROGRESS | 监控、日志、备份、CI/CD | Prometheus、Grafana、GitHub Actions |
 | 阶段 9 | TODO | 模块化单体升级 | 领域边界、模块隔离、测试拆分 |
 | 阶段 10 | LATER | 微服务拆分 | Gateway、Nacos、服务通信、链路追踪 |
@@ -293,7 +293,7 @@
 
 ## 阶段 6：搜索、榜单和推荐雏形
 
-状态：`IN_PROGRESS`
+状态：`DONE`（2026-07-15）
 
 目标：
 
@@ -305,11 +305,11 @@
 - [x] 支持按标题、简介、话题、作者搜索。
 - [x] 增加热门榜单接口雏形。
 - [x] 前端支持搜索和最新/热门切换。
-- [ ] Redis ZSet 实现热门榜单。
-- [ ] 榜单按播放、点赞、投币、收藏加权。
-- [ ] 新增关注流，只看关注用户内容。
-- [ ] 新增同话题相关推荐。
-- [ ] 记录用户行为：曝光、点击、播放、点赞、收藏、关注。
+- [x] Redis ZSet 实现热门榜单。
+- [x] 榜单按播放、点赞、投币、收藏加权。
+- [x] 新增关注流，只看关注用户内容。
+- [x] 新增同话题相关推荐。
+- [x] 记录用户行为：曝光、点击、播放、点赞、收藏、关注。
 - [ ] 后期接 Elasticsearch 做全文搜索。
 
 验收标准：
@@ -324,9 +324,13 @@
 - Redis ZSet 排行榜。
 - 推荐系统先从规则开始。
 
+详细计划：[`docs/superpowers/plans/2026-07-15-ruru-phase-6-search-discovery.md`](docs/superpowers/plans/2026-07-15-ruru-phase-6-search-discovery.md)
+
 ## 阶段 7：直播基础
 
-状态：`IN_PROGRESS`
+状态：`NEXT`
+
+详细计划：[`docs/superpowers/plans/2026-07-15-ruru-phase-7-live-streaming.md`](docs/superpowers/plans/2026-07-15-ruru-phase-7-live-streaming.md)
 
 目标：
 
@@ -510,9 +514,9 @@
 
 1. 阶段 4：在线上用真实 R2 视频验证 FFmpeg/HLS。
 2. 阶段 5：补 RabbitMQ 自动重试、失败队列和任务幂等。
-3. 阶段 6：把热门榜单从 MySQL 加权升级到 Redis ZSet，并做相关推荐。
-4. 阶段 8：补数据库备份、恢复文档、日志 traceId 和基础监控。
-5. 阶段 7：直播基础。
+3. ~~阶段 6：把热门榜单从 MySQL 加权升级到 Redis ZSet，并做相关推荐。~~ ✅ 已完成
+4. 阶段 7：直播基础（SRS + RTMP + HTTP-FLV + WebSocket）。
+5. 阶段 8：补数据库备份、恢复文档、日志 traceId 和基础监控。
 
 已完成：
 
@@ -523,7 +527,8 @@
 - 阶段 3.5：互动计数缓存雏形。
 - 阶段 4：FFmpeg/HLS 代码链路、前端 HLS 播放、管理员重试接口和后台入口。
 - 阶段 5：RabbitMQ 队列骨架、转码任务生产者/消费者、本地事件降级。
-- 阶段 6：MySQL 搜索、热门榜单接口、前端搜索和最新/热门切换。
+- 阶段 6：MySQL 搜索、热门榜单接口、前端搜索和最新/热门切换 ✅
+- 阶段 6 完整实现：Redis ZSet 热门榜单、关注流、同话题相关推荐、用户行为记录 ✅（2026-07-15）
 - 阶段 8：后端健康检查、Docker healthcheck、GitHub Actions CI。
 
 每个阶段交付前的判断标准：
