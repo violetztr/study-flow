@@ -27,6 +27,10 @@ function getChannelPosts(channel: FeedChannel, posts: CommunityPostResponse[]) {
     return posts.filter((post) => post.contentType === 'LIVE')
   }
 
+  if (channel === 'following') {
+    return posts
+  }
+
   if (channel === 'video') {
     return posts.filter(hasVideo)
   }
