@@ -1,4 +1,4 @@
-提交了没-- V24: add live rooms table for Phase 7.2
+-- V24: add live rooms table for Phase 7.2
 CREATE TABLE IF NOT EXISTS live_rooms
 (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
