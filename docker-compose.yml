@@ -48,6 +48,24 @@ services:
       timeout: 5s
       retries: 10
 
+  srs:
+    image: ossrs/srs:5
+    container_name: study-flow-srs
+    restart: unless-stopped
+    ports:
+      - "1935:1935"
+      - "8085:8080"
+      - "1985:1985"
+    volumes:
+      - ./docker/srs/srs.conf:/usr/local/srs/conf/srs.conf:ro
+      - srs_data:/usr/local/srs/objs/nginx/html
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:1985/api/v1/versions"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   backend:
     build:
       context: ./backend
@@ -117,3 +135,4 @@ volumes:
   mysql_data:
   redis_data:
   rabbitmq_data:
+  srs_data:

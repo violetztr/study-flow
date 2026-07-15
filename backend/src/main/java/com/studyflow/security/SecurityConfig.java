@@ -34,6 +34,7 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
+                        .requestMatchers("/api/live/srs/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/community/posts/*/views"
                         ).permitAll()
