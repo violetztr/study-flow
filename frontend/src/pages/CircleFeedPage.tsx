@@ -7,8 +7,8 @@ import {
   PlaySquareOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, Empty, Input, Skeleton } from 'antd'
-import { useQuery } from '@tanstack/react-query'
+import { Alert, Button, Empty, Input, Skeleton, message } from 'antd'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
@@ -40,7 +40,9 @@ function getChannelPosts(channel: FeedChannel, posts: CommunityPostResponse[]) {
 
 function CircleFeedPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const user = getStoredUser()
+  const [messageApi, contextHolder] = message.useMessage()
   const [activeChannel, setActiveChannel] = useState<FeedChannel>('video')
   const [showHot, setShowHot] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -94,6 +96,25 @@ function CircleFeedPage() {
     navigate('/login', { state: { from: '/circle/posts/new' } })
   }
 
+  const createLiveMutation = useMutation({
+    mutationFn: () => communityApi.createLiveRoom({ title: '直播中' }),
+    onSuccess: (room) => {
+      queryClient.invalidateQueries({ queryKey: ['live-rooms'] })
+      navigate(`/circle/live/${room.id}`)
+    },
+    onError: () => {
+      void messageApi.error('创建直播间失败，请稍后重试')
+    },
+  })
+
+  function goLive() {
+    if (user) {
+      createLiveMutation.mutate()
+      return
+    }
+    navigate('/login', { state: { from: '/circle' } })
+  }
+
   function toggleHot() {
     setShowHot((current) => {
       const next = !current
@@ -106,7 +127,9 @@ function CircleFeedPage() {
   }
 
   return (
-    <section className="page-section feed-page discovery-page">
+    <>
+      {contextHolder}
+      <section className="page-section feed-page discovery-page">
       <div className="youtube-home-shell">
         <aside className="youtube-sidebar" aria-label="ruru 导航">
           <nav className="youtube-sidebar-nav">
@@ -229,7 +252,8 @@ function CircleFeedPage() {
                     type="primary"
                     size="small"
                     style={{ marginTop: 8 }}
-                    onClick={goSubmit}
+                    onClick={goLive}
+                    loading={createLiveMutation.isPending}
                   >
                     去开播
                   </Button>
@@ -256,6 +280,7 @@ function CircleFeedPage() {
         </main>
       </div>
     </section>
+    </>
   )
 }
 
