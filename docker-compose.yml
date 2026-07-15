@@ -52,6 +52,7 @@ services:
     image: ossrs/srs:5
     container_name: study-flow-srs
     restart: unless-stopped
+    command: ["./objs/srs", "-c", "conf/srs.conf"]
     ports:
       - "1935:1935"
       - "8085:8080"
