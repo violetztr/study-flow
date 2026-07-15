@@ -5,6 +5,7 @@ import com.studyflow.common.ApiResponse;
 import com.studyflow.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 @Component
+@ConditionalOnProperty(name = "study-flow.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
 public class RateLimitInterceptor implements HandlerInterceptor {
     private static final int HTTP_TOO_MANY_REQUESTS = 429;
 

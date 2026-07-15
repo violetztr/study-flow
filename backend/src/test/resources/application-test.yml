@@ -12,14 +12,9 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
-mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true
-  global-config:
-    db-config:
-      id-type: auto
-
 study-flow:
+  rate-limit:
+    enabled: false
   jwt:
     secret: study-flow-test-secret-key-with-enough-length-for-jjwt-signing
     expiration-minutes: 1440
@@ -41,3 +36,10 @@ study-flow:
     queue:
       enabled: false
       fallback-to-local-event: true
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
