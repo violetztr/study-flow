@@ -255,7 +255,7 @@ function LiveRoomPage() {
                   </Text>
                   <br />
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    推流地址: rtmp://服务器IP:1935/live/{room.streamKey}
+                    推流地址: rtmp://{window.location.hostname}:1935/live/{room.streamKey}
                   </Text>
                 </div>
               ) : null}
