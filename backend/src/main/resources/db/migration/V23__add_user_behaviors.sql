@@ -11,6 +11,4 @@ CREATE TABLE IF NOT EXISTS user_behaviors
     INDEX idx_user_created (user_id, created_at),
     INDEX idx_target_action (target_type, target_id, action),
     INDEX idx_created (created_at)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
+);

@@ -200,6 +200,12 @@ function PostDetailPage() {
     select: (profile) => profile.member,
   })
 
+  const relatedQuery = useQuery({
+    queryKey: ['community-related', postId],
+    queryFn: () => communityApi.listRelatedPosts(postId),
+    enabled: Number.isFinite(postId),
+  })
+
   useEffect(() => {
     viewReportedRef.current = false
     setCurrentSecond(0)
@@ -454,11 +460,6 @@ function PostDetailPage() {
   const selectedVideoSource = video?.url ?? ''
   const imageMedia = firstImages(post)
 
-  const relatedQuery = useQuery({
-    queryKey: ['community-related', postId],
-    queryFn: () => communityApi.listRelatedPosts(postId),
-    enabled: !!postId,
-  })
   const relatedPosts = relatedQuery.data ?? []
 
   const danmakuItems = danmakuQuery.data ?? []
