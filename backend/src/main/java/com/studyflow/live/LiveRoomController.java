@@ -36,6 +36,9 @@ public class LiveRoomController {
     public ApiResponse<List<LiveRoomResponse>> listLiveRooms(
             @AuthenticationPrincipal UserPrincipal principal
     ) {
+        if (principal == null) {
+            return ApiResponse.success(List.of());
+        }
         Long circleId = liveRoomService.defaultCircleId(principal.userId());
         return ApiResponse.success(liveRoomService.listLiveRooms(circleId));
     }
