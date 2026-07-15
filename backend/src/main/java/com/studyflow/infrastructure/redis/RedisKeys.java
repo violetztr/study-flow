@@ -33,6 +33,10 @@ public final class RedisKeys {
         return join("hot", "ranking", "all");
     }
 
+    public static String liveViewers(Long roomId) {
+        return join("live", "viewers", String.valueOf(roomId));
+    }
+
     private static String join(String... segments) {
         StringBuilder key = new StringBuilder(PREFIX);
         for (String segment : segments) {

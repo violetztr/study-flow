@@ -434,4 +434,7 @@ export const communityApi = {
       params: { limit },
     })
   },
+  heartbeatLiveRoom(roomId: number) {
+    return http.post<unknown, void>(`/live/rooms/${roomId}/heartbeat`)
+  },
 }

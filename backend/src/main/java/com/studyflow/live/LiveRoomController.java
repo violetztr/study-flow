@@ -17,9 +17,11 @@ import java.util.List;
 @RequestMapping("/api/live")
 public class LiveRoomController {
     private final LiveRoomService liveRoomService;
+    private final LiveViewerService liveViewerService;
 
-    public LiveRoomController(LiveRoomService liveRoomService) {
+    public LiveRoomController(LiveRoomService liveRoomService, LiveViewerService liveViewerService) {
         this.liveRoomService = liveRoomService;
+        this.liveViewerService = liveViewerService;
     }
 
     @PostMapping("/rooms")
@@ -45,5 +47,14 @@ public class LiveRoomController {
     ) {
         Long currentUserId = principal != null ? principal.userId() : null;
         return ApiResponse.success(liveRoomService.getLiveRoom(roomId, currentUserId));
+    }
+
+    @PostMapping("/rooms/{roomId}/heartbeat")
+    public ApiResponse<Void> heartbeat(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long roomId
+    ) {
+        liveViewerService.heartbeat(roomId, principal.userId());
+        return ApiResponse.success(null);
     }
 }

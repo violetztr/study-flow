@@ -25,15 +25,18 @@ public class LiveRoomService {
     private final CommunityMemberService communityMemberService;
     private final UserMapper userMapper;
     private final UserProfileMapper userProfileMapper;
+    private final LiveViewerService liveViewerService;
 
     public LiveRoomService(LiveRoomMapper liveRoomMapper,
                            CommunityMemberService communityMemberService,
                            UserMapper userMapper,
-                           UserProfileMapper userProfileMapper) {
+                           UserProfileMapper userProfileMapper,
+                           LiveViewerService liveViewerService) {
         this.liveRoomMapper = liveRoomMapper;
         this.communityMemberService = communityMemberService;
         this.userMapper = userMapper;
         this.userProfileMapper = userProfileMapper;
+        this.liveViewerService = liveViewerService;
     }
 
     @Transactional
@@ -121,6 +124,15 @@ public class LiveRoomService {
     private LiveRoomResponse toResponse(LiveRoom room, String username, String avatarUrl, Long currentUserId) {
         boolean isOwner = currentUserId != null && currentUserId.equals(room.getUserId());
         boolean isLive = "LIVE".equals(room.getStatus());
+
+        int currentViewers = 0;
+        if (isLive) {
+            currentViewers = liveViewerService.countViewers(room.getId());
+            liveViewerService.updatePeakIfNeeded(room.getId(), currentViewers);
+        }
+
+        int peakViewers = room.getPeakViewers() != null ? room.getPeakViewers() : 0;
+
         return new LiveRoomResponse(
                 room.getId(),
                 room.getUserId(),
@@ -135,9 +147,9 @@ public class LiveRoomService {
                 room.getStatus(),
                 room.getStartedAt(),
                 room.getEndedAt(),
-                room.getPeakViewers(),
+                peakViewers,
                 room.getTotalViews(),
-                0,
+                currentViewers,
                 isLive ? "/live/" + room.getStreamKey() + ".flv" : null,
                 isLive ? "/live/" + room.getStreamKey() + "/index.m3u8" : null,
                 room.getCreatedAt(),

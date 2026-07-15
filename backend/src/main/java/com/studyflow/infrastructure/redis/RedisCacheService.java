@@ -80,6 +80,17 @@ public class RedisCacheService {
         });
     }
 
+    public Optional<Long> zcard(String key) {
+        return run("zcard", key, () -> redisTemplate.opsForZSet().zCard(key));
+    }
+
+    public void zremrangeByScore(String key, double min, double max) {
+        run("zremrangeByScore", key, () -> {
+            redisTemplate.opsForZSet().removeRangeByScore(key, min, max);
+            return null;
+        });
+    }
+
     private <T> Optional<T> run(String operation, String key, Supplier<T> supplier) {
         try {
             return Optional.ofNullable(supplier.get());

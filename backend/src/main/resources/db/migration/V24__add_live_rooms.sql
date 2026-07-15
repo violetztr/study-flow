@@ -1,4 +1,4 @@
--- V24: add live rooms table for Phase 7.2
+提交了没-- V24: add live rooms table for Phase 7.2
 CREATE TABLE IF NOT EXISTS live_rooms
 (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -18,5 +18,5 @@ CREATE TABLE IF NOT EXISTS live_rooms
     updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_stream_key (stream_key),
     INDEX idx_circle_status (circle_id, status),
-    INDEX idx_user_created (user_id, created_at)
+    INDEX idx_live_room_user_created (user_id, created_at)
 );

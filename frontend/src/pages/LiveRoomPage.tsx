@@ -61,6 +61,23 @@ function LiveRoomPage() {
     }
   }, [roomId])
 
+  // Heartbeat: send every 15s while the room is live
+  useEffect(() => {
+    const room = roomQuery.data
+    if (!room || room.status !== 'LIVE' || !user) return
+
+    const interval = setInterval(() => {
+      communityApi.heartbeatLiveRoom(Number(roomId)).catch(() => {
+        // silently ignore heartbeat errors
+      })
+    }, 15_000)
+
+    // Send first heartbeat immediately
+    communityApi.heartbeatLiveRoom(Number(roomId)).catch(() => {})
+
+    return () => clearInterval(interval)
+  }, [roomId, roomQuery.data, user])
+
   const sendMessage = useCallback(
     (destination: string, body: Record<string, unknown>) => {
       if (!clientRef.current || !clientRef.current.connected) return
