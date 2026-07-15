@@ -237,6 +237,9 @@ export const communityApi = {
   listFeed() {
     return http.get<unknown, CommunityPostResponse[]>('/community/feed')
   },
+  listFollowingFeed() {
+    return http.get<unknown, CommunityPostResponse[]>('/community/feed/following')
+  },
   searchPosts(keyword: string) {
     return http.get<unknown, CommunityPostResponse[]>('/community/search', {
       params: { keyword },
@@ -244,6 +247,9 @@ export const communityApi = {
   },
   listHotRanking() {
     return http.get<unknown, CommunityPostResponse[]>('/community/rankings/hot')
+  },
+  listRelatedPosts(postId: number) {
+    return http.get<unknown, CommunityPostResponse[]>(`/community/posts/${postId}/related`)
   },
   listTopics() {
     return http.get<unknown, CommunityTopicResponse[]>('/community/topics')

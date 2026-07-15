@@ -55,6 +55,31 @@ public class RedisCacheService {
         });
     }
 
+    // ---- ZSet operations ----
+
+    public Optional<Boolean> zadd(String key, String member, double score) {
+        return run("zadd", key, () -> Optional.of(redisTemplate.opsForZSet().add(key, member, score)));
+    }
+
+    public Optional<Set<String>> zrevrange(String key, long start, long end) {
+        return run("zrevrange", key, () -> Optional.ofNullable(
+                redisTemplate.opsForZSet().reverseRange(key, start, end)));
+    }
+
+    public void zremrangeByRank(String key, long start, long end) {
+        run("zremrangeByRank", key, () -> {
+            redisTemplate.opsForZSet().removeRange(key, start, end);
+            return null;
+        });
+    }
+
+    public void zrem(String key, String member) {
+        run("zrem", key, () -> {
+            redisTemplate.opsForZSet().remove(key, member);
+            return null;
+        });
+    }
+
     private <T> Optional<T> run(String operation, String key, Supplier<T> supplier) {
         try {
             return Optional.ofNullable(supplier.get());

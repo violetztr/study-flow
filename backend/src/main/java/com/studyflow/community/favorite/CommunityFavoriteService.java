@@ -8,6 +8,7 @@ import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.post.CommunityPost;
 import com.studyflow.community.post.CommunityPostCounterService;
 import com.studyflow.community.post.CommunityPostMapper;
+import com.studyflow.community.ranking.CommunityPostRankingService;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,17 +28,20 @@ public class CommunityFavoriteService {
     private final CommunityPostMapper communityPostMapper;
     private final CommunityMemberService communityMemberService;
     private final CommunityPostCounterService communityPostCounterService;
+    private final CommunityPostRankingService communityPostRankingService;
 
     public CommunityFavoriteService(
             CommunityFavoriteMapper communityFavoriteMapper,
             CommunityPostMapper communityPostMapper,
             CommunityMemberService communityMemberService,
-            CommunityPostCounterService communityPostCounterService
+            CommunityPostCounterService communityPostCounterService,
+            CommunityPostRankingService communityPostRankingService
     ) {
         this.communityFavoriteMapper = communityFavoriteMapper;
         this.communityPostMapper = communityPostMapper;
         this.communityMemberService = communityMemberService;
         this.communityPostCounterService = communityPostCounterService;
+        this.communityPostRankingService = communityPostRankingService;
     }
 
     @Transactional
@@ -135,6 +139,7 @@ public class CommunityFavoriteService {
             throw new BusinessException(404, "帖子不存在");
         }
         communityPostCounterService.refreshPostCounter(postId);
+        communityPostRankingService.updateRanking(postId);
     }
 
     private void decrementPostFavoriteCount(Long postId, LocalDateTime now) {
@@ -144,5 +149,6 @@ public class CommunityFavoriteService {
                 .setSql("favorite_count = CASE WHEN favorite_count > 0 THEN favorite_count - 1 ELSE 0 END")
                 .set(CommunityPost::getUpdatedAt, now));
         communityPostCounterService.refreshPostCounter(postId);
+        communityPostRankingService.updateRanking(postId);
     }
 }

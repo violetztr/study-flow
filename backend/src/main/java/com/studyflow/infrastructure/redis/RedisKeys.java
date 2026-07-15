@@ -29,6 +29,10 @@ public final class RedisKeys {
         return join("counter", "post", String.valueOf(postId));
     }
 
+    public static String hotRanking() {
+        return join("hot", "ranking", "all");
+    }
+
     private static String join(String... segments) {
         StringBuilder key = new StringBuilder(PREFIX);
         for (String segment : segments) {

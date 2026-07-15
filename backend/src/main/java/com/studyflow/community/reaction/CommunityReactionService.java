@@ -8,6 +8,7 @@ import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.post.CommunityPost;
 import com.studyflow.community.post.CommunityPostCounterService;
 import com.studyflow.community.post.CommunityPostMapper;
+import com.studyflow.community.ranking.CommunityPostRankingService;
 import com.studyflow.wallet.PigWalletService;
 import com.studyflow.wallet.dto.UserWalletResponse;
 import org.springframework.dao.DuplicateKeyException;
@@ -32,19 +33,22 @@ public class CommunityReactionService {
     private final CommunityMemberService communityMemberService;
     private final PigWalletService pigWalletService;
     private final CommunityPostCounterService communityPostCounterService;
+    private final CommunityPostRankingService communityPostRankingService;
 
     public CommunityReactionService(
             CommunityReactionMapper communityReactionMapper,
             CommunityPostMapper communityPostMapper,
             CommunityMemberService communityMemberService,
             PigWalletService pigWalletService,
-            CommunityPostCounterService communityPostCounterService
+            CommunityPostCounterService communityPostCounterService,
+            CommunityPostRankingService communityPostRankingService
     ) {
         this.communityReactionMapper = communityReactionMapper;
         this.communityPostMapper = communityPostMapper;
         this.communityMemberService = communityMemberService;
         this.pigWalletService = pigWalletService;
         this.communityPostCounterService = communityPostCounterService;
+        this.communityPostRankingService = communityPostRankingService;
     }
 
     @Transactional
@@ -190,6 +194,7 @@ public class CommunityReactionService {
             throw new BusinessException(404, "帖子不存在");
         }
         communityPostCounterService.refreshPostCounter(postId);
+        communityPostRankingService.updateRanking(postId);
     }
 
     private void decrementPostReactionCount(Long postId, LocalDateTime now) {
@@ -199,6 +204,7 @@ public class CommunityReactionService {
                 .setSql("reaction_count = CASE WHEN reaction_count > 0 THEN reaction_count - 1 ELSE 0 END")
                 .set(CommunityPost::getUpdatedAt, now));
         communityPostCounterService.refreshPostCounter(postId);
+        communityPostRankingService.updateRanking(postId);
     }
 
     private void incrementPostPigCount(Long postId, LocalDateTime now) {
@@ -211,5 +217,6 @@ public class CommunityReactionService {
             throw new BusinessException(404, "帖子不存在");
         }
         communityPostCounterService.refreshPostCounter(postId);
+        communityPostRankingService.updateRanking(postId);
     }
 }

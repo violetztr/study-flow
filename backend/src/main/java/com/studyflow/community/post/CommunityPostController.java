@@ -35,6 +35,13 @@ public class CommunityPostController {
         return ApiResponse.success(communityPostService.listFeed(currentUserId(principal)));
     }
 
+    @GetMapping("/feed/following")
+    public ApiResponse<List<CommunityPostResponse>> listFollowingFeed(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ApiResponse.success(communityPostService.listFollowingFeed(currentUserId(principal)));
+    }
+
     @GetMapping("/search")
     public ApiResponse<List<CommunityPostResponse>> searchPosts(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -87,6 +94,14 @@ public class CommunityPostController {
             @PathVariable Long postId
     ) {
         return ApiResponse.success(communityPostService.getPost(currentUserId(principal), postId));
+    }
+
+    @GetMapping("/posts/{postId}/related")
+    public ApiResponse<List<CommunityPostResponse>> listRelatedPosts(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long postId
+    ) {
+        return ApiResponse.success(communityPostService.listRelatedPosts(currentUserId(principal), postId));
     }
 
     @PutMapping("/posts/{postId}")

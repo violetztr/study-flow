@@ -2,6 +2,7 @@ import {
   ClockCircleOutlined,
   FileTextOutlined,
   FireOutlined,
+  HeartOutlined,
   PlusOutlined,
   PlaySquareOutlined,
   VideoCameraOutlined,
@@ -46,6 +47,12 @@ function CircleFeedPage() {
     queryFn: communityApi.listFeed,
   })
 
+  const followingQuery = useQuery({
+    queryKey: ['community-feed-following'],
+    queryFn: communityApi.listFollowingFeed,
+    enabled: activeChannel === 'following' && deferredKeyword.length === 0,
+  })
+
   const hotQuery = useQuery({
     queryKey: ['community-rankings-hot'],
     queryFn: communityApi.listHotRanking,
@@ -58,7 +65,13 @@ function CircleFeedPage() {
     enabled: deferredKeyword.length > 0,
   })
 
-  const activeQuery = deferredKeyword.length > 0 ? searchQuery : showHot ? hotQuery : feedQuery
+  const activeQuery = deferredKeyword.length > 0
+    ? searchQuery
+    : showHot
+      ? hotQuery
+      : activeChannel === 'following'
+        ? followingQuery
+        : feedQuery
   const posts = activeQuery.data ?? []
   const visiblePosts = getChannelPosts(activeChannel, posts)
 
@@ -96,6 +109,18 @@ function CircleFeedPage() {
             >
               <PlaySquareOutlined /> 推荐
             </button>
+            {user ? (
+              <button
+                type="button"
+                className={activeChannel === 'following' ? 'active' : ''}
+                onClick={() => {
+                  setActiveChannel('following')
+                  setShowHot(false)
+                }}
+              >
+                <HeartOutlined /> 关注
+              </button>
+            ) : null}
             <button
               type="button"
               className={activeChannel === 'live' && !showHot ? 'active' : ''}

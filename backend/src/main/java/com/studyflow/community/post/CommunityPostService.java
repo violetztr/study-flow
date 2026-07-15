@@ -10,6 +10,8 @@ import com.studyflow.community.collection.CommunityCollectionMapper;
 import com.studyflow.community.danmaku.CommunityDanmaku;
 import com.studyflow.community.danmaku.CommunityDanmakuMapper;
 import com.studyflow.community.favorite.CommunityFavoriteService;
+import com.studyflow.community.follow.UserFollow;
+import com.studyflow.community.follow.UserFollowMapper;
 import com.studyflow.community.member.CommunityMemberService;
 import com.studyflow.community.member.UserProfile;
 import com.studyflow.community.member.UserProfileMapper;
@@ -20,6 +22,7 @@ import com.studyflow.community.post.dto.CommunityPostCollectionRequest;
 import com.studyflow.community.post.dto.CommunityPostCollectionResponse;
 import com.studyflow.community.post.dto.CommunityPostRequest;
 import com.studyflow.community.post.dto.CommunityPostResponse;
+import com.studyflow.community.ranking.CommunityPostRankingService;
 import com.studyflow.community.reaction.CommunityReactionService;
 import com.studyflow.community.topic.CommunityTopic;
 import com.studyflow.community.topic.CommunityTopicMapper;
@@ -31,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,6 +69,8 @@ public class CommunityPostService {
     private final CommunityFavoriteService communityFavoriteService;
     private final CommunityPostCacheService communityPostCacheService;
     private final CommunityPostCounterService communityPostCounterService;
+    private final CommunityPostRankingService communityPostRankingService;
+    private final UserFollowMapper userFollowMapper;
 
     public CommunityPostService(
             CommunityPostMapper communityPostMapper,
@@ -78,7 +84,9 @@ public class CommunityPostService {
             CommunityDanmakuMapper communityDanmakuMapper,
             CommunityFavoriteService communityFavoriteService,
             CommunityPostCacheService communityPostCacheService,
-            CommunityPostCounterService communityPostCounterService
+            CommunityPostCounterService communityPostCounterService,
+            CommunityPostRankingService communityPostRankingService,
+            UserFollowMapper userFollowMapper
     ) {
         this.communityPostMapper = communityPostMapper;
         this.communityCollectionMapper = communityCollectionMapper;
@@ -92,6 +100,8 @@ public class CommunityPostService {
         this.communityFavoriteService = communityFavoriteService;
         this.communityPostCacheService = communityPostCacheService;
         this.communityPostCounterService = communityPostCounterService;
+        this.communityPostRankingService = communityPostRankingService;
+        this.userFollowMapper = userFollowMapper;
     }
 
     public List<CommunityPostResponse> listFeed(Long userId) {
@@ -153,6 +163,14 @@ public class CommunityPostService {
     }
 
     public List<CommunityPostResponse> listHotRanking(Long userId) {
+        List<Long> rankingIds = communityPostRankingService.getRankingIds(1, 20);
+        if (!rankingIds.isEmpty()) {
+            return listPublishedPostsByIds(userId, rankingIds);
+        }
+        return listHotRankingFromDatabase(userId);
+    }
+
+    private List<CommunityPostResponse> listHotRankingFromDatabase(Long userId) {
         Circle circle = communityMemberService.getDefaultCircle();
         QueryWrapper<CommunityPost> wrapper = new QueryWrapper<CommunityPost>()
                 .eq("circle_id", circle.getId())
@@ -171,6 +189,72 @@ public class CommunityPostService {
                         LIMIT 20
                         """);
         return toResponses(communityPostMapper.selectList(wrapper), userId);
+    }
+
+    public List<CommunityPostResponse> listFollowingFeed(Long userId) {
+        if (userId == null) {
+            return Collections.emptyList();
+        }
+        Circle circle = communityMemberService.getDefaultCircle();
+        List<Long> followingIds = userFollowMapper.selectList(
+                        new LambdaQueryWrapper<UserFollow>()
+                                .eq(UserFollow::getFollowerId, userId)
+                                .select(UserFollow::getFollowingId))
+                .stream()
+                .map(UserFollow::getFollowingId)
+                .collect(Collectors.toList());
+        if (followingIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                .in(CommunityPost::getAuthorId, followingIds)
+                .orderByDesc(CommunityPost::getPinned)
+                .orderByDesc(CommunityPost::getLastActivityAt)
+                .orderByDesc(CommunityPost::getId));
+        return toResponses(posts, userId);
+    }
+
+    public List<CommunityPostResponse> listRelatedPosts(Long userId, Long postId) {
+        Circle circle = communityMemberService.getDefaultCircle();
+        CommunityPost current = communityPostMapper.selectOne(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getId, postId)
+                .eq(CommunityPost::getCircleId, circle.getId())
+                .eq(CommunityPost::getStatus, STATUS_PUBLISHED));
+        if (current == null) {
+            return Collections.emptyList();
+        }
+
+        List<CommunityPost> related = new ArrayList<>();
+        String topicName = current.getTopicName();
+        if (topicName != null && !topicName.isBlank()) {
+            related = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                    .eq(CommunityPost::getCircleId, circle.getId())
+                    .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                    .eq(CommunityPost::getTopicName, topicName)
+                    .ne(CommunityPost::getId, postId)
+                    .orderByDesc(CommunityPost::getPinned)
+                    .orderByDesc(CommunityPost::getLastActivityAt)
+                    .orderByDesc(CommunityPost::getId)
+                    .last("LIMIT 8"));
+        }
+
+        if (related.size() < 8) {
+            Set<Long> existingIds = related.stream().map(CommunityPost::getId).collect(Collectors.toSet());
+            existingIds.add(postId);
+            List<CommunityPost> latest = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                    .eq(CommunityPost::getCircleId, circle.getId())
+                    .eq(CommunityPost::getStatus, STATUS_PUBLISHED)
+                    .notIn(!existingIds.isEmpty(), CommunityPost::getId, existingIds)
+                    .orderByDesc(CommunityPost::getPinned)
+                    .orderByDesc(CommunityPost::getLastActivityAt)
+                    .orderByDesc(CommunityPost::getId)
+                    .last("LIMIT " + (8 - related.size())));
+            related.addAll(latest);
+        }
+
+        return toResponses(related, userId);
     }
 
     public CommunityPostResponse getPost(Long userId, Long postId) {
@@ -354,6 +438,7 @@ public class CommunityPostService {
             throw new BusinessException(404, "帖子不存在");
         }
         communityPostCacheService.evictFeedAndPost(postId);
+        communityPostRankingService.updateRanking(postId);
     }
 
     public void decrementCommentCount(Long postId, LocalDateTime now) {
@@ -362,6 +447,7 @@ public class CommunityPostService {
                 .setSql("comment_count = CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END")
                 .set(CommunityPost::getUpdatedAt, now));
         communityPostCacheService.evictFeedAndPost(postId);
+        communityPostRankingService.updateRanking(postId);
     }
 
     public void incrementViewCount(Long postId, LocalDateTime now) {
@@ -372,6 +458,7 @@ public class CommunityPostService {
                 .set(CommunityPost::getUpdatedAt, now));
         if (updated > 0) {
             communityPostCounterService.refreshPostCounter(postId);
+            communityPostRankingService.updateRanking(postId);
         }
     }
 

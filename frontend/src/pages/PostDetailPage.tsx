@@ -462,9 +462,14 @@ function PostDetailPage() {
   const video = firstVideo(post)
   const selectedVideoSource = video?.url ?? ''
   const imageMedia = firstImages(post)
-  const relatedVideos = (feedQuery.data ?? [])
-    .filter((item) => item.id !== post?.id && hasVideo(item))
-    .slice(0, 5)
+
+  const relatedQuery = useQuery({
+    queryKey: ['community-related', postId],
+    queryFn: () => communityApi.listRelatedPosts(postId),
+    enabled: !!postId,
+  })
+  const relatedPosts = relatedQuery.data ?? []
+
   const danmakuItems = danmakuQuery.data ?? []
   const activeDanmaku = danmakuVisible
     ? danmakuItems.filter(
@@ -515,10 +520,10 @@ function PostDetailPage() {
   function renderRelatedVideosCard() {
     return (
       <section className="side-card">
-        <div className="side-card-title">更多视频</div>
+        <div className="side-card-title">相关推荐</div>
         <div className="related-list">
-          {relatedVideos.length > 0 ? (
-            relatedVideos.map((item) => {
+          {relatedPosts.length > 0 ? (
+            relatedPosts.map((item) => {
               const relatedVideo = firstVideo(item)
               return (
                 <Link className="related-video" to={`/circle/posts/${item.id}`} key={item.id}>
@@ -539,7 +544,7 @@ function PostDetailPage() {
               )
             })
           ) : (
-            <p className="muted-text">还没有更多视频。</p>
+            <p className="muted-text">还没有相关内容。</p>
           )}
         </div>
       </section>
