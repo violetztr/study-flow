@@ -64,6 +64,15 @@ public class LiveRoomController {
         return ApiResponse.success(liveRoomService.updateCover(principal.userId(), roomId, coverUrl));
     }
 
+    @PutMapping("/rooms/{roomId}")
+    public ApiResponse<LiveRoomResponse> updateRoom(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long roomId,
+            @Valid @RequestBody LiveRoomRequest request
+    ) {
+        return ApiResponse.success(liveRoomService.updateRoom(principal.userId(), roomId, request));
+    }
+
     @PostMapping("/rooms/{roomId}/heartbeat")
     public ApiResponse<Void> heartbeat(
             @AuthenticationPrincipal UserPrincipal principal,

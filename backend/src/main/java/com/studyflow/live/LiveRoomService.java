@@ -107,6 +107,34 @@ public class LiveRoomService {
         return getLiveRoom(roomId, userId);
     }
 
+    @Transactional
+    public LiveRoomResponse updateRoom(Long userId, Long roomId, LiveRoomRequest request) {
+        LiveRoom room = liveRoomMapper.selectById(roomId);
+        if (room == null) {
+            throw new IllegalArgumentException("直播间不存在");
+        }
+        if (!room.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("只有主播可以修改直播间信息");
+        }
+
+        boolean changed = false;
+        if (request.title() != null && !request.title().isBlank()) {
+            room.setTitle(normalizeTitle(request.title()));
+            changed = true;
+        }
+        if (request.coverUrl() != null) {
+            room.setCoverUrl(request.coverUrl().isBlank() ? null : request.coverUrl().trim());
+            changed = true;
+        }
+
+        if (changed) {
+            room.setUpdatedAt(LocalDateTime.now());
+            liveRoomMapper.updateById(room);
+        }
+
+        return getLiveRoom(roomId, userId);
+    }
+
     public List<LiveRoomResponse> listLiveRooms(Long circleId) {
         List<LiveRoom> rooms = liveRoomMapper.selectList(
                 new LambdaQueryWrapper<LiveRoom>()

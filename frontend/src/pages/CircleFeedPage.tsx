@@ -8,13 +8,14 @@ import {
   VideoCameraOutlined,
 } from '@ant-design/icons'
 import { Alert, Button, Empty, Input, Skeleton, message } from 'antd'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
 import type { CommunityPostResponse, LiveRoomResponse } from '../api/community'
 import PostCard from '../components/community/PostCard'
+import LiveRoomSettingsModal from '../components/community/LiveRoomSettingsModal'
 
 type FeedChannel = 'live' | 'article' | 'video' | 'following'
 
@@ -47,6 +48,7 @@ function CircleFeedPage() {
   const [showHot, setShowHot] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
   const deferredKeyword = useDeferredValue(searchKeyword.trim())
+  const [goLiveModalOpen, setGoLiveModalOpen] = useState(false)
 
   const feedQuery = useQuery({
     queryKey: ['community-feed'],
@@ -96,23 +98,17 @@ function CircleFeedPage() {
     navigate('/login', { state: { from: '/circle/posts/new' } })
   }
 
-  const createLiveMutation = useMutation({
-    mutationFn: () => communityApi.createLiveRoom({ title: '直播中' }),
-    onSuccess: (room) => {
-      queryClient.invalidateQueries({ queryKey: ['live-rooms'] })
-      navigate(`/circle/live/${room.id}`)
-    },
-    onError: () => {
-      void messageApi.error('创建直播间失败，请稍后重试')
-    },
-  })
-
-  function goLive() {
-    if (user) {
-      createLiveMutation.mutate()
+  function handleGoLive() {
+    if (!user) {
+      navigate('/login', { state: { from: '/circle' } })
       return
     }
-    navigate('/login', { state: { from: '/circle' } })
+    setGoLiveModalOpen(true)
+  }
+
+  function handleLiveRoomCreated(room: LiveRoomResponse) {
+    queryClient.invalidateQueries({ queryKey: ['live-rooms'] })
+    navigate(`/circle/live/${room.id}`)
   }
 
   function toggleHot() {
@@ -221,8 +217,7 @@ function CircleFeedPage() {
               <Button
                 type="primary"
                 icon={<VideoCameraOutlined />}
-                onClick={goLive}
-                loading={createLiveMutation.isPending}
+                onClick={handleGoLive}
               >
                 去开播
               </Button>
@@ -276,6 +271,12 @@ function CircleFeedPage() {
         </main>
       </div>
     </section>
+
+    <LiveRoomSettingsModal
+      open={goLiveModalOpen}
+      onClose={() => setGoLiveModalOpen(false)}
+      onCreated={handleLiveRoomCreated}
+    />
     </>
   )
 }

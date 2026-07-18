@@ -429,6 +429,9 @@ export const communityApi = {
   createLiveRoom(request: LiveRoomRequest) {
     return http.post<unknown, LiveRoomResponse>('/live/rooms', request)
   },
+  updateLiveRoom(roomId: number, request: LiveRoomRequest) {
+    return http.put<unknown, LiveRoomResponse>(`/live/rooms/${roomId}`, request)
+  },
   updateLiveRoomCover(roomId: number, coverUrl: string) {
     return http.put<unknown, LiveRoomResponse>(`/live/rooms/${roomId}/cover`, { coverUrl })
   },
