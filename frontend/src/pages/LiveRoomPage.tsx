@@ -1,6 +1,6 @@
 import { ArrowLeftOutlined, UserOutlined, EyeOutlined, ClockCircleOutlined, EditOutlined } from '@ant-design/icons'
-import { Button, Skeleton, Tag, Typography, Switch, message } from 'antd'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Button, Skeleton, Tag, Typography, Switch } from 'antd'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Client } from '@stomp/stompjs'
@@ -20,7 +20,7 @@ function LiveRoomPage() {
   const navigate = useNavigate()
   const user = getStoredUser()
   const queryClient = useQueryClient()
-  const [messageApi, contextHolder] = message.useMessage()
+  const [, contextHolder] = message.useMessage()
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [editModalOpen, setEditModalOpen] = useState(false)
 

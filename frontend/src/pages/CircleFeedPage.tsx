@@ -7,7 +7,7 @@ import {
   PlaySquareOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, Empty, Input, Skeleton, message } from 'antd'
+import { Alert, Button, Empty, Input, Skeleton } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -43,7 +43,7 @@ function CircleFeedPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = getStoredUser()
-  const [messageApi, contextHolder] = message.useMessage()
+  const [, contextHolder] = message.useMessage()
   const [activeChannel, setActiveChannel] = useState<FeedChannel>('video')
   const [showHot, setShowHot] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
