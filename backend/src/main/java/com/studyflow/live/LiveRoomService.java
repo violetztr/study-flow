@@ -88,6 +88,25 @@ public class LiveRoomService {
         }
     }
 
+    @Transactional
+    public LiveRoomResponse updateCover(Long userId, Long roomId, String coverUrl) {
+        LiveRoom room = liveRoomMapper.selectById(roomId);
+        if (room == null) {
+            throw new IllegalArgumentException("直播间不存在");
+        }
+        if (!room.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("只有主播可以修改封面");
+        }
+        if (coverUrl == null || coverUrl.isBlank()) {
+            throw new IllegalArgumentException("封面地址不能为空");
+        }
+        room.setCoverUrl(coverUrl.trim());
+        room.setUpdatedAt(LocalDateTime.now());
+        liveRoomMapper.updateById(room);
+
+        return getLiveRoom(roomId, userId);
+    }
+
     public List<LiveRoomResponse> listLiveRooms(Long circleId) {
         List<LiveRoom> rooms = liveRoomMapper.selectList(
                 new LambdaQueryWrapper<LiveRoom>()

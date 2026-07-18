@@ -7,11 +7,13 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/live")
@@ -50,6 +52,16 @@ public class LiveRoomController {
     ) {
         Long currentUserId = principal != null ? principal.userId() : null;
         return ApiResponse.success(liveRoomService.getLiveRoom(roomId, currentUserId));
+    }
+
+    @PutMapping("/rooms/{roomId}/cover")
+    public ApiResponse<LiveRoomResponse> updateCover(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long roomId,
+            @RequestBody Map<String, String> body
+    ) {
+        String coverUrl = body.get("coverUrl");
+        return ApiResponse.success(liveRoomService.updateCover(principal.userId(), roomId, coverUrl));
     }
 
     @PostMapping("/rooms/{roomId}/heartbeat")

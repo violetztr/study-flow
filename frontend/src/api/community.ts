@@ -429,6 +429,9 @@ export const communityApi = {
   createLiveRoom(request: LiveRoomRequest) {
     return http.post<unknown, LiveRoomResponse>('/live/rooms', request)
   },
+  updateLiveRoomCover(roomId: number, coverUrl: string) {
+    return http.put<unknown, LiveRoomResponse>(`/live/rooms/${roomId}/cover`, { coverUrl })
+  },
   listLiveMessages(roomId: number, limit = 50) {
     return http.get<unknown, LiveMessageResponse[]>(`/live/rooms/${roomId}/messages`, {
       params: { limit },

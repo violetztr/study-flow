@@ -247,19 +247,21 @@ function CircleFeedPage() {
             ) : (
               <div className="channel-empty-card">
                 <strong>当前没有直播</strong>
-                {user ? (
-                  <Button
-                    type="primary"
-                    size="small"
-                    style={{ marginTop: 8 }}
-                    onClick={goLive}
-                    loading={createLiveMutation.isPending}
-                  >
-                    去开播
-                  </Button>
-                ) : null}
               </div>
             )
+          ) : null}
+
+          {activeChannel === 'live' && user ? (
+            <div className="channel-empty-card">
+              <Button
+                type="primary"
+                icon={<VideoCameraOutlined />}
+                onClick={goLive}
+                loading={createLiveMutation.isPending}
+              >
+                去开播
+              </Button>
+            </div>
           ) : null}
 
           {!activeQuery.isLoading && activeChannel !== 'live' && visiblePosts.length === 0 ? (

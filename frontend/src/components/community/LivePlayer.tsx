@@ -5,6 +5,7 @@ type LivePlayerProps = {
   streamType: 'flv' | 'hls'
   autoPlay?: boolean
   muted?: boolean
+  onVideoRef?: (el: HTMLVideoElement | null) => void
 }
 
 /**
@@ -12,8 +13,12 @@ type LivePlayerProps = {
  *
  * Uses mpegts.js for FLV (lighter than flv.js, same API) and hls.js for HLS.
  */
-function LivePlayer({ src, streamType, autoPlay = true, muted = false }: LivePlayerProps) {
+function LivePlayer({ src, streamType, autoPlay = true, muted = false, onVideoRef }: LivePlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    onVideoRef?.(videoRef.current)
+  }, [onVideoRef])
 
   useEffect(() => {
     const videoElement = videoRef.current

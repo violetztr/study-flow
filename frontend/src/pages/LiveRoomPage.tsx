@@ -1,22 +1,39 @@
-import { ArrowLeftOutlined, UserOutlined, EyeOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import { Button, Skeleton, Tag, Typography, Switch } from 'antd'
-import { useQuery } from '@tanstack/react-query'
+import { ArrowLeftOutlined, UserOutlined, EyeOutlined, ClockCircleOutlined, CameraOutlined, UploadOutlined } from '@ant-design/icons'
+import { Button, Skeleton, Tag, Typography, Switch, message, Upload } from 'antd'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { getStoredUser } from '../api/auth'
+import { AUTH_TOKEN_KEY } from '../api/http'
 import { communityApi, type LiveMessageResponse } from '../api/community'
+import { mediaApi } from '../api/media'
 import LivePlayer from '../components/community/LivePlayer'
 import LiveChat from '../components/community/LiveChat'
 import LiveDanmaku from '../components/community/LiveDanmaku'
 
 const { Text, Title } = Typography
 
+async function uploadCover(file: File) {
+  const prepareRes = await mediaApi.prepareUpload({
+    filename: file.name,
+    contentType: file.type,
+    fileSize: file.size,
+  })
+  await mediaApi.uploadToSignedUrl(prepareRes.uploadUrl, file, prepareRes.headers)
+  const completeRes = await mediaApi.completeUpload(prepareRes.mediaFileId)
+  return completeRes.url
+}
+
 function LiveRoomPage() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
   const user = getStoredUser()
+  const queryClient = useQueryClient()
+  const [messageApi, contextHolder] = message.useMessage()
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [coverUploading, setCoverUploading] = useState(false)
 
   const roomQuery = useQuery({
     queryKey: ['live-room', roomId],
@@ -33,7 +50,7 @@ function LiveRoomPage() {
   useEffect(() => {
     if (!roomId) return
 
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
     const wsUrl = `${window.location.protocol}//${window.location.host}/ws`
 
     const client = new Client({
@@ -77,6 +94,69 @@ function LiveRoomPage() {
 
     return () => clearInterval(interval)
   }, [roomId, roomQuery.data, user])
+
+  const updateCoverMutation = useMutation({
+    mutationFn: (coverUrl: string) =>
+      communityApi.updateLiveRoomCover(Number(roomId), coverUrl),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['live-room', roomId] })
+      void messageApi.success('封面已更新')
+    },
+    onError: () => {
+      void messageApi.error('封面更新失败')
+    },
+  })
+
+  const handleUploadCover = useCallback(
+    async (file: File) => {
+      setCoverUploading(true)
+      try {
+        const url = await uploadCover(file)
+        await updateCoverMutation.mutateAsync(url)
+      } catch {
+        void messageApi.error('封面上传失败')
+      } finally {
+        setCoverUploading(false)
+      }
+    },
+    [updateCoverMutation, messageApi]
+  )
+
+  const handleScreenshotCover = useCallback(async () => {
+    const video = videoRef.current
+    if (!video) {
+      void messageApi.warning('视频未加载')
+      return
+    }
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth || 1280
+      canvas.height = video.videoHeight || 720
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/jpeg', 0.85)
+      )
+      if (!blob) {
+        void messageApi.error('截图失败')
+        return
+      }
+
+      setCoverUploading(true)
+      try {
+        const url = await uploadCover(new File([blob], `live-cover-${roomId}.jpg`, { type: 'image/jpeg' }))
+        await updateCoverMutation.mutateAsync(url)
+      } catch {
+        void messageApi.error('封面上传失败')
+      } finally {
+        setCoverUploading(false)
+      }
+    } catch {
+      void messageApi.error('截图失败')
+    }
+  }, [roomId, updateCoverMutation, messageApi])
 
   const sendMessage = useCallback(
     (destination: string, body: Record<string, unknown>) => {
@@ -125,6 +205,7 @@ function LiveRoomPage() {
   }
 
   const isLive = room.status === 'LIVE'
+  const isHost = user?.id === room.userId
   const flvSrc = room.flvUrl || ''
   const hlsSrc = room.hlsUrl || ''
   const streamType: 'flv' | 'hls' = flvSrc ? 'flv' : 'hls'
@@ -132,6 +213,7 @@ function LiveRoomPage() {
 
   return (
     <section className="page-section live-room-page">
+      {contextHolder}
       <div className="live-room-shell">
         <header className="live-room-topbar">
           <Button
@@ -185,6 +267,7 @@ function LiveRoomPage() {
                     streamType={streamType}
                     autoPlay
                     muted={false}
+                    onVideoRef={(el) => { videoRef.current = el }}
                   />
                   <LiveDanmaku
                     roomId={Number(roomId)}
@@ -248,7 +331,7 @@ function LiveRoomPage() {
                 {room.topicName ? <Tag>{room.topicName}</Tag> : null}
               </div>
 
-              {room.streamKey && user?.id === room.userId ? (
+              {room.streamKey && isHost ? (
                 <div style={{ marginTop: 12 }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     推流密钥: {room.streamKey}
@@ -260,6 +343,52 @@ function LiveRoomPage() {
                 </div>
               ) : null}
             </div>
+
+            {isHost ? (
+              <div className="side-card">
+                <Title level={5}>封面设置</Title>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {room.coverUrl ? (
+                    <img
+                      src={room.coverUrl}
+                      alt="直播封面"
+                      style={{ width: '100%', borderRadius: 8, objectFit: 'cover', maxHeight: 120 }}
+                    />
+                  ) : (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      暂未设置封面，直播卡片将显示为空白
+                    </Text>
+                  )}
+                  <Upload
+                    accept="image/*"
+                    showUploadList={false}
+                    beforeUpload={(file) => {
+                      handleUploadCover(file as File)
+                      return false
+                    }}
+                  >
+                    <Button
+                      icon={<UploadOutlined />}
+                      size="small"
+                      loading={coverUploading}
+                      style={{ width: '100%' }}
+                    >
+                      上传封面图片
+                    </Button>
+                  </Upload>
+                  {isLive ? (
+                    <Button
+                      icon={<CameraOutlined />}
+                      size="small"
+                      loading={coverUploading}
+                      onClick={handleScreenshotCover}
+                    >
+                      截取当前画面作为封面
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
 
             <div className="side-card">
               <Title level={5}>数据</Title>
