@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined, UserOutlined, EyeOutlined, ClockCircleOutlined, EditOutlined } from '@ant-design/icons'
-import { Button, Skeleton, Tag, Typography, Switch } from 'antd'
+import { Button, message, Skeleton, Switch, Tag, Typography } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useRef, useState, useCallback } from 'react'
