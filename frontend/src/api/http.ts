@@ -1,4 +1,5 @@
 import axios, { type AxiosError } from 'axios'
+import { clearSession } from './auth'
 
 export type ApiResponse<T> = {
   code: number
@@ -12,6 +13,8 @@ export const http = axios.create({
   baseURL: '/api',
   timeout: 10000,
 })
+
+const LOGIN_PATH = '/login'
 
 function isApiResponse(value: unknown): value is ApiResponse<unknown> {
   return (
@@ -45,6 +48,16 @@ http.interceptors.response.use(
     return response.data
   },
   (error: AxiosError<ApiResponse<unknown>>) => {
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
+      clearSession()
+      if (window.location.pathname !== LOGIN_PATH) {
+        window.location.href = `${LOGIN_PATH}?redirect=${encodeURIComponent(window.location.pathname)}`
+      }
+    }
+
     const message =
       error.response?.data?.message || error.message || '网络请求失败'
     return Promise.reject(new Error(message))

@@ -26,7 +26,7 @@ mybatis-plus:
 study-flow:
   jwt:
     secret: ${STUDY_FLOW_JWT_SECRET:study-flow-local-development-secret-key-change-before-production}
-    expiration-minutes: ${STUDY_FLOW_JWT_EXPIRATION_MINUTES:1440}
+    expiration-minutes: ${STUDY_FLOW_JWT_EXPIRATION_MINUTES:10080}
   media:
     r2:
       account-id: ${R2_ACCOUNT_ID:}
