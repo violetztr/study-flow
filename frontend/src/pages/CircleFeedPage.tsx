@@ -216,43 +216,8 @@ function CircleFeedPage() {
 
           {activeQuery.isLoading ? <Skeleton active /> : null}
 
-          {activeChannel === 'live' && !liveRoomsQuery.isLoading ? (
-            liveRoomsQuery.data && liveRoomsQuery.data.length > 0 ? (
-              <div className="discovery-grid youtube-video-grid">
-                {liveRoomsQuery.data.map((room: LiveRoomResponse) => (
-                  <div
-                    key={room.id}
-                    className="live-room-card"
-                    onClick={() => navigate(`/circle/live/${room.id}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="live-room-cover">
-                      {room.coverUrl ? (
-                        <img src={room.coverUrl} alt={room.title} />
-                      ) : (
-                        <div className="live-room-cover-placeholder" />
-                      )}
-                      <span className="live-badge">直播中</span>
-                    </div>
-                    <div className="live-room-card-body">
-                      <div className="live-room-title">{room.title}</div>
-                      <div className="live-room-meta">
-                        <span>{room.username || '主播'}</span>
-                        <span>👁 {room.currentViewers}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="channel-empty-card">
-                <strong>当前没有直播</strong>
-              </div>
-            )
-          ) : null}
-
           {activeChannel === 'live' && user ? (
-            <div className="channel-empty-card">
+            <div style={{ marginBottom: 16 }}>
               <Button
                 type="primary"
                 icon={<VideoCameraOutlined />}
@@ -261,6 +226,35 @@ function CircleFeedPage() {
               >
                 去开播
               </Button>
+            </div>
+          ) : null}
+
+          {activeChannel === 'live' && !liveRoomsQuery.isLoading && liveRoomsQuery.data && liveRoomsQuery.data.length > 0 ? (
+            <div className="discovery-grid youtube-video-grid">
+              {liveRoomsQuery.data.map((room: LiveRoomResponse) => (
+                <div
+                  key={room.id}
+                  className="live-room-card"
+                  onClick={() => navigate(`/circle/live/${room.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="live-room-cover">
+                    {room.coverUrl ? (
+                      <img src={room.coverUrl} alt={room.title} />
+                    ) : (
+                      <div className="live-room-cover-placeholder" />
+                    )}
+                    <span className="live-badge">直播中</span>
+                  </div>
+                  <div className="live-room-card-body">
+                    <div className="live-room-title">{room.title}</div>
+                    <div className="live-room-meta">
+                      <span>{room.username || '主播'}</span>
+                      <span>👁 {room.currentViewers}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : null}
 
