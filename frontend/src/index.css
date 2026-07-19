@@ -3219,3 +3219,87 @@ textarea {
     grid-template-columns: 112px minmax(0, 1fr);
   }
 }
+
+/* ── Live room card ── */
+.live-room-card .discovery-cover {
+  background:
+    radial-gradient(circle at 72% 22%, rgba(220, 38, 38, 0.12), transparent 50%),
+    linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+}
+
+.live-room-card .discovery-cover img {
+  opacity: 0.92;
+}
+
+.live-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: rgba(220, 38, 38, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+.live-badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.25); }
+}
+
+.live-room-card .discovery-cover::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 48%;
+  pointer-events: none;
+  content: '';
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.62));
+}
+
+.live-cover-placeholder {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 38px;
+}
+
+.live-room-card .cover-metrics {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.live-room-card .discovery-author-row {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.live-room-card .host-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sf-muted);
+  font-size: 13px;
+}

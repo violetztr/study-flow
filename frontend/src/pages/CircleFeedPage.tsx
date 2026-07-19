@@ -1,16 +1,18 @@
 import {
   ClockCircleOutlined,
+  EyeOutlined,
   FileTextOutlined,
   FireOutlined,
   HeartOutlined,
   PlusOutlined,
   PlaySquareOutlined,
+  UserOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons'
 import { Alert, Button, Empty, Input, message, Skeleton } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDeferredValue, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/auth'
 import { communityApi } from '../api/community'
 import type { CommunityPostResponse, LiveRoomResponse } from '../api/community'
@@ -227,28 +229,33 @@ function CircleFeedPage() {
           {activeChannel === 'live' && !liveRoomsQuery.isLoading && liveRoomsQuery.data && liveRoomsQuery.data.length > 0 ? (
             <div className="discovery-grid youtube-video-grid">
               {liveRoomsQuery.data.map((room: LiveRoomResponse) => (
-                <div
-                  key={room.id}
-                  className="live-room-card"
-                  onClick={() => navigate(`/circle/live/${room.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="live-room-cover">
+                <article key={room.id} className="post-card discovery-card live-room-card">
+                  <Link to={`/circle/live/${room.id}`} className="discovery-cover">
                     {room.coverUrl ? (
-                      <img src={room.coverUrl} alt={room.title} />
+                      <img src={room.coverUrl} alt={room.title} loading="lazy" />
                     ) : (
-                      <div className="live-room-cover-placeholder" />
+                      <div className="live-cover-placeholder">
+                        <VideoCameraOutlined />
+                      </div>
                     )}
                     <span className="live-badge">直播中</span>
-                  </div>
-                  <div className="live-room-card-body">
-                    <div className="live-room-title">{room.title}</div>
-                    <div className="live-room-meta">
-                      <span>{room.username || '主播'}</span>
-                      <span>👁 {room.currentViewers}</span>
+                    <span className="cover-metrics">
+                      <span><EyeOutlined /> {room.currentViewers}</span>
+                    </span>
+                  </Link>
+
+                  <div className="discovery-card-body">
+                    <Link to={`/circle/live/${room.id}`} className="post-title-link">
+                      <h3>{room.title}</h3>
+                    </Link>
+
+                    <div className="discovery-author-row">
+                      <span className="host-name">
+                        <UserOutlined /> {room.username || '主播'}
+                      </span>
                     </div>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           ) : null}
