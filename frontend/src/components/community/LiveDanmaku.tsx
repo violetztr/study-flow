@@ -20,7 +20,8 @@ function LiveDanmaku({ roomId, stompClient, connected, enabled }: LiveDanmakuPro
     if (!stompClient || !connected) return
 
     const unsub = stompClient.subscribe(`/topic/live/${roomId}`, (msg) => {
-      if (msg.type !== 'DANMAKU' || !enabled) return
+      // Show both CHAT and DANMAKU messages as floating danmaku
+      if (!enabled || (msg.type !== 'DANMAKU' && msg.type !== 'CHAT')) return
       const key = keyRef.current++
       setActiveDanmaku((prev) => [...prev, { ...msg, key }])
       setTimeout(() => {

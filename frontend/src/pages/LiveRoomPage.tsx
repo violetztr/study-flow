@@ -40,7 +40,10 @@ function LiveRoomPage() {
     if (!roomId) return
 
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
-    const wsUrl = `${window.location.protocol}//${window.location.host}/ws`
+    // Pass token as URL query param because SockJS's connectHeaders
+    // are sent in the STOMP CONNECT frame, not in the HTTP upgrade
+    // handshake that JwtHandshakeInterceptor inspects.
+    const wsUrl = `${window.location.protocol}//${window.location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`
 
     const client = new Client({
       webSocketFactory: () => new SockJS(wsUrl),
