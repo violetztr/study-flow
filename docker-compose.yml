@@ -184,3 +184,5 @@ volumes:
   redis_data:
   rabbitmq_data:
   srs_data:
+  prometheus_data:
+  grafana_data:
