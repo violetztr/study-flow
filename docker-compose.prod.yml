@@ -4,9 +4,3 @@ services:
 
   frontend:
     image: ${IMAGE_REGISTRY:-ghcr.io/violetztr/study-flow}/frontend:${IMAGE_TAG:-latest}
-
-  prometheus:
-    image: prom/prometheus:v2.54.0
-
-  grafana:
-    image: grafana/grafana:11.1.0
