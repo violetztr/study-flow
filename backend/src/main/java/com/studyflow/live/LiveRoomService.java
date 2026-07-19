@@ -9,6 +9,7 @@ import com.studyflow.user.User;
 import com.studyflow.user.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,6 +86,42 @@ public class LiveRoomService {
             room.setUpdatedAt(LocalDateTime.now());
             liveRoomMapper.updateById(room);
             log.info("LiveRoom ended: id={}, streamKey={}", room.getId(), streamKey);
+        }
+    }
+
+    /**
+     * Periodically auto-end zombie live rooms where SRS's on_unpublish callback
+     * was missed (e.g., SRS crashed, Docker restarted, network blip).
+     * A room is considered zombie if:
+     * - status is "LIVE"
+     * - it has been live for more than 2 minutes (to avoid killing just-started streams)
+     * - it has zero active viewers (confirmed no stream is actually being pushed)
+     * Runs every 60 seconds.
+     */
+    @Scheduled(fixedDelay = 60_000)
+    @Transactional
+    public void autoEndZombieRooms() {
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(2);
+        List<LiveRoom> liveRooms = liveRoomMapper.selectList(
+                new LambdaQueryWrapper<LiveRoom>()
+                        .eq(LiveRoom::getStatus, "LIVE")
+                        .le(LiveRoom::getStartedAt, cutoff)
+        );
+
+        for (LiveRoom room : liveRooms) {
+            int viewers = liveViewerService.countViewers(room.getId());
+            if (viewers <= 0) {
+                room.setStatus("ENDED");
+                room.setEndedAt(LocalDateTime.now());
+                room.setUpdatedAt(LocalDateTime.now());
+                liveRoomMapper.updateById(room);
+                log.info("Zombie LiveRoom auto-ended: id={}, streamKey={}, was live since {}",
+                        room.getId(), room.getStreamKey(), room.getStartedAt());
+            }
+        }
+
+        if (!liveRooms.isEmpty()) {
+            log.debug("Zombie room scan: checked {} LIVE rooms", liveRooms.size());
         }
     }
 
