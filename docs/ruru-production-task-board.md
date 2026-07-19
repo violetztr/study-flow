@@ -21,8 +21,8 @@
 | 阶段 4 | IN_PROGRESS | FFmpeg 转码和 HLS 播放 | FFmpeg、HLS、对象存储 |
 | 阶段 5 | IN_PROGRESS | 消息队列和异步任务 | RabbitMQ、异步转码、任务重试 |
 | 阶段 6 | DONE | 搜索、榜单和推荐雏形 | MySQL 搜索、Redis ZSet、Elasticsearch |
-| 阶段 7 | NEXT | 直播基础 | SRS、RTMP、HTTP-FLV、WebSocket |
-| 阶段 8 | IN_PROGRESS | 监控、日志、备份、CI/CD | Prometheus、Grafana、GitHub Actions |
+| 阶段 7 | DONE | 直播基础 | SRS、RTMP、HTTP-FLV、WebSocket |
+| 阶段 8 | DONE | 监控、日志、备份、CI/CD | Prometheus、Grafana、GitHub Actions |
 | 阶段 9 | TODO | 模块化单体升级 | 领域边界、模块隔离、测试拆分 |
 | 阶段 10 | LATER | 微服务拆分 | Gateway、Nacos、服务通信、链路追踪 |
 | 阶段 11 | LATER | 生产级高可用 | CDN、防盗链、审计、回滚、备份演练 |
@@ -364,26 +364,26 @@
 
 ## 阶段 8：监控、日志、备份、CI/CD
 
-状态：`TODO`
+状态：`DONE`
 
 目标：
 
-让项目从“能部署”升级到“能运营”。
+让项目从"能部署"升级到"能运营"。
 
 任务：
 
 - [x] 增加后端健康检查接口。
 - [x] 增加 Docker healthcheck。
-- [ ] 接入 Prometheus。
-- [ ] 接入 Grafana。
-- [ ] 监控后端接口、MySQL、Redis、容器状态。
-- [ ] 增加请求 traceId。
-- [ ] 规范后端日志格式。
+- [x] 接入 Prometheus（Micrometer + Actuator + docker-compose）。
+- [x] 接入 Grafana（预置 Ruru Backend Overview 仪表板）。
+- [x] 监控后端接口、MySQL、Redis、容器状态。
+- [x] 增加请求 traceId（TraceIdFilter + MDC）。
+- [x] 规范后端日志格式（logback-spring.xml — 控制台 + JSON 文件）。
 - [x] 编写 MySQL 自动备份脚本。
 - [x] 编写恢复数据库说明。
 - [x] GitHub Actions 自动跑后端测试。
 - [x] GitHub Actions 自动跑前端 build 和 lint。
-- [ ] 编写部署回滚说明。
+- [x] 编写部署回滚说明（docs/rollback.md）。
 
 验收标准：
 

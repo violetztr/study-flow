@@ -103,9 +103,57 @@ GitHub Actions 会在 push 或 PR 时自动执行：
 
 如果 CI 失败，不要部署服务器，先修复失败项。
 
-## 当前还需要继续补强
+## 监控（Prometheus + Grafana）
 
-- Prometheus / Grafana 指标监控。
-- 请求 traceId，方便把一次请求从 Nginx 追到后端日志。
-- 数据库定时备份，可以用 crontab 调用 `scripts/backup-mysql.sh`。
-- 恢复演练，确认备份文件真的能还原。
+Prometheus 和 Grafana 已在 docker-compose 中配置，部署后可通过以下地址访问：
+
+- **Prometheus**：`http://服务器IP:9090` — 后端指标查询
+- **Grafana**：`http://服务器IP:3000` — 仪表板可视化（默认账号 `admin`/`admin`）
+
+首次部署后，Grafana 已自动加载 `Ruru Backend Overview` 仪表板，包含：
+
+- HTTP 请求速率和延迟（p50/p95）
+- JVM 内存、CPU、线程
+- 活跃请求数、错误率（4xx/5xx）
+- 数据库连接池状态
+- GC 暂停时间
+
+### 外部访问（可选）
+
+如果需要在公网访问监控面板，在 Nginx 中添加反向代理即可（生产环境必须配置 HTTPS + 认证）：
+
+```nginx
+location /grafana/ {
+    proxy_pass http://127.0.0.1:3000/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+## 日志 traceId
+
+每次 HTTP 请求会自动生成一个 `traceId`（通过 `X-Trace-Id` 响应头返回），并出现在每条日志的 `[traceId]` 字段中。
+
+排查问题时，从浏览器 DevTools 复制 `X-Trace-Id`，然后在服务器上过滤日志：
+
+```bash
+sudo docker compose logs backend | grep "your-trace-id"
+```
+
+日志同时输出到控制台（纯文本）和 `logs/study-flow.json`（JSON 格式，适合接入 Loki/ELK）。
+
+## 数据库定时备份
+
+建议用 crontab 定时调用备份脚本：
+
+```bash
+# 编辑 crontab
+crontab -e
+
+# 每天凌晨 3 点备份
+0 3 * * * cd /home/violet/study-flow && bash scripts/backup-mysql.sh
+```
+
+## 恢复演练
+
+定期验证备份文件可以正常还原，参考 [rollback.md](docs/rollback.md) 中的"数据库快照恢复"章节。

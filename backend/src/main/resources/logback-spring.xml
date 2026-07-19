@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!--
+        Structured logging configuration for Ruru backend.
+
+        Two appenders:
+          1. CONSOLE  — plain-text for local development (docker compose logs)
+          2. FILE-JSON — JSON lines for production log aggregation
+
+        The JSON format includes traceId, level, logger, thread, and message,
+        making it easy to ingest into ELK / Loki / any JSON-aware log platform.
+    -->
+
+    <springProperty name="APP_NAME" source="spring.application.name" defaultValue="study-flow"/>
+    <property name="LOG_DIR" value="${LOG_DIR:-./logs}"/>
+
+    <!-- =========== Plain-text console (dev-friendly) =========== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-no-trace}] %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- =========== JSON file (production log aggregation) =========== -->
+    <appender name="FILE-JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/study-flow.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/study-flow.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <customFields>{"app":"${APP_NAME}"}</customFields>
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+            </fieldNames>
+        </encoder>
+    </appender>
+
+    <!-- JSON lines fallback without logstash-logback-encoder -->
+    <appender name="FILE-JSON-SIMPLE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/study-flow.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/study-flow.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>{"@timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}","level":"%level","traceId":"%X{traceId:-no-trace}","logger":"%logger","thread":"%thread","message":"%replace(%msg){'\"','\\"'}","app":"${APP_NAME}"}%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Application loggers -->
+    <logger name="com.studyflow" level="INFO"/>
+    <logger name="com.studyflow.infrastructure.ratelimit" level="WARN"/>
+    <logger name="com.studyflow.live.LiveViewerService" level="DEBUG"/>
+
+    <!-- Quiet down noisy frameworks -->
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+    <logger name="com.baomidou.mybatisplus" level="WARN"/>
+    <logger name="org.flywaydb" level="INFO"/>
+    <logger name="io.lettuce" level="WARN"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE-JSON-SIMPLE"/>
+    </root>
+</configuration>
