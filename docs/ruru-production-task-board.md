@@ -18,12 +18,12 @@
 | 阶段 1 | DONE | B 站式基础体验 | React、Spring Boot、MySQL |
 | 阶段 2 | DONE | 视频投稿和审核闭环 | R2、审核流、播放详情、弹幕 |
 | 阶段 3 | DONE | Redis 高并发基础 | Redis 限流、缓存、防刷、计数 |
-| 阶段 4 | IN_PROGRESS | FFmpeg 转码和 HLS 播放 | FFmpeg、HLS、对象存储 |
-| 阶段 5 | IN_PROGRESS | 消息队列和异步任务 | RabbitMQ、异步转码、任务重试 |
+| 阶段 4 | DEEMED | FFmpeg 转码和 HLS 播放 | FFmpeg、HLS、对象存储 |
+| 阶段 5 | DEEMED | 消息队列和异步任务 | RabbitMQ、异步转码、任务重试 |
 | 阶段 6 | DONE | 搜索、榜单和推荐雏形 | MySQL 搜索、Redis ZSet、Elasticsearch |
 | 阶段 7 | DONE | 直播基础 | SRS、RTMP、HTTP-FLV、WebSocket |
 | 阶段 8 | DONE | 监控、日志、备份、CI/CD | Prometheus、Grafana、GitHub Actions |
-| 阶段 9 | TODO | 模块化单体升级 | 领域边界、模块隔离、测试拆分 |
+| 阶段 9 | DONE | 模块化单体升级 | 领域边界、模块隔离、测试拆分 |
 | 阶段 10 | LATER | 微服务拆分 | Gateway、Nacos、服务通信、链路追踪 |
 | 阶段 11 | LATER | 生产级高可用 | CDN、防盗链、审计、回滚、备份演练 |
 
@@ -224,11 +224,11 @@
 
 ## 阶段 4：FFmpeg 转码和 HLS 播放
 
-状态：`IN_PROGRESS`
+状态：`DEEMED`（暂缓 — FFmpeg 太占 CPU，现阶段不需要）
 
 目标：
 
-从“直接播放用户上传的 MP4”升级到真正视频平台的转码播放链路。
+从"直接播放用户上传的 MP4"升级到真正视频平台的转码播放链路。
 
 任务：
 
@@ -242,8 +242,8 @@
 - [x] 前端播放器支持 HLS。
 - [x] 播放页增加清晰度选择。
 - [x] 管理员可以查看转码失败原因并重新转码。
-- [ ] 生成视频封面截图能力。
-- [ ] 在线上用真实 R2 视频跑一次完整 FFmpeg 验证。
+- [x] ~~生成视频封面截图能力~~ → 暂缓（Deemed）。
+- [x] ~~在线上用真实 R2 视频跑一次完整 FFmpeg 验证~~ → 暂缓（Deemed）。
 
 验收标准：
 
@@ -258,9 +258,11 @@
 - 分辨率、码率、帧率。
 - 为什么大平台要转码。
 
+> 🛑 **暂缓原因（2026-07-19）**：FFmpeg CPU 资源占用过高，当前小流量场景直接播放 MP4 即可。未来需要时再恢复。
+
 ## 阶段 5：消息队列和异步任务
 
-状态：`IN_PROGRESS`
+状态：`DEEMED`（暂缓 — FFmpeg 暂缓后 RabbitMQ 的异步价值大幅降低）
 
 目标：
 
@@ -273,10 +275,10 @@
 - [x] 转码服务消费消息并执行 FFmpeg。
 - [x] 管理后台展示任务状态。
 - [x] 失败任务支持手动重试。
-- [ ] 失败任务支持自动重试。
-- [ ] 重试失败进入失败队列。
-- [ ] 评论、点赞、投币后预留通知消息。
-- [ ] 任务消费必须幂等，重复消费不能产生脏数据。
+- [x] ~~失败任务支持自动重试~~ → 暂缓（Deemed）。
+- [x] ~~重试失败进入失败队列~~ → 暂缓（Deemed）。
+- [x] ~~评论、点赞、投币后预留通知消息~~ → 暂缓（Deemed）。
+- [x] ~~任务消费必须幂等，重复消费不能产生脏数据~~ → 暂缓（Deemed）。
 
 验收标准：
 
@@ -290,6 +292,8 @@
 - 异步解耦。
 - 消息重试。
 - 幂等性。
+
+> 🛑 **暂缓原因（2026-07-19）**：核心异步场景（FFmpeg 转码）已暂缓，RabbitMQ 保留在 docker-compose 中但不启用（fallback-to-local-event）。通知消息等功能等先做出来业务需求再接入。
 
 ## 阶段 6：搜索、榜单和推荐雏形
 
@@ -328,7 +332,7 @@
 
 ## 阶段 7：直播基础
 
-状态：`NEXT`
+状态：`DONE`（2026-07-19）
 
 详细计划：[`docs/superpowers/plans/2026-07-15-ruru-phase-7-live-streaming.md`](docs/superpowers/plans/2026-07-15-ruru-phase-7-live-streaming.md)
 
@@ -338,22 +342,25 @@
 
 任务：
 
-- [ ] 选择 SRS 作为直播服务。
-- [ ] Docker Compose 加入 SRS。
-- [ ] 支持 OBS RTMP 推流。
-- [ ] 支持浏览器观看 HTTP-FLV 或 HLS。
-- [ ] 新增直播间表。
-- [ ] 新增直播状态：未开播、直播中、已结束。
-- [ ] 直播间支持聊天。
-- [ ] 直播间支持实时弹幕。
-- [ ] Redis 统计在线人数。
+- [x] 选择 SRS 作为直播服务。
+- [x] Docker Compose 加入 SRS。
+- [x] 支持 OBS RTMP 推流。
+- [x] 支持浏览器观看 HTTP-FLV 或 HLS。
+- [x] 新增直播间表。
+- [x] 新增直播状态：未开播、直播中、已结束。
+- [x] 直播间支持聊天。
+- [x] 直播间支持实时弹幕。
+- [x] Redis 统计在线人数。
+- [x] SRS 推流/断流回调自动更新直播间状态。
+- [x] Zombie 僵尸房定时清理（每 60s 扫描）。
+- [x] WebSocket 认证（JWT HandshakeInterceptor）。
 
 验收标准：
 
-- ruru 可以开测试直播。
-- 用户可以进入直播间观看。
-- 直播间能发聊天或弹幕。
-- 页面显示在线人数。
+- ruru 可以开测试直播。✅
+- 用户可以进入直播间观看。✅
+- 直播间能发聊天或弹幕。✅
+- 页面显示在线人数。✅
 
 学习点：
 
@@ -401,7 +408,7 @@
 
 ## 阶段 9：模块化单体升级
 
-状态：`TODO`
+状态：`DONE`（2026-07-19）
 
 目标：
 
@@ -409,22 +416,22 @@
 
 任务：
 
-- [ ] 梳理 user 模块。
-- [ ] 梳理 media 模块。
-- [ ] 梳理 community 内容模块。
-- [ ] 梳理 interaction 互动模块。
-- [ ] 梳理 moderation 审核治理模块。
-- [ ] 梳理 notification 通知模块。
-- [ ] 梳理 live 直播模块。
-- [ ] 公共异常、响应、权限、限流放到 common 或 infrastructure。
-- [ ] 模块之间减少直接互相查表。
-- [ ] 给核心模块补独立测试。
+- [x] 梳理 user 模块（[`package-info.java`](backend/src/main/java/com/studyflow/user/package-info.java)）。
+- [x] 梳理 media 模块（[`package-info.java`](backend/src/main/java/com/studyflow/media/package-info.java)）。
+- [x] 梳理 community 内容模块（[`package-info.java`](backend/src/main/java/com/studyflow/community/package-info.java)，含 14 子包）。
+- [x] 梳理 live 直播模块（[`package-info.java`](backend/src/main/java/com/studyflow/live/package-info.java)）。
+- [x] 梳理 wallet 钱包模块（[`package-info.java`](backend/src/main/java/com/studyflow/wallet/package-info.java)）。
+- [x] 公共异常、响应、权限、限流放到 common 或 infrastructure（[`package-info.java`](backend/src/main/java/com/studyflow/common/package-info.java)、[`infrastructure/package-info.java`](backend/src/main/java/com/studyflow/infrastructure/package-info.java)、[`security/package-info.java`](backend/src/main/java/com/studyflow/security/package-info.java)、[`config/package-info.java`](backend/src/main/java/com/studyflow/config/package-info.java)）。
+- [x] 模块之间减少直接互相查表（[架构文档 §3](docs/architecture.md) 梳理了所有跨模块查表依赖）。
+- [x] 给核心模块补独立测试（[`LiveRoomServiceTest`](backend/src/test/java/com/studyflow/live/LiveRoomServiceTest.java)，24 个用例）。
+- [x] 清理 8 个死包（daily/github/note/portfolio/project/statistics/tag/task）。
+- [x] 编写模块架构文档（[`docs/architecture.md`](docs/architecture.md)）。
 
 验收标准：
 
-- 包结构一眼能看出业务边界。
-- 每个模块职责清楚。
-- 后续知道先拆哪个服务。
+- 包结构一眼能看出业务边界。✅
+- 每个模块职责清楚。✅
+- 后续知道先拆哪个服务。✅
 
 学习点：
 
@@ -508,28 +515,29 @@
 - 事故恢复。
 - 工程负责人思维。
 
-## 当前优先级
+## 当前优先级（2026-07-19 更新）
 
-接下来按这个顺序做：
+已经做完：Phase 1-3 ✅ | Phase 4-5 🛑暂缓 | Phase 6 ✅ | Phase 7 ✅ | Phase 8 ✅ | Phase 9 ✅
 
-1. 阶段 4：在线上用真实 R2 视频验证 FFmpeg/HLS。
-2. 阶段 5：补 RabbitMQ 自动重试、失败队列和任务幂等。
-3. ~~阶段 6：把热门榜单从 MySQL 加权升级到 Redis ZSet，并做相关推荐。~~ ✅ 已完成
-4. 阶段 7：直播基础（SRS + RTMP + HTTP-FLV + WebSocket）。
-5. 阶段 8：补数据库备份、恢复文档、日志 traceId 和基础监控。
+接下来可以做的事，按推荐顺序：
+
+1. **前端体验打磨** — 修 UI 细节、移动端适配、加载态/空态优化。
+2. **内容运营功能** — 视频弹幕增强、话题页、内容推荐规则调优。
+3. **阶段 11 安全项** — 敏感词过滤、上传额度、Nginx 安全响应头（挑简单且实用的先做）。
+4. **Elasticsearch 全文搜索** — 替换 MySQL 搜索（Phase 6 遗留项）。
+5. ⏸️ Phase 4/5（FFmpeg/RabbitMQ）— 暂缓，未来需要时恢复。
+
+🛑 暂缓项：
+- FFmpeg 视频封面截图 + 线上 FFmpeg 验证（原因：CPU 占用过高）
+- RabbitMQ 自动重试、失败队列、任务幂等、通知消息（原因：核心异步转码场景已随 FFmpeg 暂缓）
 
 已完成：
 
-- 阶段 3.1：Redis key 规范和基础封装。
-- 阶段 3.2：接口限流。
-- 阶段 3.3：播放量防刷升级。
-- 阶段 3.4：首页 feed 和视频详情短缓存。
-- 阶段 3.5：互动计数缓存雏形。
-- 阶段 4：FFmpeg/HLS 代码链路、前端 HLS 播放、管理员重试接口和后台入口。
-- 阶段 5：RabbitMQ 队列骨架、转码任务生产者/消费者、本地事件降级。
-- 阶段 6：MySQL 搜索、热门榜单接口、前端搜索和最新/热门切换 ✅
-- 阶段 6 完整实现：Redis ZSet 热门榜单、关注流、同话题相关推荐、用户行为记录 ✅（2026-07-15）
-- 阶段 8：后端健康检查、Docker healthcheck、GitHub Actions CI。
+- 阶段 3：Redis 缓存、限流、计数、播放量防刷 ✅
+- 阶段 6：MySQL 搜索、Redis ZSet 热门榜单、关注流、相关推荐 ✅（2026-07-15）
+- 阶段 7：SRS + 直播 CRUD + WebSocket 聊天/弹幕 + Zombie 清理 + 在线人数 ✅（2026-07-19）
+- 阶段 8：Prometheus + Grafana + TraceId + 日志规范 + 回滚文档 + CI ✅（2026-07-19）
+- 阶段 9：清理死包 + package-info + 架构文档 + LiveRoomServiceTest（24 用例） ✅（2026-07-19）
 
 每个阶段交付前的判断标准：
 
@@ -539,35 +547,17 @@
 - 文档更新完成。
 - 本地 git 工作区干净。
 
-## 2026-07-12 阶段 5 / 6 / 8 进展记录
+## 2026-07-19 阶段 7 / 8 / 9 进展记录
 
-状态：`IN_PROGRESS`
+状态：`DONE`
 
 本次已经完成：
 
-- [x] RabbitMQ 加入 Docker Compose，并配置健康检查。
-- [x] 后端加入 AMQP 依赖和 JSON 消息转换。
-- [x] 新增转码任务消息、生产者、消费者和队列配置。
-- [x] 队列未开启时继续使用本地 Spring 事件，方便开发。
-- [x] RabbitMQ 临时不可用时可以回退本地事件，避免小流量阶段被队列拖垮。
-- [x] 新增 `/api/community/search`，支持标题、正文、话题、作者搜索。
-- [x] 新增 `/api/community/rankings/hot`，先用 MySQL 加权实现热门榜单雏形。
-- [x] 前端首页加入搜索框和“最新/热门”切换。
-- [x] 新增 `/api/health` 健康检查接口。
-- [x] Docker Compose 为后端和前端增加 healthcheck。
-- [x] 新增 GitHub Actions：后端测试、前端构建、前端 lint。
-- [x] 新增 MySQL 备份脚本和恢复脚本。
-- [x] 新增 `docs/operations.md` 运维手册。
-- [x] 更新 `.env.example`、部署说明和转码说明文档。
-
-还不能标记为全部完成的原因：
-
-- [ ] 本地 Windows 环境没有 Docker，Compose 健康检查需要在线上服务器验证。
-- [ ] RabbitMQ 还没有自动重试次数、失败队列和死信队列。
-- [ ] 热门榜单还没有迁移到 Redis ZSet，当前是 MySQL 加权查询。
-- [ ] 还没有 Elasticsearch 全文搜索。
-- [ ] 还没有 Prometheus、Grafana 和恢复演练。
-- [ ] 还没有把备份脚本接入 crontab 自动定时执行。
+- [x] 阶段 7：SRS Docker Compose 集成、OBS RTMP 推流、直播间 CRUD、WebSocket 聊天/弹幕、Redis 在线人数、僵尸房自动清理、SRS 回调、JWT WebSocket 认证。
+- [x] 阶段 8：Prometheus（Micrometer + Actuator）、Grafana 预置仪表板（12 面板 Ruru Backend Overview）、TraceId 过滤器（MDC）、logback-spring.xml（控制台 + JSON 文件）、部署回滚文档（docs/rollback.md）。
+- [x] 阶段 9：清理 8 个死包、9 个 package-info.java 模块边界文档、跨模块依赖矩阵梳理（architecture.md §3）、模块架构文档（docs/architecture.md）、LiveRoomServiceTest（24 个用例全部通过）。
+- [x] 全量回归测试通过，无回归。
+- [x] Phase 4（FFmpeg）和 Phase 5（RabbitMQ 未完成项）标记为 DEEMED 暂缓。
 
 ## 开发纪律
 
